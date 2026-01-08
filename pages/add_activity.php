@@ -24,8 +24,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $workplace_application = trim($_POST['workplace_application']);
     $reflection = trim($_POST['reflection']);
 
-    if (empty($title) || empty($date_attended)) {
-        $message = "Title and Date are required.";
+    if (empty($title) || empty($date_attended) || empty($conducted_by)) {
+        $message = "Title, Date, and Conducted By are required.";
         $messageType = "error";
     } else {
         // Handle Signatures
@@ -62,6 +62,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 $decodedData = base64_decode($data);
                 $fileName = uniqid() . '_' . $prefix . '_signature.png';
                 $filePath = '../uploads/signatures/' . $fileName;
+                if (!is_dir(dirname($filePath))) {
+                    mkdir(dirname($filePath), 0777, true);
+                }
                 if (file_put_contents($filePath, $decodedData)) {
                     return 'uploads/signatures/' . $fileName;
                 }
@@ -76,6 +79,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         // Server-side validation for mandatory signature
         if (empty($signature_path)) {
             $message = "Attestation signature is required.";
+            $messageType = "error";
+        } elseif (empty($organizer_signature_path)) {
+            $message = "Organizer/Conducted By signature is required.";
             $messageType = "error";
         } elseif (empty($approved_by)) {
             $message = "Name of Immediate Head is required.";
@@ -183,7 +189,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                             <div class="form-group" style="margin-top: 15px;">
                                 <label>Conducted by:</label>
                                 <input type="text" name="conducted_by" id="conducted_by" class="form-control"
-                                    placeholder="Name of organizer">
+                                    placeholder="Name of organizer" required>
                             </div>
                             <!-- Organizer Signature Pad -->
                             <div id="organizer-signature-section"
@@ -483,30 +489,32 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
         function submitForm() {
             var form = document.querySelector('form');
+            let missingFields = [];
 
-            // Basic field validation
+            // Basic key fields validation
             const title = form.querySelector('[name="title"]').value.trim();
             const date = form.querySelector('[name="date_attended"]').value.trim();
+            const conductedBy = form.querySelector('[name="conducted_by"]').value.trim();
 
-            if (!title || !date) {
-                showToast("Required Fields", "Please fill in the Activity Title and Date.", "error");
-                return;
-            }
+            if (!title) missingFields.push("Title");
+            if (!date) missingFields.push("Date");
+            if (!conductedBy) missingFields.push("Conducted By");
 
             // --- Workplace Application Validation ---
             const workplaceText = form.querySelector('[name="workplace_application"]').value.trim();
             const workplaceFile = document.getElementById('workplace_image');
-            const method = form.querySelector('[name="workplace_method"]:checked').value;
 
-            let hasWorkplace = false;
             // Check based on active method, but accept either if data exists
-            if (workplaceText !== '' || workplaceFile.files.length > 0) {
-                hasWorkplace = true;
+            if (workplaceText === '' && workplaceFile.files.length === 0) {
+                missingFields.push("Workplace Application (Text or Image)");
             }
 
-            if (!hasWorkplace) {
-                showToast("Mandatory Input", "Please provide either a Text description or an Image for the Workplace Application.", "error");
-                return;
+            // --- Organizer Signature Validation (Required since Conducted By is required) ---
+            const orgData = document.getElementById('organizer_signature_data').value;
+            const orgFile = document.getElementById('org-sig-file');
+
+            if (!orgData && orgFile.files.length === 0) {
+                missingFields.push("Organizer Signature");
             }
 
             // --- Attestation Validation ---
@@ -514,14 +522,24 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             const attestFile = document.getElementById('sig-file');
 
             if (!attestData && attestFile.files.length === 0) {
-                showToast("Missing Signature", "Attestation is required. Please draw or upload a signature.", "error");
+                missingFields.push("Attestation Signature");
+            }
+
+            const approvedBy = form.querySelector('[name="approved_by"]').value.trim();
+            if (!approvedBy) {
+                missingFields.push("Name of Immediate Head");
+            }
+
+            // If there are missing fields, show specific errors
+            if (missingFields.length > 0) {
+                const errorMsg = "Please fill in the following required fields: " + missingFields.join(", ") + ".";
+                showToast("Required Fields", errorMsg, "error");
                 return;
             }
 
-            // --- Handle Organizer Signature logic (existing) ---
-            const orgData = document.getElementById('organizer_signature_data').value;
-            const orgFile = document.getElementById('org-sig-file');
+            // --- Prepare File Inputs for Submission ---
 
+            // Handle Organizer Signature logic
             if (!orgData && orgFile.files.length > 0) {
                 const clone = orgFile.cloneNode(true);
                 clone.name = 'organizer_signature_file';
@@ -529,7 +547,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 form.appendChild(clone);
             }
 
-            // --- Handle Attestation Signature logic (existing) ---
+            // Handle Attestation Signature logic
             if (!attestData && attestFile.files.length > 0) {
                 const clone = attestFile.cloneNode(true);
                 clone.name = 'signature_file';
@@ -619,12 +637,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     const file = this.files[0];
                     document.getElementById(statusId).textContent = "✅ Selected: " + file.name;
                     document.getElementById(statusId).style.display = "block";
-                    
+
                     // Show Preview via FileReader
                     const reader = new FileReader();
-                    reader.onload = function(e) {
-                         document.getElementById(previewImgId).src = e.target.result;
-                         document.getElementById(previewContainerId).style.display = 'block';
+                    reader.onload = function (e) {
+                        document.getElementById(previewImgId).src = e.target.result;
+                        document.getElementById(previewContainerId).style.display = 'block';
                     };
                     reader.readAsDataURL(file);
 

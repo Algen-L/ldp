@@ -35,16 +35,33 @@ $js_prefix = $is_admin_dir ? '../js/' : '../js/';   // Both go up to root
     </div>
     <div class="sidebar-nav">
         <?php if ($_SESSION['role'] === 'admin' || $_SESSION['role'] === 'super_admin'): ?>
+            <?php
+            // Get Pending Count
+            $pending_badges = 0;
+            if (isset($pdo)) { // Ensure DB connection exists
+                $stmt_pending = $pdo->query("SELECT COUNT(*) FROM ld_activities WHERE status = 'Pending'");
+                $pending_badges = $stmt_pending->fetchColumn();
+            }
+            ?>
             <a href="<?php echo $admin_prefix; ?>dashboard.php"
-                class="nav-item <?php echo ($current_page == 'dashboard.php') ? 'active' : ''; ?>">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="3" y="3" width="7" height="7"></rect>
-                    <rect x="14" y="3" width="7" height="7"></rect>
-                    <rect x="14" y="14" width="7" height="7"></rect>
-                    <rect x="3" y="14" width="7" height="7"></rect>
-                </svg>
-                All Activities
+                class="nav-item <?php echo ($current_page == 'dashboard.php') ? 'active' : ''; ?>"
+                style="justify-content: space-between;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="3" width="7" height="7"></rect>
+                        <rect x="14" y="3" width="7" height="7"></rect>
+                        <rect x="14" y="14" width="7" height="7"></rect>
+                        <rect x="3" y="14" width="7" height="7"></rect>
+                    </svg>
+                    Dashboard
+                </div>
+                <?php if ($pending_badges > 0): ?>
+                    <span
+                        style="background-color: #ef4444; color: white; font-size: 0.75em; padding: 2px 8px; border-radius: 10px; font-weight: bold; box-shadow: 0 2px 4px rgba(239,68,68,0.3);">
+                        <?php echo $pending_badges; ?>
+                    </span>
+                <?php endif; ?>
             </a>
             <a href="<?php echo $admin_prefix; ?>users.php"
                 class="nav-item <?php echo ($current_page == 'users.php') ? 'active' : ''; ?>">

@@ -38,6 +38,15 @@ $view_action = "Viewed Specific Activity: " . $activity['title'];
 $stmt_log = $pdo->prepare("INSERT INTO activity_logs (user_id, action, details, ip_address) VALUES (?, 'Viewed Specific Activity', ?, ?)");
 $stmt_log->execute([$_SESSION['user_id'], $activity['title'], $_SERVER['REMOTE_ADDR']]);
 
+// Update Status to 'Viewed' if it is 'Pending' and user is Admin
+if ($_SESSION['role'] === 'admin' && $activity['status'] === 'Pending') {
+    $stmt_update = $pdo->prepare("UPDATE ld_activities SET status = 'Viewed' WHERE id = ?");
+    $stmt_update->execute([$activity_id]);
+
+    // Refresh the $activity variable to reflect the change visually if needed (optional)
+    $activity['status'] = 'Viewed';
+}
+
 // Helper for checkboxes
 function isChecked($value, $arrayString)
 {

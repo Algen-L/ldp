@@ -43,6 +43,39 @@ foreach ($activities as $act) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard - LDP</title>
     <?php require 'includes/admin_head.php'; ?>
+    <style>
+        .events-table th,
+        .events-table td {
+            text-align: center;
+            border: 1px solid #ddd;
+            padding: 12px;
+        }
+
+        .events-table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        .events-table tr:hover {
+            background-color: #f5f5f5;
+        }
+
+        .table-wrapper {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            display: block;
+            /* Ensure it behaves like a block for scrolling */
+        }
+
+        .events-table thead th {
+            position: sticky;
+            top: 0;
+            background-color: #f1f5f9;
+            /* Light gray background to match header */
+            z-index: 1;
+        }
+    </style>
 </head>
 
 <body>
@@ -53,7 +86,8 @@ foreach ($activities as $act) {
         </div>
 
         <div class="main-content">
-            <div class="passbook-container" style="width: 800px; max-width: 95%; margin: 20px auto;">
+            <div class="passbook-container"
+                style="width: 800px; max-width: 95%; margin: 20px auto; background-color: #fff; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);">
                 <div class="header">
                     <h1>Admin Dashboard</h1>
                     <p>Overview of Learning & Development Activities</p>
@@ -72,18 +106,8 @@ foreach ($activities as $act) {
                         </h3>
                         <p>Total Users</p>
                     </div>
-                    <div class="stat-card">
-                        <h3 style="color: orange;">
-                            <?php echo $pendingCount; ?>
-                        </h3>
-                        <p>Pending Review</p>
-                    </div>
-                    <div class="stat-card">
-                        <h3 style="color: green;">
-                            <?php echo $approvedCount; ?>
-                        </h3>
-                        <p>Approved Activities</p>
-                    </div>
+
+
                 </div>
 
                 <div style="margin-bottom: 15px; font-weight: bold; color: var(--primary-blue);">Recent Submissions
@@ -98,7 +122,6 @@ foreach ($activities as $act) {
                                 <th>Office</th>
                                 <th>Activity Title</th>
                                 <th>Competency</th>
-                                <th>Status</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -119,12 +142,6 @@ foreach ($activities as $act) {
                                     </td>
                                     <td>
                                         <?php echo htmlspecialchars($act['competency']); ?>
-                                    </td>
-                                    <td>
-                                        <span
-                                            style="font-weight: bold; color: <?php echo $act['status'] == 'Approved' ? 'green' : 'orange'; ?>">
-                                            <?php echo htmlspecialchars($act['status']); ?>
-                                        </span>
                                     </td>
                                     <td>
                                         <a href="../pages/view_activity.php?id=<?php echo $act['id']; ?>" class="btn"
