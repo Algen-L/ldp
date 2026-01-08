@@ -9,16 +9,29 @@ $pages_prefix = $is_admin_dir ? '../pages/' : '';
 $css_prefix = $is_admin_dir ? '../css/' : '../css/'; // Both go up to root
 $js_prefix = $is_admin_dir ? '../js/' : '../js/';   // Both go up to root
 ?>
-<link rel="stylesheet" href="<?php echo $css_prefix; ?>sidebar.css">
-<link rel="stylesheet" href="<?php echo $css_prefix; ?>notifications.css">
+<?php // Sidebar no longer manages its own CSS links; they are handled in head/admin_head PHP includes ?>
 <script src="<?php echo $js_prefix; ?>notifications.js"></script>
 
 <div id="toast-container"></div>
 
 <div class="sidebar">
     <div class="sidebar-logo">
-        <img src="../assets/logo.png"
+        <img src="../assets/LogoLDP.png"
             alt="<?php echo ($_SESSION['role'] === 'admin' || $_SESSION['role'] === 'super_admin') ? 'Admin Panel' : 'LDP System'; ?>">
+        <div class="sidebar-user">
+            <span class="user-name"><?php echo htmlspecialchars($_SESSION['username']); ?></span>
+            <?php
+            // Fallback for current sessions that don't have 'position' yet
+            if (!isset($_SESSION['position'])) {
+                require_once __DIR__ . '/db.php';
+                $stmt_pos = $pdo->prepare("SELECT position FROM users WHERE id = ?");
+                $stmt_pos->execute([$_SESSION['user_id']]);
+                $_SESSION['position'] = $stmt_pos->fetchColumn();
+            }
+            ?>
+            <span
+                class="user-role"><?php echo htmlspecialchars($_SESSION['position'] ?: str_replace('_', ' ', $_SESSION['role'])); ?></span>
+        </div>
     </div>
     <div class="sidebar-nav">
         <?php if ($_SESSION['role'] === 'admin' || $_SESSION['role'] === 'super_admin'): ?>

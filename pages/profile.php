@@ -92,8 +92,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Profile - LDP Passbook</title>
-    <link rel="stylesheet" href="../css/common.css">
-    <link rel="stylesheet" href="../css/passbook.css">
+    <?php require '../includes/head.php'; ?>
+    <link rel="stylesheet" href="../css/pages/profile.css">
 </head>
 
 <body>

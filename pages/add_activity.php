@@ -73,37 +73,46 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $organizer_signature_path = saveSignature('organizer_signature_file', 'organizer_signature_data', 'org');
         $workplace_image_path = saveUpload('workplace_image', 'work', 'workplace');
 
-        $sql = "INSERT INTO ld_activities (user_id, title, date_attended, venue, modality, competency, type_ld, type_ld_others, conducted_by, organizer_signature_path, approved_by, workplace_application, workplace_image_path, reflection, signature_path) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-        $stmt = $pdo->prepare($sql);
-        if (
-            $stmt->execute([
-                $_SESSION['user_id'],
-                $title,
-                $date_attended,
-                $venue,
-                $modality,
-                $competency,
-                $type_ld,
-                $type_ld_others,
-                $conducted_by,
-                $organizer_signature_path,
-                $approved_by,
-                $workplace_application,
-                $workplace_image_path,
-                $reflection,
-                $signature_path
-            ])
-        ) {
-            // Log activity submission
-            $logStmt = $pdo->prepare("INSERT INTO activity_logs (user_id, action, details, ip_address) VALUES (?, ?, ?, ?)");
-            $logStmt->execute([$_SESSION['user_id'], 'Submitted Activity', "Activity Title: $title", $_SERVER['REMOTE_ADDR']]);
-
-            $message = "Activity submitted successfully!";
-            $messageType = "success";
-        } else {
-            $message = "Error submitting activity.";
+        // Server-side validation for mandatory signature
+        if (empty($signature_path)) {
+            $message = "Attestation signature is required.";
             $messageType = "error";
+        } elseif (empty($approved_by)) {
+            $message = "Name of Immediate Head is required.";
+            $messageType = "error";
+        } else {
+            $sql = "INSERT INTO ld_activities (user_id, title, date_attended, venue, modality, competency, type_ld, type_ld_others, conducted_by, organizer_signature_path, approved_by, workplace_application, workplace_image_path, reflection, signature_path) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            $stmt = $pdo->prepare($sql);
+            if (
+                $stmt->execute([
+                    $_SESSION['user_id'],
+                    $title,
+                    $date_attended,
+                    $venue,
+                    $modality,
+                    $competency,
+                    $type_ld,
+                    $type_ld_others,
+                    $conducted_by,
+                    $organizer_signature_path,
+                    $approved_by,
+                    $workplace_application,
+                    $workplace_image_path,
+                    $reflection,
+                    $signature_path
+                ])
+            ) {
+                // Log activity submission
+                $logStmt = $pdo->prepare("INSERT INTO activity_logs (user_id, action, details, ip_address) VALUES (?, ?, ?, ?)");
+                $logStmt->execute([$_SESSION['user_id'], 'Submitted Activity', "Activity Title: $title", $_SERVER['REMOTE_ADDR']]);
+
+                $message = "Activity submitted successfully!";
+                $messageType = "success";
+            } else {
+                $message = "Error submitting activity.";
+                $messageType = "error";
+            }
         }
     }
 }
@@ -115,78 +124,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Add Activity - LDP</title>
-    <link rel="stylesheet" href="../css/common.css">
-    <link rel="stylesheet" href="../css/passbook.css">
-    <style>
-        .form-section-title {
-            font-weight: bold;
-            color: var(--dark-blue);
-            text-transform: uppercase;
-            margin-bottom: 10px;
-            font-size: 0.9em;
-            border-bottom: 2px solid var(--primary-blue);
-            padding-bottom: 5px;
-        }
-
-        .checkbox-group {
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-            font-size: 0.9em;
-        }
-
-        .checkbox-group label {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-weight: normal;
-        }
-
-        textarea.form-control {
-            border: 1px solid var(--primary-blue);
-            border-radius: 5px;
-            min-height: 100px;
-            padding: 10px;
-            resize: vertical;
-        }
-
-        /* Modal Styles */
-        .modal-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            z-index: 1000;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .modal-content {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-            text-align: center;
-            max-width: 90%;
-        }
-
-        .modal-title {
-            margin-bottom: 15px;
-            color: var(--primary-blue);
-            font-weight: bold;
-        }
-
-        .sig-status {
-            font-size: 0.9em;
-            color: var(--primary-blue);
-            font-weight: bold;
-            display: block;
-            margin-top: 5px;
-        }
-    </style>
+    <?php require '../includes/head.php'; ?>
+    <link rel="stylesheet" href="../css/pages/add-activity.css">
 </head>
 
 <body>
@@ -273,6 +212,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                                         captured</span>
                                     <div id="org-upload-status"
                                         style="font-size: 0.85em; color: var(--primary-blue); font-weight: 600; margin-top: 5px;">
+                                    </div>
+                                    <div id="org-sig-preview-container" style="margin-top: 10px; display: none;">
+                                        <img id="org-sig-preview" src=""
+                                            style="max-height: 80px; border: 1px solid #ccc; border-radius: 4px; padding: 2px;">
                                     </div>
                                     <input type="file" id="org-sig-file" accept="image/*" style="display: none;">
                                 </div>
@@ -385,12 +328,16 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                                     <div id="attest-upload-status"
                                         style="font-size: 0.85em; color: var(--primary-blue); font-weight: 600; margin-top: 2px;">
                                     </div>
+                                    <div id="attest-sig-preview-container" style="margin-top: 10px; display: none;">
+                                        <img id="attest-sig-preview" src=""
+                                            style="max-height: 80px; border: 1px solid #ccc; border-radius: 4px; padding: 2px;">
+                                    </div>
                                     <input type="file" id="sig-file" accept="image/*" style="display: none;">
                                 </div>
 
                                 <div class="form-group" style="margin-top: 10px;">
                                     <input type="text" name="approved_by" class="form-control"
-                                        placeholder="Name of Immediate Head" style="text-align: center;">
+                                        placeholder="Name of Immediate Head" style="text-align: center;" required>
                                     <label
                                         style="font-weight: normal; font-size: 0.8em; margin-top: 5px; text-align: center; display: block;">Signature
                                         overprinted name of the Immediate Head</label>
@@ -507,6 +454,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 status.textContent = '✅ Signature captured';
                 status.style.color = 'green';
                 status.style.display = 'inline-block';
+                // Show Preview
+                const previewKv = document.getElementById('org-sig-preview');
+                previewKv.src = dataUrl;
+                document.getElementById('org-sig-preview-container').style.display = 'block';
+
                 // Clear upload status if drawing
                 document.getElementById('org-upload-status').textContent = '';
                 document.getElementById('org-sig-file').value = '';
@@ -516,6 +468,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 status.textContent = '✅ Signature captured';
                 status.style.color = 'green';
                 status.style.display = 'inline-block';
+                // Show Preview
+                const previewKv = document.getElementById('attest-sig-preview');
+                previewKv.src = dataUrl;
+                document.getElementById('attest-sig-preview-container').style.display = 'block';
+
                 // Clear upload status if drawing
                 document.getElementById('attest-upload-status').textContent = '';
                 document.getElementById('sig-file').value = '';
@@ -649,6 +606,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             const statusId = group === 'org' ? 'org-upload-status' : 'attest-upload-status';
             const drawStatusId = group === 'org' ? 'org-sig-status' : 'attest-sig-status';
             const drawDataId = group === 'org' ? 'organizer_signature_data' : 'signature_data';
+            const previewContainerId = group === 'org' ? 'org-sig-preview-container' : 'attest-sig-preview-container';
+            const previewImgId = group === 'org' ? 'org-sig-preview' : 'attest-sig-preview';
 
             // Trigger the hidden file input
             const input = document.getElementById(fileId);
@@ -657,8 +616,18 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             // Handle file selection change
             input.onchange = function () {
                 if (this.files && this.files[0]) {
-                    document.getElementById(statusId).textContent = "✅ Selected: " + this.files[0].name;
+                    const file = this.files[0];
+                    document.getElementById(statusId).textContent = "✅ Selected: " + file.name;
                     document.getElementById(statusId).style.display = "block";
+                    
+                    // Show Preview via FileReader
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                         document.getElementById(previewImgId).src = e.target.result;
+                         document.getElementById(previewContainerId).style.display = 'block';
+                    };
+                    reader.readAsDataURL(file);
+
                     // Clear draw status if uploading
                     const drawStatus = document.getElementById(drawStatusId);
                     drawStatus.textContent = "No signature captured";

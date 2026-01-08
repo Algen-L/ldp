@@ -47,62 +47,9 @@ $users = $pdo->query("SELECT id, username, full_name, office_station, role, crea
 <head>
     <meta charset="UTF-8">
     <title>User Management - Super Admin</title>
-    <link rel="stylesheet" href="../css/common.css">
-    <link rel="stylesheet" href="../css/passbook.css">
-    <link rel="stylesheet" href="../css/tables.css">
-    <style>
-        .user-mgmt-card {
-            background: #fff;
-            padding: 25px;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            margin-top: 20px;
-        }
-
-        .office-input,
-        .role-select {
-            padding: 8px;
-            border-radius: 6px;
-            border: 1px solid #ddd;
-        }
-
-        .btn-primary {
-            background: #3b82f6;
-            color: #fff;
-            padding: 8px 16px;
-            border-radius: 6px;
-            border: none;
-            cursor: pointer;
-        }
-
-        .btn-danger {
-            background: #ef4444;
-            color: #fff;
-            padding: 8px 16px;
-            border-radius: 6px;
-            border: none;
-            cursor: pointer;
-            margin-left: 5px;
-        }
-
-        .msg {
-            padding: 10px;
-            border-radius: 6px;
-            margin-bottom: 20px;
-        }
-
-        .success {
-            background: #ecfdf5;
-            color: #065f46;
-            border: 1px solid #10b981;
-        }
-
-        .error {
-            background: #fef2f2;
-            color: #991b1b;
-            border: 1px solid #ef4444;
-        }
-    </style>
+    <?php require 'includes/admin_head.php'; ?>
+    <!-- Page Styles -->
+    <link rel="stylesheet" href="css/pages/manage-users.css">
 </head>
 
 <body>

@@ -8,9 +8,7 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] !== 'admin' && $_SESSION[
     exit;
 }
 
-// Log View Dashboard Activity
-$stmt_log = $pdo->prepare("INSERT INTO activity_logs (user_id, action, ip_address) VALUES (?, 'Viewed Admin Dashboard', ?)");
-$stmt_log->execute([$_SESSION['user_id'], $_SERVER['REMOTE_ADDR']]);
+
 
 // Fetch all activities
 $stmt = $pdo->query("
@@ -44,9 +42,7 @@ foreach ($activities as $act) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard - LDP</title>
-    <link rel="stylesheet" href="../css/common.css">
-    <link rel="stylesheet" href="../css/passbook.css">
-    <link rel="stylesheet" href="../css/tables.css">
+    <?php require 'includes/admin_head.php'; ?>
 </head>
 
 <body>

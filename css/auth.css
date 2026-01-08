@@ -1,5 +1,0 @@
-/* Base styles for Login/Register pages which are centered */
-body.auth-page {
-    justify-content: center;
-    align-items: center;
-}

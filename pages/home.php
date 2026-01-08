@@ -8,9 +8,7 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
-// Log View Home Activity
-$stmt_log = $pdo->prepare("INSERT INTO activity_logs (user_id, action, ip_address) VALUES (?, 'Viewed User Dashboard', ?)");
-$stmt_log->execute([$_SESSION['user_id'], $_SERVER['REMOTE_ADDR']]);
+
 
 // Fetch user data from DB to get the latest info
 $stmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
@@ -35,10 +33,8 @@ $activities = $stmt_ld->fetchAll(PDO::FETCH_ASSOC);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - LDP Passbook</title>
-    <link rel="stylesheet" href="../css/common.css">
-    <link rel="stylesheet" href="../css/passbook.css">
-    <link rel="stylesheet" href="../css/tables.css">
-    <link rel="stylesheet" href="../css/home.css">
+    <?php require '../includes/head.php'; ?>
+    <link rel="stylesheet" href="../css/pages/home.css">
 </head>
 
 <body>

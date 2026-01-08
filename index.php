@@ -21,6 +21,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $_SESSION['username'] = $user['username'];
             $_SESSION['full_name'] = $user['full_name'];
             $_SESSION['role'] = $user['role']; // Store role for admin checks if needed
+            $_SESSION['position'] = $user['position'];
 
             // Log successful login
             $logStmt = $pdo->prepare("INSERT INTO activity_logs (user_id, action, ip_address) VALUES (?, ?, ?)");
@@ -45,16 +46,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - LDP Passbook</title>
-    <link rel="stylesheet" href="css/common.css">
-    <link rel="stylesheet" href="css/passbook.css">
-    <link rel="stylesheet" href="css/auth.css">
-    <style>
-        .login-container {
-            width: 400px;
-            /* Smaller container for login */
-            text-align: center;
-        }
-    </style>
+    <?php require 'includes/head.php'; ?>
+    <link rel="stylesheet" href="css/pages/auth.css">
 </head>
 
 <body class="auth-page">
