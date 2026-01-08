@@ -31,6 +31,13 @@ if ($_SESSION['role'] !== 'admin' && $activity['user_id'] != $_SESSION['user_id'
     die("Unauthorized access.");
 }
 
+// Log View Activity
+$view_action = "Viewed Specific Activity: " . $activity['title'];
+// Check if already logged in this session/window to avoid double logs on refresh? 
+// For now, simple log is fine as requested.
+$stmt_log = $pdo->prepare("INSERT INTO activity_logs (user_id, action, details, ip_address) VALUES (?, 'Viewed Specific Activity', ?, ?)");
+$stmt_log->execute([$_SESSION['user_id'], $activity['title'], $_SERVER['REMOTE_ADDR']]);
+
 // Helper for checkboxes
 function isChecked($value, $arrayString)
 {
@@ -330,7 +337,7 @@ function isChecked($value, $arrayString)
                         <div
                             style="margin-top: 40px; padding-bottom: 20px; border-top: 1px solid #eee; text-align: center;">
                             <?php if ($_SESSION['role'] === 'admin'): ?>
-                                <a href="admin_dashboard.php" class="btn"
+                                <a href="../admin/dashboard.php" class="btn"
                                     style="width: auto; min-width: 250px; text-align: center; display: inline-block; text-decoration: none;">Back
                                     to
                                     Dashboard</a>

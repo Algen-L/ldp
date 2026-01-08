@@ -95,6 +95,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 $signature_path
             ])
         ) {
+            // Log activity submission
+            $logStmt = $pdo->prepare("INSERT INTO activity_logs (user_id, action, details, ip_address) VALUES (?, ?, ?, ?)");
+            $logStmt->execute([$_SESSION['user_id'], 'Submitted Activity', "Activity Title: $title", $_SERVER['REMOTE_ADDR']]);
+
             $message = "Activity submitted successfully!";
             $messageType = "success";
         } else {
@@ -522,11 +526,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
         function submitForm() {
             var form = document.querySelector('form');
-            
+
             // Basic field validation
             const title = form.querySelector('[name="title"]').value.trim();
             const date = form.querySelector('[name="date_attended"]').value.trim();
-            
+
             if (!title || !date) {
                 showToast("Required Fields", "Please fill in the Activity Title and Date.", "error");
                 return;
@@ -536,13 +540,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             const workplaceText = form.querySelector('[name="workplace_application"]').value.trim();
             const workplaceFile = document.getElementById('workplace_image');
             const method = form.querySelector('[name="workplace_method"]:checked').value;
-            
+
             let hasWorkplace = false;
             // Check based on active method, but accept either if data exists
             if (workplaceText !== '' || workplaceFile.files.length > 0) {
                 hasWorkplace = true;
             }
-            
+
             if (!hasWorkplace) {
                 showToast("Mandatory Input", "Please provide either a Text description or an Image for the Workplace Application.", "error");
                 return;
@@ -551,7 +555,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             // --- Attestation Validation ---
             const attestData = document.getElementById('signature_data').value;
             const attestFile = document.getElementById('sig-file');
-            
+
             if (!attestData && attestFile.files.length === 0) {
                 showToast("Missing Signature", "Attestation is required. Please draw or upload a signature.", "error");
                 return;

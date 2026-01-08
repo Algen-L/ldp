@@ -8,6 +8,10 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
+// Log View Home Activity
+$stmt_log = $pdo->prepare("INSERT INTO activity_logs (user_id, action, ip_address) VALUES (?, 'Viewed User Dashboard', ?)");
+$stmt_log->execute([$_SESSION['user_id'], $_SERVER['REMOTE_ADDR']]);
+
 // Fetch user data from DB to get the latest info
 $stmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
 $stmt->execute([$_SESSION['user_id']]);

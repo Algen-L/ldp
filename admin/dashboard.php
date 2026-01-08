@@ -3,10 +3,14 @@ session_start();
 require '../includes/db.php';
 
 // Check if user is logged in and is admin
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
+if (!isset($_SESSION['user_id']) || ($_SESSION['role'] !== 'admin' && $_SESSION['role'] !== 'super_admin')) {
     header("Location: ../index.php");
     exit;
 }
+
+// Log View Dashboard Activity
+$stmt_log = $pdo->prepare("INSERT INTO activity_logs (user_id, action, ip_address) VALUES (?, 'Viewed Admin Dashboard', ?)");
+$stmt_log->execute([$_SESSION['user_id'], $_SERVER['REMOTE_ADDR']]);
 
 // Fetch all activities
 $stmt = $pdo->query("
@@ -61,24 +65,33 @@ foreach ($activities as $act) {
 
                 <div class="stats-container">
                     <div class="stat-card">
-                        <h3><?php echo $totalSubmissions; ?></h3>
+                        <h3>
+                            <?php echo $totalSubmissions; ?>
+                        </h3>
                         <p>Total Submissions</p>
                     </div>
                     <div class="stat-card">
-                        <h3><?php echo $totalUsers; ?></h3>
+                        <h3>
+                            <?php echo $totalUsers; ?>
+                        </h3>
                         <p>Total Users</p>
                     </div>
                     <div class="stat-card">
-                        <h3 style="color: orange;"><?php echo $pendingCount; ?></h3>
+                        <h3 style="color: orange;">
+                            <?php echo $pendingCount; ?>
+                        </h3>
                         <p>Pending Review</p>
                     </div>
                     <div class="stat-card">
-                        <h3 style="color: green;"><?php echo $approvedCount; ?></h3>
+                        <h3 style="color: green;">
+                            <?php echo $approvedCount; ?>
+                        </h3>
                         <p>Approved Activities</p>
                     </div>
                 </div>
 
-                <div style="margin-bottom: 15px; font-weight: bold; color: var(--primary-blue);">Recent Submissions</div>
+                <div style="margin-bottom: 15px; font-weight: bold; color: var(--primary-blue);">Recent Submissions
+                </div>
 
                 <div class="table-wrapper">
                     <table class="events-table">
@@ -118,8 +131,7 @@ foreach ($activities as $act) {
                                         </span>
                                     </td>
                                     <td>
-                                        <!-- Placeholder for potential View/Approve actions -->
-                                        <a href="view_activity.php?id=<?php echo $act['id']; ?>" class="btn"
+                                        <a href="../pages/view_activity.php?id=<?php echo $act['id']; ?>" class="btn"
                                             style="padding: 5px 10px; font-size: 0.8em; text-decoration: none; margin-top: 0;">View</a>
                                     </td>
                                 </tr>

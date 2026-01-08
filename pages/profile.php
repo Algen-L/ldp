@@ -50,16 +50,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         // Handle Profile Picture Upload
         if (isset($_FILES['profile_picture']) && $_FILES['profile_picture']['error'] === UPLOAD_ERR_OK) {
             $uploadDir = '../uploads/profile_pics/';
+            if (!is_dir($uploadDir)) {
+                mkdir($uploadDir, 0777, true);
+            }
             $fileName = uniqid() . '_' . basename($_FILES['profile_picture']['name']);
             $targetPath = $uploadDir . $fileName;
             if (move_uploaded_file($_FILES['profile_picture']['tmp_name'], $targetPath)) {
-                // Save relative path for consistency with register.php
-                // register.php saves 'uploads/profile_pics/...' so we should too.
-                // But wait, register.php is in root, settings.php is in pages/.
-                // The DB stores 'uploads/profile_pics/...'.
-                // So here we need to strip the leading '../' for the DB entry.
                 $dbPath = 'uploads/profile_pics/' . $fileName;
-
                 $sql .= ", profile_picture = ?";
                 $params[] = $dbPath;
             }
@@ -70,6 +67,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
         $stmt = $pdo->prepare($sql);
         if ($stmt->execute($params)) {
+            // Log profile update
+            $logStmt = $pdo->prepare("INSERT INTO activity_logs (user_id, action, ip_address) VALUES (?, ?, ?)");
+            $logStmt->execute([$_SESSION['user_id'], 'Updated Profile', $_SERVER['REMOTE_ADDR']]);
+
             $message = "Profile updated successfully.";
             $messageType = "success";
             // Refresh user data
@@ -90,7 +91,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Settings - LDP Passbook</title>
+    <title>Profile - LDP Passbook</title>
     <link rel="stylesheet" href="../css/common.css">
     <link rel="stylesheet" href="../css/passbook.css">
 </head>
@@ -105,7 +106,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         <div class="main-content">
             <div class="passbook-container">
                 <div class="header">
-                    <h1>Account Settings</h1>
+                    <h1>My Profile</h1>
                     <p>Update your profile information</p>
                 </div>
 

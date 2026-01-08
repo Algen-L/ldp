@@ -21,8 +21,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $_SESSION['username'] = $user['username'];
             $_SESSION['full_name'] = $user['full_name'];
             $_SESSION['role'] = $user['role']; // Store role for admin checks if needed
-            if ($user['role'] === 'admin') {
-                header("Location: pages/admin_dashboard.php");
+
+            // Log successful login
+            $logStmt = $pdo->prepare("INSERT INTO activity_logs (user_id, action, ip_address) VALUES (?, ?, ?)");
+            $logStmt->execute([$user['id'], 'Logged In', $_SERVER['REMOTE_ADDR']]);
+
+            if ($user['role'] === 'admin' || $user['role'] === 'super_admin') {
+                header("Location: admin/dashboard.php");
             } else {
                 header("Location: pages/home.php");
             }
