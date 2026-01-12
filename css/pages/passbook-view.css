@@ -21,3 +21,236 @@
 .detail-value {
     flex: 1;
 }
+
+@media print {
+
+    /* Hide Sidebars and Navs */
+    .sidebar,
+    .header p,
+    /* Optional: Hide sub-header text if desired */
+    .btn,
+    a.btn,
+    .admin-approval-panel {
+        display: none !important;
+    }
+
+    /* Reset Layouts */
+    body,
+    .dashboard-container,
+    .main-content {
+        display: block !important;
+        background: white !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+        height: auto !important;
+    }
+
+    .passbook-container {
+        width: 100% !important;
+        box-shadow: none !important;
+        border: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    /* Ensure textareas print full content */
+    textarea {
+        border: none !important;
+        resize: none !important;
+        overflow: visible !important;
+        min-height: 50px !important;
+    }
+
+    .print-break-before {
+        page-break-before: always;
+        margin-top: 0 !important;
+        /* Reset top margin since it's a new page */
+        padding-top: 20px;
+    }
+}
+
+/* Progress Tracker Styles */
+.progress-tracker {
+    display: flex;
+    justify-content: space-between;
+    margin: 40px 0 20px 0;
+    padding: 20px;
+    background: #f8fafc;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+}
+
+.progress-step {
+    flex: 1;
+    text-align: center;
+    position: relative;
+    z-index: 1;
+}
+
+.progress-step:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    top: 15px;
+    left: 50%;
+    width: 100%;
+    height: 2px;
+    background: #cbd5e1;
+    z-index: -1;
+}
+
+.progress-step.active:not(:last-child)::after {
+    background: #22c55e;
+}
+
+.step-icon {
+    width: 32px;
+    height: 32px;
+    background: #fff;
+    border: 2px solid #cbd5e1;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 10px;
+    font-weight: bold;
+    color: #64748b;
+    transition: all 0.3s ease;
+}
+
+.progress-step.active .step-icon {
+    border-color: #22c55e;
+    background: #22c55e;
+    color: white;
+}
+
+.step-label {
+    font-size: 0.75em;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+}
+
+.progress-step.active .step-label {
+    color: #1e293b;
+}
+
+.step-date {
+    font-size: 0.65em;
+    color: #94a3b8;
+    display: block;
+}
+
+/* Admin Approval Panel */
+.admin-approval-panel {
+    background: #eff6ff;
+    border: 2px solid #3b82f6;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 30px;
+}
+
+.approval-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 15px;
+}
+
+.approval-btn {
+    padding: 10px;
+    border-radius: 6px;
+    font-size: 0.85em;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.2s;
+}
+
+.approval-btn.pending {
+    background: #fff;
+    border: 1px solid #3b82f6;
+    color: #3b82f6;
+}
+
+.approval-btn.pending:hover {
+    background: #3b82f6;
+    color: white;
+}
+
+.approval-btn.approved {
+    background: #22c55e;
+    border: 1px solid #22c55e;
+    color: white;
+    cursor: default;
+}
+
+/* Submitter Card Styles */
+.submitter-card {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    background: white;
+    padding: 24px;
+    border-radius: 16px;
+    border: 1.5px solid #e2e8f0;
+    margin-bottom: 30px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.submitter-avatar {
+    width: 64px;
+    height: 64px;
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    font-weight: 700;
+    flex-shrink: 0;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+}
+
+.submitter-details {
+    flex-grow: 1;
+}
+
+.submitter-label {
+    display: block;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 4px;
+}
+
+.submitter-name {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: #1e293b;
+    letter-spacing: -0.02em;
+}
+
+.submitter-meta {
+    display: flex;
+    gap: 15px;
+    margin-top: 8px;
+    flex-wrap: wrap;
+}
+
+.meta-item {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.meta-item svg {
+    color: #3b82f6;
+}

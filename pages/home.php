@@ -22,7 +22,7 @@ if (!$user) {
 }
 
 // Fetch L&D activities
-$stmt_ld = $pdo->prepare("SELECT * FROM ld_activities WHERE user_id = ? ORDER BY date_attended DESC LIMIT 5");
+$stmt_ld = $pdo->prepare("SELECT * FROM ld_activities WHERE user_id = ? ORDER BY created_at DESC LIMIT 5");
 $stmt_ld->execute([$_SESSION['user_id']]);
 $activities = $stmt_ld->fetchAll(PDO::FETCH_ASSOC);
 ?>
@@ -108,10 +108,28 @@ $activities = $stmt_ld->fetchAll(PDO::FETCH_ASSOC);
                                             <span class="activity-title"><?php echo htmlspecialchars($act['title']); ?></span>
                                             <span
                                                 class="activity-date"><?php echo date('M d, Y', strtotime($act['date_attended'])); ?></span>
+                                            <?php
+                                            $statusLabel = $act['status'];
+                                            $bgColor = '#fff3cd'; // Yellow default
+                                            $textColor = '#856404';
+
+                                            if ($act['approved_sds']) {
+                                                $statusLabel = 'Approved';
+                                                $bgColor = '#dcfce7'; // Green
+                                                $textColor = '#166534';
+                                            } elseif ($act['recommending_asds']) {
+                                                $statusLabel = 'Recommending';
+                                                $bgColor = '#dbeafe'; // Blue
+                                                $textColor = '#1e40af';
+                                            } elseif ($act['reviewed_by_supervisor']) {
+                                                $statusLabel = 'Reviewed';
+                                                $bgColor = '#fef9c3'; // Light Yellow/Amber
+                                                $textColor = '#713f12';
+                                            }
+                                            ?>
                                             <span class="activity-status"
-                                                style="background-color: <?php echo $act['status'] == 'Approved' ? '#d4edda' : '#fff3cd'; ?>; 
-                                                         color: <?php echo $act['status'] == 'Approved' ? '#155724' : '#856404'; ?>;">
-                                                <?php echo htmlspecialchars($act['status']); ?>
+                                                style="background-color: <?php echo $bgColor; ?>; color: <?php echo $textColor; ?>;">
+                                                <?php echo htmlspecialchars($statusLabel); ?>
                                             </span>
                                         </li>
                                     <?php endforeach; ?>

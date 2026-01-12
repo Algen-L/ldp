@@ -47,12 +47,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - LDP Passbook</title>
     <?php require 'includes/head.php'; ?>
-    <link rel="stylesheet" href="css/pages/auth.css">
+    <link rel="stylesheet" href="css/pages/auth.css?v=<?php echo time(); ?>">
 </head>
 
 <body class="auth-page">
 
-    <div class="passbook-container login-container">
+    <div class="login-container">
         <div class="header">
             <h1>L&D Passbook</h1>
             <p>Login to your account</p>

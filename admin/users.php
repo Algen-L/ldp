@@ -58,8 +58,223 @@ $logs = $logStmt->fetchAll(PDO::FETCH_ASSOC);
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>User Management - Admin</title>
     <?php require 'includes/admin_head.php'; ?>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --glass-bg: rgba(255, 255, 255, 0.95);
+            --glass-border: rgba(226, 232, 240, 0.8);
+            --card-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.04), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
+            --accent-blue: #3b82f6;
+            --accent-orange: #f97316;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .passbook-container {
+            animation: fadeIn 0.5s ease-out;
+            width: 1400px;
+            max-width: 98%;
+            margin: 0 auto;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .header h1 {
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            color: #1e293b;
+            border-left: 5px solid var(--accent-orange);
+            padding-left: 15px;
+        }
+
+        .header p {
+            color: #64748b;
+            font-weight: 400;
+            padding-left: 20px;
+        }
+
+        /* Card & Section Styling Submissions Reference */
+        .card {
+            background: white;
+            border-radius: 16px;
+            border: 1px solid var(--glass-border);
+            box-shadow: var(--card-shadow);
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .section-title {
+            padding: 20px 24px;
+            background: #f1f5f9;
+            font-weight: 700;
+            color: #1e293b;
+            letter-spacing: -0.01em;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .filter-section {
+            background: white;
+            padding: 24px;
+            border-radius: 16px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
+        }
+
+        .filter-header {
+            font-size: 0.85rem;
+            font-weight: 800;
+            color: #1e293b;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .filter-label {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: #94a3b8;
+            margin-bottom: 8px;
+            display: block;
+            text-transform: none;
+            letter-spacing: normal;
+        }
+
+        .filter-group {
+            margin-bottom: 20px;
+        }
+
+        .filter-input {
+            background: #ffffff;
+            border: 1.5px solid #e2e8f0;
+            padding: 12px 16px;
+            border-radius: 12px;
+            width: 100%;
+            font-size: 0.9rem;
+            color: #1e293b;
+            transition: all 0.2s ease;
+            outline: none;
+            box-sizing: border-box;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            background-size: 14px;
+        }
+
+        .filter-input[type="date"] {
+            background-image: none;
+        }
+
+        .filter-input:focus {
+            border-color: var(--accent-orange);
+            box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.1);
+        }
+
+        .btn-filter {
+            background: #ff5722;
+            color: white;
+            border: none;
+            padding: 14px 24px;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            width: 100%;
+            margin-top: 10px;
+            box-shadow: 0 4px 12px rgba(255, 87, 34, 0.2);
+        }
+
+        .btn-filter:hover {
+            background: #f4511e;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(255, 87, 34, 0.3);
+        }
+
+        /* Log Entry Refinements */
+        .log-entry {
+            border-bottom: 1px solid #f1f5f9;
+            padding: 16px 24px;
+            transition: all 0.2s ease;
+            display: flex;
+            gap: 16px;
+            border-left: 0 solid var(--accent-orange);
+        }
+
+        .log-entry:hover {
+            background-color: #f8fafc;
+            border-left-width: 4px;
+        }
+
+        .log-icon-box {
+            border-radius: 12px;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .log-time {
+            color: #94a3b8;
+            font-weight: 500;
+            font-size: 0.75rem;
+        }
+
+        .log-user {
+            color: #1e293b;
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+
+        .log-action {
+            font-weight: 600;
+            font-size: 0.8rem;
+            margin-left: 8px;
+        }
+
+        .log-details {
+            border-radius: 10px;
+            border-left: 4px solid #e2e8f0;
+            background: #f8fafc;
+            padding: 12px 15px;
+            margin-top: 8px;
+            font-size: 0.85rem;
+            color: #475569;
+        }
+
+        .log-meta {
+            font-weight: 600;
+            color: #94a3b8;
+            font-size: 0.7rem;
+            margin-top: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+    </style>
     <!-- Page Styles -->
-    <link rel="stylesheet" href="css/pages/user.css">
+    <link rel="stylesheet" href="../css/pages/user.css">
     <link rel="stylesheet" href="../css/base/tables.css">
 </head>
 
@@ -110,153 +325,154 @@ $logs = $logStmt->fetchAll(PDO::FETCH_ASSOC);
                     <p>Chronological record of system-wide user actions</p>
                 </div>
 
-                <div class="users-grid" style="grid-template-columns: 1fr;">
-                    <!-- Activity Logs Section -->
-                    <div class="card">
-                        <div class="section-title">System Activity Logs</div>
-
-                        <div class="filter-section">
-                            <form method="GET" class="filter-form">
-                                <div class="filter-group">
-                                    <label class="filter-label">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"
-                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-                                            stroke-linecap="round" stroke-linejoin="round">
-                                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                                            <circle cx="12" cy="7" r="4"></circle>
-                                        </svg>
-                                        User
-                                    </label>
-                                    <select name="user_id" class="filter-input">
-                                        <option value="0">All Users</option>
-                                        <?php foreach ($all_users as $u): ?>
-                                            <option value="<?php echo $u['id']; ?>" <?php echo $filter_user_id == $u['id'] ? 'selected' : ''; ?>>
-                                                <?php echo htmlspecialchars($u['full_name']); ?>
-                                            </option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                </div>
-
-                                <div class="filter-group">
-                                    <label class="filter-label">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"
-                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-                                            stroke-linecap="round" stroke-linejoin="round">
-                                            <path
-                                                d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z">
-                                            </path>
-                                        </svg>
-                                        Action
-                                    </label>
-                                    <select name="action_type" class="filter-input">
-                                        <option value="">All Actions</option>
-                                        <option value="Logged In" <?php echo $filter_action == 'Logged In' ? 'selected' : ''; ?>>Logins</option>
-                                        <option value="Logged Out" <?php echo $filter_action == 'Logged Out' ? 'selected' : ''; ?>>Logouts</option>
-                                        <option value="Submitted" <?php echo $filter_action == 'Submitted' ? 'selected' : ''; ?>>Submissions</option>
-                                        <option value="Viewed Specific" <?php echo $filter_action == 'Viewed Specific' ? 'selected' : ''; ?>>Views (Details)</option>
-                                        <option value="Viewed" <?php echo $filter_action == 'Viewed' ? 'selected' : ''; ?>>Views (Lists)</option>
-                                        <option value="Profile" <?php echo $filter_action == 'Profile' ? 'selected' : ''; ?>>Profile Updates</option>
-                                        <option value="User" <?php echo $filter_action == 'User' ? 'selected' : ''; ?>>
-                                            User Management</option>
-                                    </select>
-                                </div>
-
-                                <div class="filter-group">
-                                    <label class="filter-label">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"
-                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-                                            stroke-linecap="round" stroke-linejoin="round">
-                                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                                            <line x1="16" y1="2" x2="16" y2="6"></line>
-                                            <line x1="8" y1="2" x2="8" y2="6"></line>
-                                            <line x1="3" y1="10" x2="21" y2="10"></line>
-                                        </svg>
-                                        Date Range
-                                    </label>
-                                    <div class="date-range-group">
-                                        <input type="date" name="start_date" value="<?php echo $start_date; ?>"
-                                            class="filter-input" title="Start Date">
-                                        <span style="color: #94a3b8; font-weight: 700;">-</span>
-                                        <input type="date" name="end_date" value="<?php echo $end_date; ?>"
-                                            class="filter-input" title="End Date">
-                                    </div>
-                                </div>
-
-                                <div class="filter-actions">
-                                    <button type="submit" class="btn-filter">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"
-                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-                                            stroke-linecap="round" stroke-linejoin="round">
-                                            <circle cx="11" cy="11" r="8"></circle>
-                                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                                        </svg>
-                                        Filter
-                                    </button>
-                                    <?php if ($filter_user_id > 0 || $filter_action || $start_date || $end_date): ?>
-                                        <a href="users.php" class="btn-reset">Reset</a>
-                                    <?php endif; ?>
-                                </div>
-                            </form>
+                <div style="display: flex; gap: 30px; align-items: flex-start; margin-top: 25px;">
+                    <!-- Vertical Filter Sidebar -->
+                    <div class="filter-section" style="width: 280px; flex-shrink: 0; position: sticky; top: 20px;">
+                        <div class="filter-header">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                            </svg>
+                            Filter Options
                         </div>
 
-                        <div class="logs-container">
-                            <?php if (empty($logs)): ?>
-                                <div style="text-align: center; padding: 40px; color: #94a3b8;">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24"
-                                        fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round"
-                                        stroke-linejoin="round" style="margin-bottom: 10px; opacity: 0.5;">
-                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                                        <polyline points="14 2 14 8 20 8"></polyline>
-                                        <line x1="9" y1="13" x2="15" y2="13"></line>
-                                        <line x1="9" y1="17" x2="15" y2="17"></line>
-                                        <polyline points="9 9 10 9 11 9"></polyline>
-                                    </svg>
-                                    <p>No activity logs found yet.</p>
+                        <form method="GET" class="filter-form">
+                            <div class="filter-group">
+                                <label class="filter-label">User</label>
+                                <select name="user_id" class="filter-input">
+                                    <option value="0">All Users</option>
+                                    <?php foreach ($all_users as $u): ?>
+                                        <option value="<?php echo $u['id']; ?>" <?php echo $filter_user_id == $u['id'] ? 'selected' : ''; ?>>
+                                            <?php echo htmlspecialchars($u['full_name']); ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+
+                            <div class="filter-group">
+                                <label class="filter-label">Action Type</label>
+                                <select name="action_type" class="filter-input">
+                                    <option value="">All Actions</option>
+                                    <option value="Logged In" <?php echo $filter_action == 'Logged In' ? 'selected' : ''; ?>>Logins</option>
+                                    <option value="Logged Out" <?php echo $filter_action == 'Logged Out' ? 'selected' : ''; ?>>Logouts</option>
+                                    <option value="Submitted" <?php echo $filter_action == 'Submitted' ? 'selected' : ''; ?>>Submissions</option>
+                                    <option value="Viewed Specific" <?php echo $filter_action == 'Viewed Specific' ? 'selected' : ''; ?>>Views (Details)</option>
+                                    <option value="Viewed" <?php echo $filter_action == 'Viewed' ? 'selected' : ''; ?>>
+                                        Views (Lists)</option>
+                                    <option value="Profile" <?php echo $filter_action == 'Profile' ? 'selected' : ''; ?>>
+                                        Profile Updates</option>
+                                    <option value="User" <?php echo $filter_action == 'User' ? 'selected' : ''; ?>>
+                                        User Management</option>
+                                </select>
+                            </div>
+
+                            <div class="filter-group">
+                                <label class="filter-label"
+                                    style="text-transform: uppercase; font-size: 0.65rem; color: #94a3b8; font-weight: 700; margin-bottom: 12px; display: block;">Date
+                                    Range</label>
+
+                                <div class="filter-group" style="margin-bottom: 15px;">
+                                    <span
+                                        style="font-size: 0.65rem; color: #94a3b8; font-weight: 800; text-transform: uppercase; margin-bottom: 5px; display: block;">From</span>
+                                    <input type="date" name="start_date" value="<?php echo $start_date; ?>"
+                                        class="filter-input">
                                 </div>
-                            <?php else: ?>
-                                <?php foreach ($logs as $log): ?>
-                                    <div class="log-entry <?php echo getLogClass($log['action']); ?>">
-                                        <div class="log-icon-box">
-                                            <?php echo getLogIcon($log['action']); ?>
-                                        </div>
-                                        <div class="log-content">
-                                            <span
-                                                class="log-time"><?php echo date('M d, Y • h:i A', strtotime($log['created_at'])); ?></span>
-                                            <div>
-                                                <span class="log-user"><?php echo htmlspecialchars($log['user_name']); ?></span>
-                                                <span class="log-action"><?php echo htmlspecialchars($log['action']); ?></span>
-                                            </div>
-                                            <?php if ($log['details']): ?>
-                                                <div class="log-details">
-                                                    <?php echo htmlspecialchars($log['details']); ?>
-                                                </div>
-                                            <?php endif; ?>
-                                            <div class="log-meta">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12"
-                                                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                                    stroke-linecap="round" stroke-linejoin="round">
-                                                    <circle cx="12" cy="12" r="10"></circle>
-                                                    <line x1="2" y1="12" x2="22" y2="12"></line>
-                                                    <path
-                                                        d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z">
-                                                    </path>
-                                                </svg>
-                                                <?php echo htmlspecialchars($log['ip_address']); ?>
-                                            </div>
-                                        </div>
-                                    </div>
-                                <?php endforeach; ?>
-                            <?php endif; ?>
-                        </div>
+
+                                <div class="filter-group" style="margin-bottom: 0;">
+                                    <span
+                                        style="font-size: 0.65rem; color: #94a3b8; font-weight: 800; text-transform: uppercase; margin-bottom: 5px; display: block;">To</span>
+                                    <input type="date" name="end_date" value="<?php echo $end_date; ?>"
+                                        class="filter-input">
+                                </div>
+                            </div>
+
+                            <div class="filter-actions"
+                                style="margin-top: 25px; display: flex; flex-direction: column; gap: 12px;">
+                                <button type="submit" class="btn-filter">Apply Filters</button>
+
+                                <?php if ($filter_user_id > 0 || $filter_action || $start_date || $end_date): ?>
+                                    <a href="users.php" class="btn-reset"
+                                        style="display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 12px; background: transparent; border: 1.5px solid #e2e8f0; border-radius: 12px; color: #64748b; text-decoration: none; font-size: 0.85rem; font-weight: 600; transition: all 0.2s ease;">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
+                                            fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+                                            stroke-linejoin="round">
+                                            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                                            <polyline points="3 3 3 8 8 8"></polyline>
+                                        </svg>
+                                        Clear All
+                                    </a>
+                                <?php endif; ?>
+                            </div>
+                        </form>
                     </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</body>
 
-</html>
+                    <!-- Logs Column -->
+                    <div style="flex-grow: 1;">
+                        <div class="card"
+                            style="margin-top: 0; padding: 0; border: 1px solid #edf2f7; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+                            <div class="section-title"
+                                style="padding: 20px 24px; border-bottom: 1px solid #edf2f7; margin-bottom: 0;">
+                                System Activity Logs</div>
 
+                            <div class="logs-container">
+                                <?php if (empty($logs)): ?>
+                                    <div style="text-align: center; padding: 40px; color: #94a3b8;">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24"
+                                            fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round"
+                                            stroke-linejoin="round" style="margin-bottom: 10px; opacity: 0.5;">
+                                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z">
+                                            </path>
+                                            <polyline points="14 2 14 8 20 8"></polyline>
+                                            <line x1="9" y1="13" x2="15" y2="13"></line>
+                                            <line x1="9" y1="17" x2="15" y2="17"></line>
+                                            <polyline points="9 9 10 9 11 9"></polyline>
+                                        </svg>
+                                        <p>No activity logs found yet.</p>
+                                    </div>
+                                <?php else: ?>
+                                    <?php foreach ($logs as $log): ?>
+                                        <div class="log-entry <?php echo getLogClass($log['action']); ?>">
+                                            <div class="log-icon-box">
+                                                <?php echo getLogIcon($log['action']); ?>
+                                            </div>
+                                            <div class="log-content">
+                                                <span
+                                                    class="log-time"><?php echo date('M d, Y • h:i A', strtotime($log['created_at'])); ?></span>
+                                                <div>
+                                                    <span
+                                                        class="log-user"><?php echo htmlspecialchars($log['user_name']); ?></span>
+                                                    <span
+                                                        class="log-action"><?php echo htmlspecialchars($log['action']); ?></span>
+                                                </div>
+                                                <?php if ($log['details']): ?>
+                                                    <div class="log-details">
+                                                        <?php echo htmlspecialchars($log['details']); ?>
+                                                    </div>
+                                                <?php endif; ?>
+                                                <div class="log-meta">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12"
+                                                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                                        stroke-linecap="round" stroke-linejoin="round">
+                                                        <circle cx="12" cy="12" r="10"></circle>
+                                                        <line x1="2" y1="12" x2="22" y2="12"></line>
+                                                        <path
+                                                            d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z">
+                                                        </path>
+                                                    </svg>
+                                                    <?php echo htmlspecialchars($log['ip_address']); ?>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                            </div> <!-- logs-container -->
+                        </div> <!-- card -->
+                    </div> <!-- logs-column -->
+                </div> <!-- flex-row -->
+            </div> <!-- passbook-container -->
+        </div> <!-- main-content -->
+    </div> <!-- dashboard-container -->
 </body>
 
 </html>

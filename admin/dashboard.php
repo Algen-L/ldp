@@ -43,37 +43,216 @@ foreach ($activities as $act) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard - LDP</title>
     <?php require 'includes/admin_head.php'; ?>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        .events-table th,
-        .events-table td {
-            text-align: center;
-            border: 1px solid #ddd;
-            padding: 12px;
+        :root {
+            --glass-bg: rgba(255, 255, 255, 0.95);
+            --glass-border: rgba(226, 232, 240, 0.8);
+            --card-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.04), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
+            --accent-blue: #3b82f6;
+            --accent-green: #22c55e;
+            --accent-yellow: #f59e0b;
+            --accent-orange: #f97316;
+            --orange-glow: rgba(249, 115, 22, 0.15);
         }
 
-        .events-table {
-            border-collapse: collapse;
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .passbook-container {
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .header h1 {
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            color: #1e293b;
+            border-left: 5px solid var(--accent-orange);
+            padding-left: 15px;
+        }
+
+        .header p {
+            color: #64748b;
+            font-weight: 400;
+            padding-left: 20px;
+        }
+
+        /* Stats Section */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 24px;
+            margin: 30px 0;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 24px;
+            border-radius: 20px;
+            border: 1px solid var(--glass-border);
+            box-shadow: var(--card-shadow);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: var(--accent-blue);
+        }
+
+        .stat-card.orange-theme::after {
+            background: var(--accent-orange);
+        }
+
+        .stat-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05);
+        }
+
+        .stat-value {
+            font-size: 2.2rem;
+            font-weight: 800;
+            color: #1e293b;
+            letter-spacing: -0.02em;
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* Table Section */
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            margin-top: 40px;
+        }
+
+        .section-title {
+            font-weight: 700;
+            color: #1e293b;
+            letter-spacing: -0.01em;
+            font-size: 1.1rem;
+        }
+
+        .styled-table {
+            background: white;
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid var(--glass-border);
+            box-shadow: var(--card-shadow);
+            border-collapse: separate;
+            border-spacing: 0;
             width: 100%;
         }
 
-        .events-table tr:hover {
-            background-color: #f5f5f5;
+        .styled-table thead th {
+            background: #f1f5f9;
+            color: #475569;
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 0.7rem;
+            letter-spacing: 0.05em;
+            padding: 16px 20px;
+            border-bottom: 1px solid #e2e8f0;
+            text-align: left;
         }
 
-        .table-wrapper {
-            max-height: 400px;
-            overflow-y: auto;
-            border: 1px solid #ddd;
-            display: block;
-            /* Ensure it behaves like a block for scrolling */
+        .styled-table thead th:first-child {
+            border-left: 3px solid var(--accent-orange);
         }
 
-        .events-table thead th {
-            position: sticky;
-            top: 0;
-            background-color: #f1f5f9;
-            /* Light gray background to match header */
-            z-index: 1;
+        .styled-table td {
+            padding: 16px 20px;
+            border-bottom: 1px solid #f1f5f9;
+            color: #475569;
+            font-size: 0.9rem;
+            vertical-align: middle;
+        }
+
+        .styled-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .styled-table tbody tr:hover {
+            background-color: #f8fafc;
+        }
+
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 12px;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .status-pending {
+            background: #fffbeb;
+            color: #92400e;
+            border: 1px solid #fef3c7;
+        }
+
+        .status-reviewed {
+            background: #eff6ff;
+            color: #1e40af;
+            border: 1px solid #dbeafe;
+        }
+
+        .status-recommending {
+            background: #fdf2f8;
+            color: #9d174d;
+            border: 1px solid #fce7f3;
+        }
+
+        .status-approved {
+            background: #ecfdf5;
+            color: #065f46;
+            border: 1px solid #d1fae5;
+        }
+
+        .btn-view {
+            color: var(--accent-blue);
+            font-weight: 600;
+            text-decoration: none;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+
+        .btn-view:hover {
+            color: #2563eb;
+            transform: translateX(3px);
         }
     </style>
 </head>
@@ -81,77 +260,104 @@ foreach ($activities as $act) {
 <body>
 
     <div class="dashboard-container">
-        <div class="sidebar">
-            <?php require '../includes/sidebar.php'; ?>
-        </div>
+        <?php require '../includes/sidebar.php'; ?>
 
         <div class="main-content">
-            <div class="passbook-container"
-                style="width: 800px; max-width: 95%; margin: 20px auto; background-color: #fff; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);">
+            <div class="passbook-container" style="width: 1000px; max-width: 95%;">
                 <div class="header">
                     <h1>Admin Dashboard</h1>
-                    <p>Overview of Learning & Development Activities</p>
+                    <p>System insight and recent passbook activity</p>
                 </div>
 
-                <div class="stats-container">
+                <div class="stats-grid">
                     <div class="stat-card">
-                        <h3>
-                            <?php echo $totalSubmissions; ?>
-                        </h3>
-                        <p>Total Submissions</p>
+                        <span class="stat-label">Total Submissions</span>
+                        <span class="stat-value"><?php echo number_format($totalSubmissions); ?></span>
+                    </div>
+                    <div class="stat-card orange-theme">
+                        <span class="stat-label">Total Users</span>
+                        <span class="stat-value"><?php echo number_format($totalUsers); ?></span>
+                    </div>
+                    <div class="stat-card orange-theme">
+                        <span class="stat-label">Pending Approval</span>
+                        <span class="stat-value"
+                            style="color: var(--accent-orange);"><?php echo number_format($pendingCount); ?></span>
                     </div>
                     <div class="stat-card">
-                        <h3>
-                            <?php echo $totalUsers; ?>
-                        </h3>
-                        <p>Total Users</p>
+                        <span class="stat-label">Final Approved</span>
+                        <span class="stat-value"
+                            style="color: var(--accent-green);"><?php echo number_format($approvedCount); ?></span>
                     </div>
-
-
                 </div>
 
-                <div style="margin-bottom: 15px; font-weight: bold; color: var(--primary-blue);">Recent Submissions
+                <div class="section-header">
+                    <div class="section-title">Recent Activity Logs</div>
+                    <a href="submissions.php" class="btn-view">View All Submissions →</a>
                 </div>
 
-                <div class="table-wrapper">
-                    <table class="events-table">
-                        <thead>
+                <table class="styled-table">
+                    <thead>
+                        <tr>
+                            <th>Date Attended</th>
+                            <th>User Details</th>
+                            <th>Activity Title</th>
+                            <th>Status</th>
+                            <th style="text-align: right;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if (empty($activities)): ?>
                             <tr>
-                                <th>Date</th>
-                                <th>User</th>
-                                <th>Office</th>
-                                <th>Activity Title</th>
-                                <th>Competency</th>
-                                <th>Actions</th>
+                                <td colspan="5" style="text-align: center; padding: 40px; color: #94a3b8;">No recent
+                                    activities found.</td>
                             </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($activities as $act): ?>
+                        <?php else: ?>
+                            <?php foreach (array_slice($activities, 0, 8) as $act): ?>
                                 <tr>
-                                    <td>
-                                        <?php echo htmlspecialchars($act['date_attended']); ?>
+                                    <td style="font-weight: 500; color: #1e293b;">
+                                        <?php echo date('M d, Y', strtotime($act['date_attended'])); ?>
                                     </td>
                                     <td>
-                                        <?php echo htmlspecialchars($act['full_name']); ?>
+                                        <div style="font-weight: 600; color: #1e293b;">
+                                            <?php echo htmlspecialchars($act['full_name']); ?>
+                                        </div>
+                                        <div style="font-size: 0.75rem; color: #94a3b8;">
+                                            <?php echo htmlspecialchars($act['office_station']); ?>
+                                        </div>
                                     </td>
-                                    <td>
-                                        <?php echo htmlspecialchars($act['office_station']); ?>
-                                    </td>
-                                    <td>
+                                    <td style="max-width: 300px; line-height: 1.4;">
                                         <?php echo htmlspecialchars($act['title']); ?>
                                     </td>
                                     <td>
-                                        <?php echo htmlspecialchars($act['competency']); ?>
+                                        <?php
+                                        $pill_class = 'status-pending';
+                                        $label = 'Pending';
+                                        if ($act['approved_sds']) {
+                                            $pill_class = 'status-approved';
+                                            $label = 'Approved';
+                                        } elseif ($act['recommending_asds']) {
+                                            $pill_class = 'status-recommending';
+                                            $label = 'Recommending';
+                                        } elseif ($act['reviewed_by_supervisor']) {
+                                            $pill_class = 'status-reviewed';
+                                            $label = 'Reviewed';
+                                        }
+                                        ?>
+                                        <span class="status-pill <?php echo $pill_class; ?>">
+                                            <?php echo $label; ?>
+                                        </span>
                                     </td>
-                                    <td>
-                                        <a href="../pages/view_activity.php?id=<?php echo $act['id']; ?>" class="btn"
-                                            style="padding: 5px 10px; font-size: 0.8em; text-decoration: none; margin-top: 0;">View</a>
+                                    <td style="text-align: right;">
+                                        <a href="../pages/view_activity.php?id=<?php echo $act['id']; ?>" class="btn-view"
+                                            style="justify-content: flex-end;">
+                                            Details
+                                        </a>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>

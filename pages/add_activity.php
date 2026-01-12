@@ -32,20 +32,39 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $signature_path = '';
         $organizer_signature_path = '';
 
-        // Function to handle file saving
+        // Function to handle file saving (supports 1 or many files)
         function saveUpload($fileKey, $prefix, $subDir = 'signatures')
         {
-            if (isset($_FILES[$fileKey]) && $_FILES[$fileKey]['error'] === UPLOAD_ERR_OK) {
-                $uploadDir = '../uploads/' . $subDir . '/';
-                if (!is_dir($uploadDir))
-                    mkdir($uploadDir, 0777, true);
-                $fileName = uniqid() . '_' . $prefix . '_' . basename($_FILES[$fileKey]['name']);
-                $targetPath = $uploadDir . $fileName;
-                if (move_uploaded_file($_FILES[$fileKey]['tmp_name'], $targetPath)) {
-                    return 'uploads/' . $subDir . '/' . $fileName;
+            if (!isset($_FILES[$fileKey]))
+                return '';
+
+            $files = $_FILES[$fileKey];
+            $isMultiple = is_array($files['name']);
+            $count = $isMultiple ? count($files['name']) : 1;
+            $paths = [];
+
+            $uploadDir = '../uploads/' . $subDir . '/';
+            if (!is_dir($uploadDir))
+                mkdir($uploadDir, 0777, true);
+
+            for ($i = 0; $i < $count; $i++) {
+                $error = $isMultiple ? $files['error'][$i] : $files['error'];
+                if ($error === UPLOAD_ERR_OK) {
+                    $tmpName = $isMultiple ? $files['tmp_name'][$i] : $files['tmp_name'];
+                    $originalName = $isMultiple ? $files['name'][$i] : $files['name'];
+
+                    $fileName = uniqid() . '_' . $prefix . '_' . basename($originalName);
+                    $targetPath = $uploadDir . $fileName;
+
+                    if (move_uploaded_file($tmpName, $targetPath)) {
+                        $paths[] = 'uploads/' . $subDir . '/' . $fileName;
+                    }
                 }
             }
-            return '';
+
+            if (empty($paths))
+                return '';
+            return $isMultiple ? json_encode($paths) : $paths[0];
         }
 
         // Function to handle signature saving (re-using upload for files)
@@ -183,7 +202,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 15px;">
                         <div>
                             <div class="form-group">
-                                <label>Addressed Competency/ies:</label>
+                                <label>Addressed Competency/ies: <span style="color: #ef4444;">*</span></label>
                                 <input type="text" name="competency" class="form-control">
                             </div>
                             <div class="form-group" style="margin-top: 15px;">
@@ -231,7 +250,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                             <div class="form-group">
-                                <label>Modality:</label>
+                                <label>Modality: <span style="color: #ef4444;">*</span></label>
                                 <div class="checkbox-group">
                                     <label><input type="checkbox" name="modality[]" value="Formal Training"> Formal
                                         Training</label>
@@ -245,7 +264,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                                 </div>
                             </div>
                             <div class="form-group">
-                                <label>Type of L&D:</label>
+                                <label>Type of L&D: <span style="color: #ef4444;">*</span></label>
                                 <div class="checkbox-group">
                                     <label><input type="checkbox" name="type_ld[]" value="Supervisory">
                                         Supervisory</label>
@@ -273,18 +292,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     <div class="workplace-box"
                         style="border: 2px solid var(--primary-blue); padding: 20px; border-radius: 12px; display: flex; flex-direction: column; margin-top: 15px; background: white; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
 
-                        <div style="display: flex; gap: 20px; align-items: center; margin-bottom: 10px;">
-                            <label style="font-weight: bold; font-size: 0.9em; margin-bottom: 0;">Method:</label>
-                            <label style="font-weight: normal; font-size: 0.9em; margin-bottom: 0; cursor: pointer;">
-                                <input type="radio" name="workplace_method" value="text" checked
-                                    onclick="toggleWorkplaceMethod('text')"> Text Application
-                            </label>
-                            <label style="font-weight: normal; font-size: 0.9em; margin-bottom: 0; cursor: pointer;">
-                                <input type="radio" name="workplace_method" value="image"
-                                    onclick="toggleWorkplaceMethod('image')"> Upload Picture
-                            </label>
-                        </div>
-
                         <!-- Text Area -->
                         <div id="workplace-text-container">
                             <textarea name="workplace_application" oninput="autoExpand(this)"
@@ -292,66 +299,94 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                                 placeholder="Describe how you will apply this learning..."></textarea>
                         </div>
 
-                        <!-- Image Upload (Minimized) -->
-                        <div id="workplace-image-container"
-                            style="display: none; padding: 12px; border: 1px dashed #cbd5e1; border-radius: 8px; text-align: center; background: #f8fafc;">
-                            <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
-                                <span style="font-size: 0.85em; color: #64748b; font-weight: 500;">Select Image:</span>
-                                <input type="file" name="workplace_image" id="workplace_image" accept="image/*"
-                                    style="font-size: 0.8em; color: #475569; max-width: 250px;">
+                        <!-- Image Upload -->
+                        <div id="workplace-image-container" class="drop-zone"
+                            style="margin-top: 20px; padding: 30px; border: 2px dashed #cbd5e1; border-radius: 8px; text-align: center; background: #f8fafc;">
+                            <div id="upload-icon" style="margin-bottom: 15px;">
+                                <svg style="width: 48px; height: 48px; margin: 0 auto; color: #94a3b8;" fill="none"
+                                    stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12">
+                                    </path>
+                                </svg>
                             </div>
-                            <div id="workplace-image-preview" style="margin-top: 8px; display: none;">
-                                <img src="" style="max-height: 70px; border-radius: 4px; border: 1px solid #e2e8f0;">
+                            <div id="upload-instructions" style="margin-bottom: 10px;">
+                                <span style="font-size: 0.95em; color: #475569; font-weight: 600; display: block;">Drag
+                                    & Drop your files here</span>
+                                <span style="font-size: 0.8em; color: #94a3b8;">or click to browse (images, PDFs,
+                                    documents supported)</span>
+                            </div>
+                            <input type="file" name="workplace_image[]" id="workplace_image"
+                                accept="image/*,.pdf,.doc,.docx,.txt" multiple style="display: none;">
+                            <button type="button" id="browse-btn"
+                                onclick="document.getElementById('workplace_image').click()"
+                                style="background: var(--primary-blue); color: white; border: none; padding: 8px 20px; border-radius: 6px; cursor: pointer; font-size: 0.85em; margin-top: 5px;">
+                                Browse Files
+                            </button>
+                            <button type="button" id="add-more-btn"
+                                onclick="document.getElementById('workplace_image').click()"
+                                style="display: none; background: var(--primary-blue); color: white; border: none; padding: 8px 20px; border-radius: 6px; cursor: pointer; font-size: 0.85em; margin-top: 5px; margin-right: 10px;">
+                                + Add More Files
+                            </button>
+                            <button type="button" id="remove-all-btn"
+                                style="display: none; background: #ef4444; color: white; border: none; padding: 8px 20px; border-radius: 6px; cursor: pointer; font-size: 0.85em; margin-top: 5px;">
+                                Remove All
+                            </button>
+                            <div id="workplace-image-preview" style="margin-top: 15px; display: none;">
+                                <!-- Multiple image previews will be inserted here -->
                             </div>
                         </div>
 
                         <!-- Attestation Section (Clearly Separated) -->
                         <div
-                            style="margin-top: 30px; border-top: 1px solid #f1f5f9; padding-top: 20px; display: flex; justify-content: flex-end;">
-                            <div style="width: 380px;">
+                            style="margin-top: 15px; border-top: 1px solid #f1f5f9; padding-top: 10px; display: flex; justify-content: flex-end;">
+                            <div style="width: 250px;">
                                 <div
-                                    style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
+                                    style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
                                     <div class="form-section-title"
-                                        style="text-align: left; border: none; margin-bottom: 0; font-size: 1.1em; color: var(--primary-blue);">
+                                        style="text-align: left; border: none; margin-bottom: 0; font-size: 0.9em; color: var(--primary-blue);">
                                         Attestation</div>
-                                    <div style="display: flex; gap: 5px;">
+                                    <div id="attestation-buttons" style="display: none; gap: 5px;">
                                         <button type="button" class="btn"
-                                            style="width: auto; background-color: var(--primary-blue); padding: 5px 12px; font-size: 0.8em; margin: 0;"
+                                            style="width: auto; background-color: var(--primary-blue); padding: 4px 10px; font-size: 0.75em; margin: 0;"
                                             onclick="openSignatureModal('attest')">
                                             Draw
                                         </button>
                                         <button type="button" class="btn"
-                                            style="width: auto; background-color: #5bc0de; padding: 5px 12px; font-size: 0.8em; margin: 0;"
+                                            style="width: auto; background-color: #5bc0de; padding: 4px 10px; font-size: 0.75em; margin: 0;"
                                             onclick="triggerSignatureUpload('attest')">
                                             Upload
                                         </button>
                                     </div>
                                 </div>
 
-                                <div style="text-align: center; margin-bottom: 10px;">
-                                    <span id="attest-sig-status" class="sig-status" style="display: none;">No signature
+                                <div style="text-align: center; margin-bottom: 5px;">
+                                    <span id="attest-sig-status" class="sig-status"
+                                        style="display: none; font-size: 0.8em;">No signature
                                         captured</span>
                                     <div id="attest-upload-status"
-                                        style="font-size: 0.85em; color: var(--primary-blue); font-weight: 600; margin-top: 2px;">
+                                        style="font-size: 0.8em; color: var(--primary-blue); font-weight: 600; margin-top: 2px;">
                                     </div>
-                                    <div id="attest-sig-preview-container" style="margin-top: 10px; display: none;">
+                                    <div id="attest-sig-preview-container" style="margin-top: 5px; display: none;">
                                         <img id="attest-sig-preview" src=""
-                                            style="max-height: 80px; border: 1px solid #ccc; border-radius: 4px; padding: 2px;">
+                                            style="max-height: 60px; border: 1px solid #ccc; border-radius: 4px; padding: 1px;">
                                     </div>
                                     <input type="file" id="sig-file" accept="image/*" style="display: none;">
                                 </div>
 
-                                <div class="form-group" style="margin-top: 10px;">
-                                    <input type="text" name="approved_by" class="form-control"
-                                        placeholder="Name of Immediate Head" style="text-align: center;" required>
+                                <div class="form-group" style="margin-top: 5px;">
+                                    <input type="text" name="approved_by" id="approved_by" class="form-control"
+                                        placeholder="Name of Immediate Head"
+                                        style="text-align: center; font-size: 0.9em; padding: 8px;" required>
                                     <label
-                                        style="font-weight: normal; font-size: 0.8em; margin-top: 5px; text-align: center; display: block;">Signature
+                                        style="font-weight: normal; font-size: 0.75em; margin-top: 3px; text-align: center; display: block; line-height: 1.2;">Signature
                                         overprinted name of the Immediate Head</label>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="form-section-title" style="margin-top: 30px;">Reflection</div>
+                        <div class="form-section-title" style="margin-top: 30px;">Reflection <span
+                                style="color: #ef4444;">*</span></div>
                         <div class="form-group">
                             <textarea name="reflection" class="form-control"
                                 placeholder="Your reflections..."></textarea>
@@ -495,10 +530,27 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             const title = form.querySelector('[name="title"]').value.trim();
             const date = form.querySelector('[name="date_attended"]').value.trim();
             const conductedBy = form.querySelector('[name="conducted_by"]').value.trim();
+            const competency = form.querySelector('[name="competency"]').value.trim();
+            const reflection = form.querySelector('[name="reflection"]').value.trim();
 
             if (!title) missingFields.push("Title");
             if (!date) missingFields.push("Date");
             if (!conductedBy) missingFields.push("Conducted By");
+            if (!competency) missingFields.push("Addressed Competency/ies");
+
+            // --- Modality Validation ---
+            const modalities = form.querySelectorAll('[name="modality[]"]:checked');
+            if (modalities.length === 0) {
+                missingFields.push("Modality");
+            }
+
+            // --- Type of L&D Validation ---
+            const typeLd = form.querySelectorAll('[name="type_ld[]"]:checked');
+            if (typeLd.length === 0) {
+                missingFields.push("Type of L&D");
+            }
+
+            if (!reflection) missingFields.push("Reflection");
 
             // --- Workplace Application Validation ---
             const workplaceText = form.querySelector('[name="workplace_application"]').value.trim();
@@ -578,25 +630,188 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             }
         }
 
-        // Image Selection Preview for Workplace Application
-        const workplaceImageInput = document.getElementById('workplace_image');
-        if (workplaceImageInput) {
-            workplaceImageInput.addEventListener('change', function () {
-                const preview = document.getElementById('workplace-image-preview');
-                const previewImg = preview.querySelector('img');
 
-                if (this.files && this.files[0]) {
-                    const reader = new FileReader();
-                    reader.onload = function (e) {
-                        previewImg.src = e.target.result;
-                        preview.style.display = 'block';
-                    }
-                    reader.readAsDataURL(this.files[0]);
+        // Drag and Drop + Image Selection Preview for Workplace Application
+        const workplaceImageInput = document.getElementById('workplace_image');
+        const workplaceImageContainer = document.getElementById('workplace-image-container');
+
+        if (workplaceImageInput && workplaceImageContainer) {
+            // Prevent default drag behaviors
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                workplaceImageContainer.addEventListener(eventName, preventDefaults, false);
+                document.body.addEventListener(eventName, preventDefaults, false);
+            });
+
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            // Highlight drop zone when item is dragged over it
+            ['dragenter', 'dragover'].forEach(eventName => {
+                workplaceImageContainer.addEventListener(eventName, highlight, false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                workplaceImageContainer.addEventListener(eventName, unhighlight, false);
+            });
+
+            function highlight(e) {
+                workplaceImageContainer.classList.add('drop-zone--over');
+            }
+
+            function unhighlight(e) {
+                workplaceImageContainer.classList.remove('drop-zone--over');
+            }
+
+            // Handle dropped files
+            workplaceImageContainer.addEventListener('drop', handleDrop, false);
+
+            function handleDrop(e) {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+
+                if (files.length > 0) {
+                    // Update the file input
+                    workplaceImageInput.files = files;
+                    // Trigger the change event to show preview
+                    const event = new Event('change', { bubbles: true });
+                    workplaceImageInput.dispatchEvent(event);
+                }
+            }
+
+            // Handle file selection (both click and drop)
+            let existingFiles = []; // Store existing files
+
+            // Centralized function to update UI and previews
+            function updateUIandPreviews() {
+                const preview = document.getElementById('workplace-image-preview');
+                const uploadIcon = document.getElementById('upload-icon');
+                const uploadInstructions = document.getElementById('upload-instructions');
+                const browseBtn = document.getElementById('browse-btn');
+                const addMoreBtn = document.getElementById('add-more-btn');
+                const removeAllBtn = document.getElementById('remove-all-btn');
+
+                // Update the file input with current existingFiles
+                const dt = new DataTransfer();
+                existingFiles.forEach(file => dt.items.add(file));
+                workplaceImageInput.files = dt.files;
+
+                preview.innerHTML = ''; // Clear previous previews
+
+                if (existingFiles.length > 0) {
+                    // Show file UI
+                    uploadIcon.style.display = 'none';
+                    uploadInstructions.style.display = 'none';
+                    browseBtn.style.display = 'none';
+                    addMoreBtn.style.display = 'inline-block';
+                    removeAllBtn.style.display = 'inline-block';
+                    preview.style.display = 'flex';
+                    preview.style.flexWrap = 'wrap';
+                    preview.style.gap = '10px';
+                    preview.style.justifyContent = 'center';
+
+                    existingFiles.forEach((file, index) => {
+                        const fileContainer = document.createElement('div');
+                        fileContainer.style.position = 'relative';
+                        fileContainer.style.display = 'inline-block';
+                        fileContainer.style.textAlign = 'center';
+
+                        const isImage = file.type.startsWith('image/');
+
+                        if (isImage) {
+                            const reader = new FileReader();
+                            reader.onload = function (e) {
+                                const img = document.createElement('img');
+                                img.src = e.target.result;
+                                img.style.maxHeight = '120px';
+                                img.style.maxWidth = '120px';
+                                img.style.borderRadius = '4px';
+                                img.style.border = '1px solid #e2e8f0';
+                                img.style.objectFit = 'cover';
+                                fileContainer.insertBefore(img, fileContainer.firstChild);
+                            };
+                            reader.readAsDataURL(file);
+                        } else {
+                            const fileIcon = document.createElement('div');
+                            fileIcon.style.width = '120px';
+                            fileIcon.style.height = '120px';
+                            fileIcon.style.borderRadius = '4px';
+                            fileIcon.style.border = '1px solid #e2e8f0';
+                            fileIcon.style.background = '#f8fafc';
+                            fileIcon.style.display = 'flex';
+                            fileIcon.style.flexDirection = 'column';
+                            fileIcon.style.alignItems = 'center';
+                            fileIcon.style.justifyContent = 'center';
+                            fileIcon.style.padding = '10px';
+
+                            const iconSvg = document.createElement('div');
+                            iconSvg.innerHTML = `<svg style="width: 48px; height: 48px; color: #3b82f6;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                            </svg>`;
+
+                            const fileName = document.createElement('div');
+                            fileName.textContent = file.name.length > 15 ? file.name.substring(0, 12) + '...' : file.name;
+                            fileName.style.fontSize = '0.7em';
+                            fileName.style.color = '#64748b';
+                            fileName.style.marginTop = '5px';
+                            fileName.style.wordBreak = 'break-all';
+
+                            fileIcon.appendChild(iconSvg);
+                            fileIcon.appendChild(fileName);
+                            fileContainer.appendChild(fileIcon);
+                        }
+
+                        const removeBtn = document.createElement('button');
+                        removeBtn.type = 'button';
+                        removeBtn.innerHTML = '×';
+                        removeBtn.style.position = 'absolute';
+                        removeBtn.style.top = '-8px';
+                        removeBtn.style.right = '-8px';
+                        removeBtn.style.width = '24px';
+                        removeBtn.style.height = '24px';
+                        removeBtn.style.borderRadius = '50%';
+                        removeBtn.style.background = '#ef4444';
+                        removeBtn.style.color = 'white';
+                        removeBtn.style.border = 'none';
+                        removeBtn.style.cursor = 'pointer';
+                        removeBtn.style.fontSize = '16px';
+                        removeBtn.style.fontWeight = 'bold';
+                        removeBtn.onclick = function () {
+                            existingFiles.splice(index, 1);
+                            updateUIandPreviews();
+                        };
+
+                        fileContainer.appendChild(removeBtn);
+                        preview.appendChild(fileContainer);
+                    });
                 } else {
+                    // Restore initial UI
+                    uploadIcon.style.display = 'block';
+                    uploadInstructions.style.display = 'block';
+                    browseBtn.style.display = 'inline-block';
+                    addMoreBtn.style.display = 'none';
+                    removeAllBtn.style.display = 'none';
                     preview.style.display = 'none';
                 }
+            }
+
+            workplaceImageInput.addEventListener('change', function () {
+                const newFiles = Array.from(this.files);
+                existingFiles = [...existingFiles, ...newFiles];
+                updateUIandPreviews();
             });
+
+            // Remove All button handler
+            const removeAllBtn = document.getElementById('remove-all-btn');
+            if (removeAllBtn) {
+                removeAllBtn.addEventListener('click', function () {
+                    existingFiles = [];
+                    updateUIandPreviews();
+                });
+            }
         }
+
 
         // Initialize Modal Pad
         initModalSignature();
@@ -614,6 +829,20 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     organizerSigSection.style.display = 'block';
                 } else {
                     organizerSigSection.style.display = 'none';
+                }
+            });
+        }
+
+        // Conditional Visibility for Attestation Signature Buttons
+        const approvedByInput = document.getElementById('approved_by');
+        const attestationButtons = document.getElementById('attestation-buttons');
+
+        if (approvedByInput && attestationButtons) {
+            approvedByInput.addEventListener('input', function () {
+                if (this.value.trim() !== '') {
+                    attestationButtons.style.display = 'flex';
+                } else {
+                    attestationButtons.style.display = 'none';
                 }
             });
         }
