@@ -3,7 +3,7 @@ session_start();
 require '../includes/db.php';
 
 // Check if user is logged in and is admin
-if (!isset($_SESSION['user_id']) || ($_SESSION['role'] !== 'admin' && $_SESSION['role'] !== 'super_admin')) {
+if (!isset($_SESSION['user_id']) || ($_SESSION['role'] !== 'admin' && $_SESSION['role'] !== 'super_admin' && $_SESSION['role'] !== 'immediate_head')) {
     header("Location: ../index.php");
     exit;
 }
@@ -58,11 +58,15 @@ if ($end_date) {
     $params[] = $end_date;
 }
 
-$sql .= " ORDER BY ld.date_attended DESC";
+$sql .= " ORDER BY ld.created_at DESC";
 $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
 $activities = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+// Define Office Lists for Highlighting
+$osdsOffices = ['ADMINISTRATIVE (PERSONEL)', 'ADMINISTRATIVE (PROPERTY AND SUPPLY)', 'ADMINISTRATIVE (RECORDS)', 'ADMINISTRATIVE (CASH)', 'ADMINISTRATIVE (GENERAL SERVICES)', 'FINANCE (ACCOUNTING)', 'FINANCE (BUDGET)', 'LEGAL', 'ICT'];
+$sgodOffices = ['SCHOOL MANAGEMENT MONITORING & EVALUATION', 'HUMAN RESOURCES DEVELOPMENT', 'DISASTER RISK REDUCTION AND MANAGEMENT', 'EDUCATION FACILITIES', 'SCHOOL HEALTH AND NUTRITION', 'SCHOOL HEALTH AND NUTRITION (DENTAL)', 'SCHOOL HEALTH AND NUTRITION (MEDICAL)'];
+$cidOffices = ['CURRICULUM IMPLEMENTATION DIVISION (INSTRUCTIONAL MANAGEMENT)', 'CURRICULUM IMPLEMENTATION DIVISION (LEARNING RESOURCES MANAGEMENT)', 'CURRICULUM IMPLEMENTATION DIVISION (ALTERNATIVE LEARNING SYSTEM)', 'CURRICULUM IMPLEMENTATION DIVISION (DISTRICT INSTRUCTIONAL SUPERVISION)'];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -72,512 +76,259 @@ $activities = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Submissions Management - Admin</title>
     <?php require 'includes/admin_head.php'; ?>
-    <link rel="stylesheet" href="../css/base/tables.css">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --glass-bg: rgba(255, 255, 255, 0.95);
-            --glass-border: rgba(226, 232, 240, 0.8);
-            --card-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.04), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
-            --accent-blue: #3b82f6;
-            --accent-green: #22c55e;
-            --accent-yellow: #f59e0b;
-            --accent-orange: #f97316;
-        }
-
-        body {
-            font-family: 'Outfit', sans-serif;
-            background-color: #f8fafc;
-        }
-
-        .passbook-container {
-            animation: fadeIn 0.5s ease-out;
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .header h1 {
-            font-weight: 700;
-            letter-spacing: -0.02em;
-            color: #1e293b;
-            border-left: 5px solid var(--accent-orange);
-            padding-left: 15px;
-        }
-
-        .header p {
-            color: #64748b;
-            font-weight: 400;
-        }
-
-        /* Filter Section Styling */
-        .filter-section {
-            background: var(--glass-bg);
-            backdrop-filter: blur(10px);
-            padding: 24px;
-            border-radius: 16px;
-            margin-bottom: 24px;
-            border: 1px solid var(--glass-border);
-            box-shadow: var(--card-shadow);
-            transition: all 0.3s ease;
-        }
-
-        .filter-section:hover {
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05);
-        }
-
-        .filter-label {
-            font-size: 0.7rem;
-            font-weight: 700;
-            color: #94a3b8;
-            margin-bottom: 6px;
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-
-        .filter-input {
-            background: #ffffff;
-            border: 1.5px solid #e2e8f0;
-            padding: 10px 14px;
-            border-radius: 10px;
-            font-size: 0.85rem;
-            color: #1e293b;
-            transition: all 0.2s ease;
-            width: 100%;
-            outline: none;
-        }
-
-        .filter-input:focus {
-            border-color: var(--accent-orange);
-            box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
-        }
-
-        .btn-filter {
-            background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
-            color: white;
-            border: none;
-            padding: 10px 24px;
-            border-radius: 10px;
-            font-weight: 600;
-            font-size: 0.85rem;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            box-shadow: 0 4px 6px -1px rgba(249, 115, 22, 0.2);
-        }
-
-        .btn-filter:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 6px 12px -2px rgba(249, 115, 22, 0.3);
-        }
-
-        /* Table Styling */
-        .styled-table {
-            background: white;
-            border-radius: 16px;
-            overflow: hidden;
-            border: 1px solid var(--glass-border);
-            box-shadow: var(--card-shadow);
-            border-collapse: separate;
-            border-spacing: 0;
-            width: 100%;
-        }
-
-        .styled-table thead th {
-            background: #f1f5f9;
-            color: #475569;
-            font-weight: 700;
-            text-transform: uppercase;
-            font-size: 0.7rem;
-            letter-spacing: 0.05em;
-            padding: 16px 20px;
-            border-bottom: 2px solid #e2e8f0;
-        }
-
-        .styled-table thead th:first-child {
-            border-left: 3px solid var(--accent-orange);
-        }
-
-        .styled-table tbody tr {
-            transition: all 0.2s ease;
-        }
-
-        .styled-table tbody tr:hover {
-            background-color: #f8fafc;
-        }
-
-        .styled-table td {
-            padding: 16px 20px;
-            border-bottom: 1px solid #f1f5f9;
-            vertical-align: middle;
-        }
-
-        /* Progress Dots Refined */
-        .progress-mini {
-            display: flex;
-            gap: 6px;
-            justify-content: center;
-            background: #f1f5f9;
-            padding: 6px 10px;
-            border-radius: 20px;
-            width: fit-content;
-            margin: 0 auto;
-        }
-
-        .dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            background: #cbd5e1;
+        .highlight-pending-approval {
+            background-color: #fff7ed !important;
+            /* Light Orange background */
+            border-left: 4px solid #f97316 !important;
+            /* Orange accent border */
             position: relative;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        .dot.active.yellow {
-            background: var(--accent-yellow);
-            box-shadow: 0 0 8px rgba(245, 158, 11, 0.4);
-        }
-
-        .dot.active.blue {
-            background: var(--accent-blue);
-            box-shadow: 0 0 8px rgba(59, 130, 246, 0.4);
-        }
-
-        .dot.active {
-            background: var(--accent-green);
-            box-shadow: 0 0 8px rgba(34, 197, 94, 0.4);
-        }
-
-        /* Status Pills */
-        .status-pill {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 4px 12px;
-            border-radius: 9999px;
-            font-size: 0.75rem;
-            font-weight: 600;
-        }
-
-        .status-pending {
-            background: #fffbeb;
-            color: #92400e;
-            border: 1px solid #fef3c7;
-        }
-
-        .status-reviewed {
-            background: #eff6ff;
-            color: #1e40af;
-            border: 1px solid #dbeafe;
-        }
-
-        .status-recommending {
-            background: #fdf2f8;
-            color: #9d174d;
-            border: 1px solid #fce7f3;
-        }
-
-        .status-approved {
-            background: #ecfdf5;
-            color: #065f46;
-            border: 1px solid #d1fae5;
-        }
-
-        /* Action Buttons */
-        .action-flex {
-            display: flex;
-            gap: 10px;
-        }
-
-        .btn-action {
-            width: 36px;
-            height: 36px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 10px;
-            transition: all 0.2s ease;
-            text-decoration: none;
-            border: 1px solid #e2e8f0;
-        }
-
-        .btn-view {
-            color: #64748b;
-            background: white;
-        }
-
-        .btn-view:hover {
-            background: #f1f5f9;
-            color: #1e293b;
-            border-color: #cbd5e1;
-        }
-
-        .btn-edit {
-            color: var(--accent-blue);
-            background: #eff6ff;
-            border-color: #dbeafe;
-        }
-
-        .btn-edit:hover {
-            background: #dbeafe;
-            transform: scale(1.05);
-        }
-
-        .user-info {
-            display: flex;
-            flex-direction: column;
-        }
-
-        .user-name {
-            font-weight: 600;
-            color: #1e293b;
-            font-size: 0.9rem;
-        }
-
-        .user-station {
-            font-size: 0.75rem;
-            color: #94a3b8;
-        }
-
-        .activity-title {
-            font-weight: 500;
-            color: #334155;
-            font-size: 0.9rem;
-            line-height: 1.4;
-        }
-
-        .date-cell {
-            color: #64748b;
-            font-weight: 500;
-            font-size: 0.85rem;
+        .highlight-pending-approval::after {
+            content: "Needs Approval";
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            font-size: 0.65rem;
+            font-weight: 700;
+            background: #f97316;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            text-transform: uppercase;
         }
     </style>
 </head>
 
 <body>
-    <div class="dashboard-container">
+    <div class="admin-layout">
         <?php require '../includes/sidebar.php'; ?>
 
         <div class="main-content">
-            <div class="passbook-container" style="width: 1000px; max-width: 98%;">
-                <div class="header">
-                    <h1>Submissions Management</h1>
-                    <p>Track and approve all user-submitted L&D activities</p>
+            <header class="top-bar">
+                <div class="top-bar-left">
+                    <button class="mobile-menu-toggle" id="toggleSidebar">
+                        <i class="bi bi-list"></i>
+                    </button>
+                    <div class="breadcrumb">
+                        <span class="text-muted">Admin Panel</span>
+                        <i class="bi bi-chevron-right separator"></i>
+                        <h1 class="page-title">Manage Submissions</h1>
+                    </div>
                 </div>
+                <div class="top-bar-right">
+                    <div class="current-date-box">
+                        <i class="bi bi-calendar3"></i>
+                        <span><?php echo date('l, F d, Y'); ?></span>
+                    </div>
+                </div>
+            </header>
 
-                <div style="display: flex; gap: 30px; align-items: flex-start; margin-top: 25px;">
-                    <!-- Vertical Filter Sidebar -->
-                    <div class="filter-section"
-                        style="width: 260px; flex-shrink: 0; position: sticky; top: 20px; display: flex; flex-direction: column; gap: 20px;">
-                        <div
-                            style="font-size: 0.8rem; font-weight: 700; color: #1e293b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: -10px; display: flex; align-items: center; gap: 8px;">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
-                                fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
-                                stroke-linejoin="round">
-                                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
-                            </svg>
-                            Filter Options
+            <main class="content-wrapper">
+                <!-- Filter Section -->
+                <div class="filter-bar">
+                    <form method="GET" class="filter-form">
+                        <div class="filter-group">
+                            <label>Personnel / User</label>
+                            <select name="user_id" class="filter-select">
+                                <option value="0">All Personnel</option>
+                                <?php foreach ($all_users as $u): ?>
+                                    <option value="<?php echo $u['id']; ?>" <?php echo $filter_user_id == $u['id'] ? 'selected' : ''; ?>>
+                                        <?php echo htmlspecialchars($u['full_name']); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
                         </div>
 
-                        <form method="GET" class="filter-form"
-                            style="display: flex; flex-direction: column; gap: 18px;">
-                            <div class="filter-group">
-                                <label class="filter-label">User</label>
-                                <select name="user_id" class="filter-input">
-                                    <option value="0">All Users</option>
-                                    <?php foreach ($all_users as $u): ?>
-                                        <option value="<?php echo $u['id']; ?>" <?php echo $filter_user_id == $u['id'] ? 'selected' : ''; ?>>
-                                            <?php echo htmlspecialchars($u['full_name']); ?>
-                                        </option>
-                                    <?php endforeach; ?>
-                                </select>
-                            </div>
+                        <div class="filter-group">
+                            <label>Review Status</label>
+                            <select name="status" class="filter-select">
+                                <option value="">All Statuses</option>
+                                <option value="Pending" <?php echo $filter_status == 'Pending' ? 'selected' : ''; ?>>
+                                    Pending Approval</option>
+                                <option value="Reviewed" <?php echo $filter_status == 'Reviewed' ? 'selected' : ''; ?>>
+                                    Reviewed</option>
+                                <option value="Recommending" <?php echo $filter_status == 'Recommending' ? 'selected' : ''; ?>>Recommending</option>
+                                <option value="Approved" <?php echo $filter_status == 'Approved' ? 'selected' : ''; ?>>
+                                    Approved</option>
+                            </select>
+                        </div>
 
-                            <div class="filter-group">
-                                <label class="filter-label">Status</label>
-                                <select name="status" class="filter-input">
-                                    <option value="">All Status</option>
-                                    <option value="Pending" <?php echo $filter_status == 'Pending' ? 'selected' : ''; ?>>
-                                        Pending</option>
-                                    <option value="Reviewed" <?php echo $filter_status == 'Reviewed' ? 'selected' : ''; ?>>Reviewed</option>
-                                    <option value="Recommending" <?php echo $filter_status == 'Recommending' ? 'selected' : ''; ?>>Recommending</option>
-                                    <option value="Approved" <?php echo $filter_status == 'Approved' ? 'selected' : ''; ?>>Approved</option>
-                                </select>
-                            </div>
-
-                            <div class="filter-group">
-                                <label class="filter-label">Search Keywords</label>
+                        <div class="filter-group" style="flex: 2; min-width: 250px;">
+                            <label>Quick Search</label>
+                            <div style="position: relative;">
+                                <i class="bi bi-search"
+                                    style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted);"></i>
                                 <input type="text" name="search" value="<?php echo htmlspecialchars($filter_search); ?>"
-                                    placeholder="Title or Competency..." class="filter-input">
+                                    placeholder="Search title, competency..." class="filter-input"
+                                    style="padding-left: 38px; width: 100%;">
                             </div>
+                        </div>
 
-                            <div class="filter-group">
-                                <label class="filter-label">Date Range</label>
-                                <div style="display: flex; flex-direction: column; gap: 10px;">
-                                    <div class="filter-group">
-                                        <span
-                                            style="font-size: 0.65rem; color: #94a3b8; font-weight: 600; text-transform: uppercase;">From</span>
-                                        <input type="date" name="start_date" value="<?php echo $start_date; ?>"
-                                            class="filter-input">
-                                    </div>
-                                    <div class="filter-group">
-                                        <span
-                                            style="font-size: 0.65rem; color: #94a3b8; font-weight: 600; text-transform: uppercase;">To</span>
-                                        <input type="date" name="end_date" value="<?php echo $end_date; ?>"
-                                            class="filter-input">
-                                    </div>
-                                </div>
+                        <div class="filter-group">
+                            <label>Date Range (From-To)</label>
+                            <div style="display: flex; gap: 8px;">
+                                <input type="date" name="start_date" value="<?php echo $start_date; ?>"
+                                    class="filter-input" style="min-width: 140px;">
+                                <input type="date" name="end_date" value="<?php echo $end_date; ?>" class="filter-input"
+                                    style="min-width: 140px;">
                             </div>
+                        </div>
 
-                            <div class="filter-actions"
-                                style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px;">
-                                <button type="submit" class="btn-filter"
-                                    style="width: 100%; justify-content: center; height: 42px;">Apply Filters</button>
-                                <?php if ($filter_user_id > 0 || $filter_status || $filter_search || $start_date || $end_date): ?>
-                                    <a href="submissions.php" class="btn-reset" title="Clear All"
-                                        style="display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; height: 42px; background: #fff; border: 1.5px solid #e2e8f0; border-radius: 10px; color: #64748b; text-decoration: none; font-size: 0.85rem; font-weight: 600; transition: all 0.2s ease;">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
-                                            fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
-                                            stroke-linejoin="round">
-                                            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
-                                            <polyline points="3 3 3 8 8 8"></polyline>
-                                        </svg>
-                                        Clear All
-                                    </a>
-                                <?php endif; ?>
-                            </div>
-                        </form>
+                        <div class="filter-actions">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-funnel"></i> Apply Filters
+                            </button>
+                            <?php if ($filter_user_id > 0 || $filter_status || $filter_search || $start_date || $end_date): ?>
+                                <a href="submissions.php" class="btn btn-secondary">
+                                    <i class="bi bi-x-circle"></i> Reset
+                                </a>
+                            <?php endif; ?>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Submissions Table Section -->
+                <div class="dashboard-card hover-elevate">
+                    <div class="card-header">
+                        <h2><i class="bi bi-file-earmark-text text-gradient"></i> Activity Submissions</h2>
+                        <span class="result-count">Showing <?php echo count($activities); ?> total records</span>
                     </div>
-
-                    <!-- Table Column -->
-                    <div style="flex-grow: 1; overflow-x: auto;">
-                        <table class="styled-table">
-                            <thead>
-                                <tr>
-                                    <th>Date Attended</th>
-                                    <th>User Details</th>
-                                    <th>Activity Title</th>
-                                    <th>Progress Step</th>
-                                    <th>Current Status</th>
-                                    <th style="text-align: right;">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php if (empty($activities)): ?>
+                    <div class="card-body" style="padding: 0;">
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
                                     <tr>
-                                        <td colspan="6" style="text-align: center; padding: 60px; color: #94a3b8;">
-                                            <div style="font-size: 3rem; margin-bottom: 20px; opacity: 0.2;">📂</div>
-                                            <p style="font-weight: 500;">No submissions match your current filters.</p>
-                                        </td>
+                                        <th>Attendance Date</th>
+                                        <th>Personnel Info</th>
+                                        <th>Activity Details</th>
+                                        <th style="text-align: center;">Approvals</th>
+                                        <th>Status</th>
+                                        <th style="text-align: right;">Options</th>
                                     </tr>
-                                <?php else: ?>
-                                    <?php foreach ($activities as $act): ?>
+                                </thead>
+                                <tbody>
+                                    <?php if (empty($activities)): ?>
                                         <tr>
-                                            <td class="date-cell">
-                                                <div style="display: flex; align-items: center; gap: 8px;">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"
-                                                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                                        stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.5;">
-                                                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                                                        <line x1="16" y1="2" x2="16" y2="6"></line>
-                                                        <line x1="8" y1="2" x2="8" y2="6"></line>
-                                                        <line x1="3" y1="10" x2="21" y2="10"></line>
-                                                    </svg>
-                                                    <?php echo date('M d, Y', strtotime($act['date_attended'])); ?>
-                                                </div>
-                                            </td>
-                                            <td>
-                                                <div class="user-info">
-                                                    <span
-                                                        class="user-name"><?php echo htmlspecialchars($act['full_name']); ?></span>
-                                                    <span
-                                                        class="user-station"><?php echo htmlspecialchars($act['office_station']); ?></span>
-                                                </div>
-                                            </td>
-                                            <td>
-                                                <div class="activity-title"><?php echo htmlspecialchars($act['title']); ?></div>
-                                            </td>
-                                            <td>
-                                                <div class="progress-mini" title="Progress: <?php
-                                                if ($act['approved_sds'])
-                                                    echo 'Final Approved';
-                                                elseif ($act['recommending_asds'])
-                                                    echo 'Recommending Stage';
-                                                elseif ($act['reviewed_by_supervisor'])
-                                                    echo 'Reviewed Stage';
-                                                else
-                                                    echo 'Submission Pending';
-                                                ?>">
-                                                    <div
-                                                        class="dot <?php echo $act['reviewed_by_supervisor'] ? 'active yellow' : ''; ?>">
-                                                    </div>
-                                                    <div
-                                                        class="dot <?php echo $act['recommending_asds'] ? 'active blue' : ''; ?>">
-                                                    </div>
-                                                    <div class="dot <?php echo $act['approved_sds'] ? 'active' : ''; ?>"></div>
-                                                </div>
-                                            </td>
-                                            <td>
-                                                <?php
-                                                $pill_class = 'status-pending';
-                                                $label = 'Pending';
-                                                if ($act['approved_sds']) {
-                                                    $pill_class = 'status-approved';
-                                                    $label = 'Approved';
-                                                } elseif ($act['recommending_asds']) {
-                                                    $pill_class = 'status-recommending';
-                                                    $label = 'Recommending';
-                                                } elseif ($act['reviewed_by_supervisor']) {
-                                                    $pill_class = 'status-reviewed';
-                                                    $label = 'Reviewed';
-                                                }
-                                                ?>
-                                                <span class="status-pill <?php echo $pill_class; ?>">
-                                                    <?php echo $label; ?>
-                                                </span>
-                                            </td>
-                                            <td>
-                                                <div class="action-flex" style="justify-content: flex-end;">
-                                                    <a href="../pages/view_activity.php?id=<?php echo $act['id']; ?>"
-                                                        class="btn-action btn-view" title="View Details">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
-                                                            viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                                            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                                                            <circle cx="12" cy="12" r="3"></circle>
-                                                        </svg>
-                                                    </a>
-                                                    <a href="../pages/edit_activity.php?id=<?php echo $act['id']; ?>"
-                                                        class="btn-action btn-edit" title="Edit Entry">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
-                                                            viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                                            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                                            <path
-                                                                d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7">
-                                                            </path>
-                                                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z">
-                                                            </path>
-                                                        </svg>
-                                                    </a>
+                                            <td colspan="6" class="text-center py-5">
+                                                <div class="empty-state">
+                                                    <i class="bi bi-folder2-open text-muted"
+                                                        style="font-size: 3.5rem; opacity: 0.4;"></i>
+                                                    <p class="mt-3 text-muted">No submissions found matching your filters.
+                                                    </p>
                                                 </div>
                                             </td>
                                         </tr>
-                                    <?php endforeach; ?>
-                                <?php endif; ?>
-                            </tbody>
-                        </table>
+                                    <?php else: ?>
+                                        <?php foreach ($activities as $act):
+                                            $row_class = '';
+                                            $office = strtoupper($act['office_station'] ?? '');
+                                            if (in_array($office, $osdsOffices))
+                                                $row_class = 'row-osds';
+                                            elseif (in_array($office, $cidOffices))
+                                                $row_class = 'row-cid';
+                                            elseif (in_array($office, $sgodOffices))
+                                                $row_class = 'row-sgod';
+
+                                            // Highlight Logic for Immediate Head
+                                            if ($_SESSION['role'] === 'immediate_head' && $act['reviewed_by_supervisor'] && $act['recommending_asds'] && !$act['approved_sds']) {
+                                                $row_class .= ' highlight-pending-approval';
+                                            }
+                                            ?>
+                                            <tr class="<?php echo $row_class; ?>">
+                                                <td>
+                                                    <span class="cell-primary">
+                                                        <i class="bi bi-calendar-event text-muted me-2"></i>
+                                                        <?php
+                                                        $dates = explode(', ', $act['date_attended']);
+                                                        echo date('M d, Y', strtotime($dates[0]));
+                                                        if (count($dates) > 1)
+                                                            echo ' (+' . (count($dates) - 1) . '...)';
+                                                        ?>
+                                                    </span>
+                                                    <span class="cell-secondary">Logged
+                                                        <?php echo date('M d, Y', strtotime($act['created_at'])); ?></span>
+                                                </td>
+                                                <td>
+                                                    <div class="cell-primary"><?php echo htmlspecialchars($act['full_name']); ?>
+                                                    </div>
+                                                    <div class="cell-secondary">
+                                                        <?php echo htmlspecialchars($act['office_station']); ?>
+                                                    </div>
+                                                </td>
+                                                <td style="max-width: 320px;">
+                                                    <div class="cell-primary text-truncate"
+                                                        title="<?php echo htmlspecialchars($act['title']); ?>">
+                                                        <?php echo htmlspecialchars($act['title']); ?>
+                                                    </div>
+                                                    <div class="cell-secondary text-truncate">
+                                                        <?php echo htmlspecialchars($act['competency']); ?>
+                                                    </div>
+                                                </td>
+                                                <td style="text-align: center;">
+                                                    <div class="approval-indicators"
+                                                        style="display: flex; gap: 8px; justify-content: center;">
+                                                        <span title="Supervisor Reviewed">
+                                                            <i class="bi bi-check-circle-fill <?php echo $act['reviewed_by_supervisor'] ? 'text-success' : 'text-muted'; ?>"
+                                                                style="font-size: 1.1rem; opacity: <?php echo $act['reviewed_by_supervisor'] ? '1' : '0.4'; ?>;"></i>
+                                                        </span>
+                                                        <span title="ASDS Recommended">
+                                                            <i class="bi bi-check-circle-fill <?php echo $act['recommending_asds'] ? 'text-primary' : 'text-muted'; ?>"
+                                                                style="font-size: 1.1rem; opacity: <?php echo $act['recommending_asds'] ? '1' : '0.4'; ?>;"></i>
+                                                        </span>
+                                                        <span title="SDS Approved">
+                                                            <i class="bi bi-check-circle-fill <?php echo $act['approved_sds'] ? 'text-success' : 'text-muted'; ?>"
+                                                                style="font-size: 1.1rem; opacity: <?php echo $act['approved_sds'] ? '1' : '0.4'; ?>;"></i>
+                                                        </span>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <?php
+                                                    $status_class = 'status-pending';
+                                                    $label = 'Pending';
+                                                    if ($act['approved_sds']) {
+                                                        $status_class = 'status-resolved';
+                                                        $label = 'Approved';
+                                                    } elseif ($act['recommending_asds']) {
+                                                        $status_class = 'status-in_progress';
+                                                        $label = 'Recommended';
+                                                    } elseif ($act['reviewed_by_supervisor']) {
+                                                        $status_class = 'status-accepted';
+                                                        $label = 'Reviewed';
+                                                    }
+                                                    ?>
+                                                    <span class="status-badge <?php echo $status_class; ?>">
+                                                        <?php echo $label; ?>
+                                                    </span>
+                                                </td>
+                                                <td style="text-align: right;">
+                                                    <div class="action-buttons"
+                                                        style="display: flex; gap: 8px; justify-content: flex-end;">
+                                                        <a href="../pages/view_activity.php?id=<?php echo $act['id']; ?>"
+                                                            class="btn btn-secondary btn-icon" title="View Details">
+                                                            <i class="bi bi-eye"></i>
+                                                        </a>
+                                                        <a href="../pages/edit_activity.php?id=<?php echo $act['id']; ?>"
+                                                            class="btn btn-outline btn-icon" title="Edit Entry">
+                                                            <i class="bi bi-pencil" style="color: var(--primary);"></i>
+                                                        </a>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    <?php endif; ?>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
-            </div>
+            </main>
+
+            <footer class="admin-footer">
+                <p>&copy; <?php echo date('Y'); ?> SDO L&D Passbook System. <span class="text-muted">Empowering
+                        Personnel Professional Growth.</span></p>
+            </footer>
         </div>
     </div>
 </body>

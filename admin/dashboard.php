@@ -3,7 +3,7 @@ session_start();
 require '../includes/db.php';
 
 // Check if user is logged in and is admin
-if (!isset($_SESSION['user_id']) || ($_SESSION['role'] !== 'admin' && $_SESSION['role'] !== 'super_admin')) {
+if (!isset($_SESSION['user_id']) || ($_SESSION['role'] !== 'admin' && $_SESSION['role'] !== 'super_admin' && $_SESSION['role'] !== 'immediate_head')) {
     header("Location: ../index.php");
     exit;
 }
@@ -34,6 +34,26 @@ foreach ($activities as $act) {
     if ($act['status'] === 'Approved')
         $approvedCount++;
 }
+
+// Analytics: Submissions by General Office
+$osdsCount = 0;
+$cidCount = 0;
+$sgodCount = 0;
+
+$osdsOffices = ['ADMINISTRATIVE (PERSONEL)', 'ADMINISTRATIVE (PROPERTY AND SUPPLY)', 'ADMINISTRATIVE (RECORDS)', 'ADMINISTRATIVE (CASH)', 'ADMINISTRATIVE (GENERAL SERVICES)', 'FINANCE (ACCOUNTING)', 'FINANCE (BUDGET)', 'LEGAL', 'ICT'];
+$sgodOffices = ['SCHOOL MANAGEMENT MONITORING & EVALUATION', 'HUMAN RESOURCES DEVELOPMENT', 'DISASTER RISK REDUCTION AND MANAGEMENT', 'EDUCATION FACILITIES', 'SCHOOL HEALTH AND NUTRITION', 'SCHOOL HEALTH AND NUTRITION (DENTAL)', 'SCHOOL HEALTH AND NUTRITION (MEDICAL)'];
+$cidOffices = ['CURRICULUM IMPLEMENTATION DIVISION (INSTRUCTIONAL MANAGEMENT)', 'CURRICULUM IMPLEMENTATION DIVISION (LEARNING RESOURCES MANAGEMENT)', 'CURRICULUM IMPLEMENTATION DIVISION (ALTERNATIVE LEARNING SYSTEM)', 'CURRICULUM IMPLEMENTATION DIVISION (DISTRICT INSTRUCTIONAL SUPERVISION)'];
+
+foreach ($activities as $act) {
+    $office = strtoupper($act['office_station'] ?? '');
+    if (in_array($office, $osdsOffices)) {
+        $osdsCount++;
+    } elseif (in_array($office, $cidOffices)) {
+        $cidCount++;
+    } elseif (in_array($office, $sgodOffices)) {
+        $sgodCount++;
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -43,325 +63,281 @@ foreach ($activities as $act) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard - LDP</title>
     <?php require 'includes/admin_head.php'; ?>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --glass-bg: rgba(255, 255, 255, 0.95);
-            --glass-border: rgba(226, 232, 240, 0.8);
-            --card-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.04), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
-            --accent-blue: #3b82f6;
-            --accent-green: #22c55e;
-            --accent-yellow: #f59e0b;
-            --accent-orange: #f97316;
-            --orange-glow: rgba(249, 115, 22, 0.15);
-        }
-
-        body {
-            font-family: 'Outfit', sans-serif;
-            background-color: #f8fafc;
-        }
-
-        .passbook-container {
-            animation: fadeIn 0.5s ease-out;
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .header h1 {
-            font-weight: 700;
-            letter-spacing: -0.02em;
-            color: #1e293b;
-            border-left: 5px solid var(--accent-orange);
-            padding-left: 15px;
-        }
-
-        .header p {
-            color: #64748b;
-            font-weight: 400;
-            padding-left: 20px;
-        }
-
-        /* Stats Section */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 24px;
-            margin: 30px 0;
-        }
-
-        .stat-card {
-            background: white;
-            padding: 24px;
-            border-radius: 20px;
-            border: 1px solid var(--glass-border);
-            box-shadow: var(--card-shadow);
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .stat-card::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 4px;
-            height: 100%;
-            background: var(--accent-blue);
-        }
-
-        .stat-card.orange-theme::after {
-            background: var(--accent-orange);
-        }
-
-        .stat-card:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05);
-        }
-
-        .stat-value {
-            font-size: 2.2rem;
-            font-weight: 800;
-            color: #1e293b;
-            letter-spacing: -0.02em;
-        }
-
-        .stat-label {
-            font-size: 0.8rem;
-            font-weight: 600;
-            color: #94a3b8;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-
-        /* Table Section */
-        .section-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 20px;
-            margin-top: 40px;
-        }
-
-        .section-title {
-            font-weight: 700;
-            color: #1e293b;
-            letter-spacing: -0.01em;
-            font-size: 1.1rem;
-        }
-
-        .styled-table {
-            background: white;
-            border-radius: 16px;
-            overflow: hidden;
-            border: 1px solid var(--glass-border);
-            box-shadow: var(--card-shadow);
-            border-collapse: separate;
-            border-spacing: 0;
-            width: 100%;
-        }
-
-        .styled-table thead th {
-            background: #f1f5f9;
-            color: #475569;
-            font-weight: 700;
-            text-transform: uppercase;
-            font-size: 0.7rem;
-            letter-spacing: 0.05em;
-            padding: 16px 20px;
-            border-bottom: 1px solid #e2e8f0;
-            text-align: left;
-        }
-
-        .styled-table thead th:first-child {
-            border-left: 3px solid var(--accent-orange);
-        }
-
-        .styled-table td {
-            padding: 16px 20px;
-            border-bottom: 1px solid #f1f5f9;
-            color: #475569;
-            font-size: 0.9rem;
-            vertical-align: middle;
-        }
-
-        .styled-table tr:last-child td {
-            border-bottom: none;
-        }
-
-        .styled-table tbody tr:hover {
-            background-color: #f8fafc;
-        }
-
-        .status-pill {
-            display: inline-flex;
-            align-items: center;
-            padding: 4px 12px;
-            border-radius: 9999px;
-            font-size: 0.75rem;
-            font-weight: 600;
-        }
-
-        .status-pending {
-            background: #fffbeb;
-            color: #92400e;
-            border: 1px solid #fef3c7;
-        }
-
-        .status-reviewed {
-            background: #eff6ff;
-            color: #1e40af;
-            border: 1px solid #dbeafe;
-        }
-
-        .status-recommending {
-            background: #fdf2f8;
-            color: #9d174d;
-            border: 1px solid #fce7f3;
-        }
-
-        .status-approved {
-            background: #ecfdf5;
-            color: #065f46;
-            border: 1px solid #d1fae5;
-        }
-
-        .btn-view {
-            color: var(--accent-blue);
-            font-weight: 600;
-            text-decoration: none;
-            font-size: 0.85rem;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            transition: all 0.2s;
-        }
-
-        .btn-view:hover {
-            color: #2563eb;
-            transform: translateX(3px);
-        }
-    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
 <body>
-
-    <div class="dashboard-container">
+    <div class="admin-layout">
         <?php require '../includes/sidebar.php'; ?>
 
         <div class="main-content">
-            <div class="passbook-container" style="width: 1000px; max-width: 95%;">
-                <div class="header">
-                    <h1>Admin Dashboard</h1>
-                    <p>System insight and recent passbook activity</p>
-                </div>
-
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <span class="stat-label">Total Submissions</span>
-                        <span class="stat-value"><?php echo number_format($totalSubmissions); ?></span>
-                    </div>
-                    <div class="stat-card orange-theme">
-                        <span class="stat-label">Total Users</span>
-                        <span class="stat-value"><?php echo number_format($totalUsers); ?></span>
-                    </div>
-                    <div class="stat-card orange-theme">
-                        <span class="stat-label">Pending Approval</span>
-                        <span class="stat-value"
-                            style="color: var(--accent-orange);"><?php echo number_format($pendingCount); ?></span>
-                    </div>
-                    <div class="stat-card">
-                        <span class="stat-label">Final Approved</span>
-                        <span class="stat-value"
-                            style="color: var(--accent-green);"><?php echo number_format($approvedCount); ?></span>
+            <header class="top-bar">
+                <div class="top-bar-left">
+                    <button class="mobile-menu-toggle" id="toggleSidebar">
+                        <i class="bi bi-list"></i>
+                    </button>
+                    <div class="breadcrumb">
+                        <span class="text-muted">Admin Panel</span>
+                        <i class="bi bi-chevron-right separator"></i>
+                        <h1 class="page-title">Dashboard Overview</h1>
                     </div>
                 </div>
+                <div class="top-bar-right">
+                    <div class="current-date-box">
+                        <i class="bi bi-calendar3"></i>
+                        <span><?php echo date('l, F d, Y'); ?></span>
+                    </div>
+                </div>
+            </header>
 
-                <div class="section-header">
-                    <div class="section-title">Recent Activity Logs</div>
-                    <a href="submissions.php" class="btn-view">View All Submissions →</a>
+            <main class="content-wrapper">
+                <div class="dashboard-top-grid">
+                    <div class="stats-column">
+                        <div class="stat-card stat-total">
+                            <div class="stat-icon">
+                                <i class="bi bi-journal-text"></i>
+                            </div>
+                            <div class="stat-content">
+                                <span class="stat-label">Submissions</span>
+                                <span class="stat-value"><?php echo number_format($totalSubmissions); ?></span>
+                            </div>
+                        </div>
+
+                        <div class="stat-card stat-total">
+                            <div class="stat-icon">
+                                <i class="bi bi-people-fill"></i>
+                            </div>
+                            <div class="stat-content">
+                                <span class="stat-label">Total Users</span>
+                                <span class="stat-value"><?php echo number_format($totalUsers); ?></span>
+                            </div>
+                        </div>
+
+                        <div class="stat-card stat-pending">
+                            <div class="stat-icon">
+                                <i class="bi bi-clock-history"></i>
+                            </div>
+                            <div class="stat-content">
+                                <span class="stat-label">Pending</span>
+                                <span class="stat-value"><?php echo number_format($pendingCount); ?></span>
+                            </div>
+                        </div>
+
+                        <div class="stat-card stat-resolved">
+                            <div class="stat-icon">
+                                <i class="bi bi-shield-check"></i>
+                            </div>
+                            <div class="stat-content">
+                                <span class="stat-label">Approved</span>
+                                <span class="stat-value"><?php echo number_format($approvedCount); ?></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="analytics-column">
+                        <div class="dashboard-card hover-elevate" style="height: 100%;">
+                            <div class="card-header">
+                                <h2><i class="bi bi-bar-chart-line text-gradient"></i> Submission Frequency by General
+                                    Office
+                                </h2>
+                                <span class="text-muted" style="font-size: 0.85rem; font-weight: 500;">OSDS vs CID vs
+                                    SGOD</span>
+                            </div>
+                            <div class="card-body"
+                                style="padding: 30px 40px; height: calc(100% - 70px); display: flex; align-items: center;">
+                                <div style="height: 100%; width: 100%; position: relative; min-height: 300px;">
+                                    <canvas id="officeChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                <table class="styled-table">
-                    <thead>
-                        <tr>
-                            <th>Date Attended</th>
-                            <th>User Details</th>
-                            <th>Activity Title</th>
-                            <th>Status</th>
-                            <th style="text-align: right;">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php if (empty($activities)): ?>
-                            <tr>
-                                <td colspan="5" style="text-align: center; padding: 40px; color: #94a3b8;">No recent
-                                    activities found.</td>
-                            </tr>
-                        <?php else: ?>
-                            <?php foreach (array_slice($activities, 0, 8) as $act): ?>
-                                <tr>
-                                    <td style="font-weight: 500; color: #1e293b;">
-                                        <?php echo date('M d, Y', strtotime($act['date_attended'])); ?>
-                                    </td>
-                                    <td>
-                                        <div style="font-weight: 600; color: #1e293b;">
-                                            <?php echo htmlspecialchars($act['full_name']); ?>
-                                        </div>
-                                        <div style="font-size: 0.75rem; color: #94a3b8;">
-                                            <?php echo htmlspecialchars($act['office_station']); ?>
-                                        </div>
-                                    </td>
-                                    <td style="max-width: 300px; line-height: 1.4;">
-                                        <?php echo htmlspecialchars($act['title']); ?>
-                                    </td>
-                                    <td>
-                                        <?php
-                                        $pill_class = 'status-pending';
-                                        $label = 'Pending';
-                                        if ($act['approved_sds']) {
-                                            $pill_class = 'status-approved';
-                                            $label = 'Approved';
-                                        } elseif ($act['recommending_asds']) {
-                                            $pill_class = 'status-recommending';
-                                            $label = 'Recommending';
-                                        } elseif ($act['reviewed_by_supervisor']) {
-                                            $pill_class = 'status-reviewed';
-                                            $label = 'Reviewed';
-                                        }
-                                        ?>
-                                        <span class="status-pill <?php echo $pill_class; ?>">
-                                            <?php echo $label; ?>
-                                        </span>
-                                    </td>
-                                    <td style="text-align: right;">
-                                        <a href="../pages/view_activity.php?id=<?php echo $act['id']; ?>" class="btn-view"
-                                            style="justify-content: flex-end;">
-                                            Details
-                                        </a>
-                                    </td>
-                                </tr>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
-                    </tbody>
-                </table>
-            </div>
+                <div class="dashboard-grid">
+                    <!-- Recent Activity Section -->
+                    <div class="dashboard-card hover-elevate">
+                        <div class="card-header">
+                            <h2><i class="bi bi-activity text-gradient"></i> Recent Activity Logs</h2>
+                            <a href="submissions.php" class="btn btn-secondary btn-sm">
+                                View Submissions <i class="bi bi-arrow-right"></i>
+                            </a>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Submission Date</th>
+                                            <th>User / Personnel</th>
+                                            <th>Activity Description</th>
+                                            <th>Status</th>
+                                            <th style="text-align: right;">Options</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php if (empty($activities)): ?>
+                                            <tr>
+                                                <td colspan="5" class="text-center py-5">
+                                                    <div class="empty-state">
+                                                        <i class="bi bi-inbox text-muted" style="font-size: 3rem;"></i>
+                                                        <p class="mt-3">No activity logs recorded yet.</p>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        <?php else: ?>
+                                            <?php foreach (array_slice($activities, 0, 8) as $act):
+                                                $row_class = '';
+                                                $office = strtoupper($act['office_station'] ?? '');
+                                                if (in_array($office, $osdsOffices))
+                                                    $row_class = 'row-osds';
+                                                elseif (in_array($office, $cidOffices))
+                                                    $row_class = 'row-cid';
+                                                elseif (in_array($office, $sgodOffices))
+                                                    $row_class = 'row-sgod';
+                                                ?>
+                                                <tr class="<?php echo $row_class; ?>">
+                                                    <td>
+                                                        <span
+                                                            class="cell-primary"><?php echo date('M d, Y', strtotime($act['created_at'])); ?></span>
+                                                        <span
+                                                            class="cell-secondary"><?php echo date('h:i A', strtotime($act['created_at'])); ?></span>
+                                                    </td>
+                                                    <td>
+                                                        <div class="cell-primary">
+                                                            <?php echo htmlspecialchars($act['full_name']); ?>
+                                                        </div>
+                                                        <div class="cell-secondary">
+                                                            <?php echo htmlspecialchars($act['office_station']); ?>
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <span
+                                                            class="cell-primary"><?php echo htmlspecialchars($act['title']); ?></span>
+                                                        <span class="cell-secondary text-truncate" style="max-width: 250px;">
+                                                            <?php echo htmlspecialchars($act['type_ld'] ?? 'Training Activity'); ?>
+                                                        </span>
+                                                    </td>
+                                                    <td>
+                                                        <?php
+                                                        $status_class = 'status-pending';
+                                                        $label = 'Pending';
+                                                        if ($act['approved_sds']) {
+                                                            $status_class = 'status-resolved';
+                                                            $label = 'Approved';
+                                                        } elseif ($act['recommending_asds']) {
+                                                            $status_class = 'status-in_progress';
+                                                            $label = 'Recommended';
+                                                        } elseif ($act['reviewed_by_supervisor']) {
+                                                            $status_class = 'status-accepted';
+                                                            $label = 'Reviewed';
+                                                        }
+                                                        ?>
+                                                        <span class="status-badge <?php echo $status_class; ?>">
+                                                            <?php echo $label; ?>
+                                                        </span>
+                                                    </td>
+                                                    <td style="text-align: right;">
+                                                        <a href="../pages/view_activity.php?id=<?php echo $act['id']; ?>"
+                                                            class="btn btn-secondary btn-sm">
+                                                            Review
+                                                        </a>
+                                                    </td>
+                                                </tr>
+                                            <?php endforeach; ?>
+                                        <?php endif; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+
+            <footer class="admin-footer">
+                <p>&copy; <?php echo date('Y'); ?> SDO L&D Passbook System. <span class="text-muted">Digital Service
+                        Excellence.</span></p>
+            </footer>
         </div>
     </div>
-
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const ctx = document.getElementById('officeChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['OSDS', 'CID', 'SGOD'],
+                    datasets: [{
+                        label: 'Total Submissions',
+                        data: [<?php echo $osdsCount; ?>, <?php echo $cidCount; ?>, <?php echo $sgodCount; ?>],
+                        backgroundColor: [
+                            'rgba(249, 115, 22, 0.8)', // Orange (OSDS)
+                            'rgba(234, 179, 8, 0.8)',  // Yellow (CID)
+                            'rgba(59, 130, 246, 0.8)'  // Blue (SGOD)
+                        ],
+                        borderColor: [
+                            '#f97316',
+                            '#eab308',
+                            '#3b82f6'
+                        ],
+                        borderWidth: 2,
+                        borderRadius: 12,
+                        barThickness: 80,
+                        maxBarThickness: 100
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                            titleFont: { size: 14, weight: 'bold' },
+                            bodyFont: { size: 13 },
+                            padding: 12,
+                            cornerRadius: 8,
+                            displayColors: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                display: true,
+                                color: 'rgba(0, 0, 0, 0.05)',
+                                drawBorder: false
+                            },
+                            ticks: {
+                                precision: 0,
+                                color: '#64748b',
+                                font: {
+                                    family: "'Plus Jakarta Sans', sans-serif",
+                                    weight: '600'
+                                },
+                                padding: 10
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                color: '#1e293b',
+                                font: {
+                                    family: "'Plus Jakarta Sans', sans-serif",
+                                    size: 13,
+                                    weight: '700'
+                                },
+                                padding: 10
+                            }
+                        }
+                    }
+                }
+            });
+        });
+    </script>
 </body>
 
 </html>

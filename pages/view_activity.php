@@ -15,9 +15,7 @@ if (!$activity_id) {
 }
 
 // Fetch Activity Logic
-// Allow Admins to see ANY activity.
-// Allow Regular Users to see ONLY their own activity.
-$sql = "SELECT ld.*, u.full_name, u.office_station, u.profile_picture FROM ld_activities ld JOIN users u ON ld.user_id = u.id WHERE ld.id = ?";
+$sql = "SELECT ld.*, u.full_name, u.office_station, u.position as user_position, u.profile_picture FROM ld_activities ld JOIN users u ON ld.user_id = u.id WHERE ld.id = ?";
 $stmt = $pdo->prepare($sql);
 $stmt->execute([$activity_id]);
 $activity = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -27,29 +25,44 @@ if (!$activity) {
 }
 
 // Access Control
-if ($_SESSION['role'] !== 'admin' && $activity['user_id'] != $_SESSION['user_id']) {
+if (($_SESSION['role'] !== 'admin' && $_SESSION['role'] !== 'super_admin' && $_SESSION['role'] !== 'immediate_head') && $activity['user_id'] != $_SESSION['user_id']) {
     die("Unauthorized access.");
 }
 
 // Log View Activity
-$view_action = "Viewed Specific Activity: " . $activity['title'];
-// Check if already logged in this session/window to avoid double logs on refresh? 
-// For now, simple log is fine as requested.
 $stmt_log = $pdo->prepare("INSERT INTO activity_logs (user_id, action, details, ip_address) VALUES (?, 'Viewed Specific Activity', ?, ?)");
 $stmt_log->execute([$_SESSION['user_id'], $activity['title'], $_SERVER['REMOTE_ADDR']]);
 
 // Update Status to 'Viewed' if it is 'Pending' and user is Admin
-if ($_SESSION['role'] === 'admin' && $activity['status'] === 'Pending') {
+if (($_SESSION['role'] === 'admin' || $_SESSION['role'] === 'super_admin' || $_SESSION['role'] === 'immediate_head') && $activity['status'] === 'Pending') {
     $stmt_update = $pdo->prepare("UPDATE ld_activities SET status = 'Viewed' WHERE id = ?");
     $stmt_update->execute([$activity_id]);
-
-    // Refresh the $activity variable to reflect the change visually if needed (optional)
     $activity['status'] = 'Viewed';
 }
 
+// Function to handle signature saving (copied for admin use)
+function saveAdminSignature($postDataKey, $prefix)
+{
+    if (!empty($_POST[$postDataKey])) {
+        $data = $_POST[$postDataKey];
+        $data = str_replace('data:image/png;base64,', '', $data);
+        $data = str_replace(' ', '+', $data);
+        $decodedData = base64_decode($data);
+        $fileName = uniqid() . '_' . $prefix . '_signature.png';
+        $filePath = '../uploads/signatures/' . $fileName;
+        if (!is_dir(dirname($filePath))) {
+            mkdir(dirname($filePath), 0777, true);
+        }
+        if (file_put_contents($filePath, $decodedData)) {
+            return 'uploads/signatures/' . $fileName;
+        }
+    }
+    return '';
+}
+
 // Handle Admin Approval Actions
-if ($_SESSION['role'] === 'admin' && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_approval'])) {
-    $stage = $_POST['stage']; // supervisor, asds, sds
+if (($_SESSION['role'] === 'admin' || $_SESSION['role'] === 'super_admin' || $_SESSION['role'] === 'immediate_head') && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_approval'])) {
+    $stage = $_POST['stage'];
     $current_time = date('Y-m-d H:i:s');
 
     if ($stage === 'supervisor') {
@@ -59,12 +72,40 @@ if ($_SESSION['role'] === 'admin' && $_SERVER['REQUEST_METHOD'] === 'POST' && is
         $stmt = $pdo->prepare("UPDATE ld_activities SET recommending_asds = 1, recommended_at = ? WHERE id = ?");
         $stmt->execute([$current_time, $activity_id]);
     } elseif ($stage === 'sds') {
-        $stmt = $pdo->prepare("UPDATE ld_activities SET approved_sds = 1, approved_at = ?, status = 'Approved' WHERE id = ?");
-        $stmt->execute([$current_time, $activity_id]);
+        if ($_SESSION['role'] !== 'immediate_head') {
+            die("Unauthorized final approval.");
+        }
+        $head_name = trim($_POST['approved_by'] ?? '');
+        $sig_data = $_POST['signature_data'] ?? '';
+
+        if (empty($head_name)) {
+            $_SESSION['toast'] = ['title' => 'Missing Information', 'message' => 'Immediate Head Name is required.', 'type' => 'error'];
+            header("Location: view_activity.php?id=" . $activity_id);
+            exit;
+        }
+
+        // Simple check if signature data is too short
+        if (empty($sig_data) || strlen($sig_data) < 100) {
+            $_SESSION['toast'] = ['title' => 'Missing Signature', 'message' => 'Please provide a valid signature.', 'type' => 'error'];
+            header("Location: view_activity.php?id=" . $activity_id);
+            exit;
+        }
+
+        $sig_path = saveAdminSignature('signature_data', 'head');
+        if (empty($sig_path)) {
+            $_SESSION['toast'] = ['title' => 'Upload Failed', 'message' => 'Could not save the signature.', 'type' => 'error'];
+            header("Location: view_activity.php?id=" . $activity_id);
+            exit;
+        }
+
+        $stmt = $pdo->prepare("UPDATE ld_activities SET approved_sds = 1, approved_at = ?, status = 'Approved', approved_by = ?, signature_path = ? WHERE id = ?");
+        $stmt->execute([$current_time, $head_name, $sig_path, $activity_id]);
+
+        $_SESSION['toast'] = ['title' => 'Success', 'message' => 'Activity successfully approved!', 'type' => 'success'];
     }
 
     // Refresh activity data
-    $stmt = $pdo->prepare("SELECT ld.*, u.full_name, u.office_station FROM ld_activities ld JOIN users u ON ld.user_id = u.id WHERE ld.id = ?");
+    $stmt = $pdo->prepare("SELECT ld.*, u.full_name, u.office_station, u.position as user_position, u.profile_picture FROM ld_activities ld JOIN users u ON ld.user_id = u.id WHERE ld.id = ?");
     $stmt->execute([$activity_id]);
     $activity = $stmt->fetch(PDO::FETCH_ASSOC);
 }
@@ -84,355 +125,631 @@ function isChecked($value, $arrayString)
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>View Activity - LDP</title>
+    <title>View Activity Details - LDP</title>
     <?php require '../includes/head.php'; ?>
-    <link rel="stylesheet" href="../css/pages/passbook-view.css">
+    <style>
+        .view-layout-container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        /* Submission Header / Submitter Card */
+        .submitter-hero {
+            background: var(--bg-secondary);
+            border-radius: var(--radius-xl);
+            padding: 32px;
+            margin-bottom: 32px;
+            border: 1.5px solid var(--border-light);
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+
+        .submitter-avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid white;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .submitter-info h2 {
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .submitter-info p {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        /* Progress Tracker Styles */
+        .view-prog-track {
+            margin-bottom: 40px;
+            padding: 24px;
+            background: white;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border-color);
+        }
+
+        .view-prog-steps {
+            display: flex;
+            justify-content: space-between;
+            position: relative;
+        }
+
+        .view-prog-line {
+            position: absolute;
+            top: 18px;
+            left: 40px;
+            right: 40px;
+            height: 3px;
+            background: var(--bg-tertiary);
+            z-index: 1;
+        }
+
+        .view-prog-fill {
+            position: absolute;
+            top: 18px;
+            left: 40px;
+            height: 3px;
+            background: var(--success);
+            z-index: 2;
+            transition: width 0.5s ease;
+        }
+
+        .view-prog-step {
+            position: relative;
+            z-index: 3;
+            text-align: center;
+            flex: 1;
+        }
+
+        .view-prog-icon {
+            width: 36px;
+            height: 36px;
+            background: white;
+            border: 3px solid var(--border-color);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 8px;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        .view-prog-step.active .view-prog-icon {
+            border-color: var(--success);
+            color: var(--success);
+            background: var(--success-bg);
+        }
+
+        .view-prog-label {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+        }
+
+        .view-prog-date {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            display: block;
+        }
+
+        /* Admin Controls */
+        .admin-controls {
+            background: var(--primary-bg);
+            border: 1px solid var(--primary-light);
+            padding: 24px;
+            border-radius: var(--radius-lg);
+            margin-bottom: 32px;
+        }
+
+        .data-section-title {
+            font-size: 0.95rem;
+            font-weight: 800;
+            color: var(--primary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .data-section-title::after {
+            content: "";
+            flex: 1;
+            height: 1.5px;
+            background: var(--border-light);
+        }
+
+        .image-attachment {
+            border-radius: var(--radius-md);
+            border: 1.5px solid var(--border-color);
+            padding: 8px;
+            transition: transform 0.2s;
+        }
+
+        .image-attachment:hover {
+            transform: scale(1.02);
+        }
+
+        @media print {
+
+            .sidebar,
+            .top-bar,
+            .admin-controls,
+            .user-footer,
+            .btn-print-hide {
+                display: none !important;
+            }
+
+            .user-layout {
+                display: block !important;
+                padding: 0 !important;
+            }
+
+            .main-content {
+                margin-left: 0 !important;
+                padding: 0 !important;
+            }
+
+            .content-wrapper {
+                padding: 0 !important;
+            }
+
+            .dashboard-card {
+                border: none !important;
+                box-shadow: none !important;
+            }
+        }
+
+        .admin-controls .form-group {
+            margin-bottom: 16px;
+        }
+
+        .admin-controls label {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .signature-pad-container {
+            background: #f8fafc;
+            border: 2px dashed var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 10px;
+            text-align: center;
+            margin-bottom: 12px;
+        }
+
+        #sig-canvas {
+            background: white;
+            border: 1px solid var(--border-light);
+            cursor: crosshair;
+        }
+    </style>
 </head>
 
 <body>
 
-    <div class="dashboard-container">
-        <div class="sidebar">
-            <?php require '../includes/sidebar.php'; ?>
-        </div>
+    <div class="user-layout">
+        <?php require '../includes/sidebar.php'; ?>
 
         <div class="main-content">
-            <div class="passbook-container" style="width: 800px;">
-                <div class="header" style="position: relative;">
-                    <h1>Learning & Development Passbook</h1>
-                    <p>View Activity Details</p>
-                    
-                </div>
-
-                <!-- Progress Tracker -->
-                <div class="progress-tracker">
-                    <div class="progress-step <?php echo $activity['reviewed_by_supervisor'] ? 'active' : ''; ?>">
-                        <div class="step-icon"><?php echo $activity['reviewed_by_supervisor'] ? '✓' : '1'; ?></div>
-                        <div class="step-label">Reviewed</div>
-                        <span class="step-date"><?php echo $activity['reviewed_at'] ? date('M d, Y', strtotime($activity['reviewed_at'])) : 'Pending'; ?></span>
-                    </div>
-                    <div class="progress-step <?php echo $activity['recommending_asds'] ? 'active' : ''; ?>">
-                        <div class="step-icon"><?php echo $activity['recommending_asds'] ? '✓' : '2'; ?></div>
-                        <div class="step-label">Recommending</div>
-                        <span class="step-date"><?php echo $activity['recommended_at'] ? date('M d, Y', strtotime($activity['recommended_at'])) : 'Pending'; ?></span>
-                    </div>
-                    <div class="progress-step <?php echo $activity['approved_sds'] ? 'active' : ''; ?>">
-                        <div class="step-icon"><?php echo $activity['approved_sds'] ? '✓' : '3'; ?></div>
-                        <div class="step-label">Approved</div>
-                        <span class="step-date"><?php echo $activity['approved_at'] ? date('M d, Y', strtotime($activity['approved_at'])) : 'Pending'; ?></span>
+            <header class="top-bar">
+                <div class="top-bar-left">
+                    <button class="mobile-menu-toggle" id="toggleSidebar">
+                        <i class="bi bi-list"></i>
+                    </button>
+                    <div class="breadcrumb">
+                        <span class="text-muted">User</span>
+                        <i class="bi bi-chevron-right separator"></i>
+                        <h1 class="page-title">Activity Details</h1>
                     </div>
                 </div>
+                <div class="top-bar-right">
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="window.print()">
+                        <i class="bi bi-printer"></i> Print Record
+                    </button>
+                </div>
+            </header>
 
-                <!-- Admin Approval Panel -->
-                <?php if ($_SESSION['role'] === 'admin'): ?>
-                    <div class="admin-approval-panel">
-                        <div style="font-weight: 700; color: #1e40af; margin-bottom: 15px; font-size: 0.9em; text-transform: uppercase;">
-                            Admin Approval Controls
-                        </div>
-                        <div class="approval-grid">
-                            <form method="POST">
-                                <input type="hidden" name="action_approval" value="1">
-                                <input type="hidden" name="stage" value="supervisor">
-                                <button type="submit" class="approval-btn <?php echo $activity['reviewed_by_supervisor'] ? 'approved' : 'pending'; ?>" 
-                                    <?php echo $activity['reviewed_by_supervisor'] ? 'disabled' : ''; ?>>
-                                    <?php echo $activity['reviewed_by_supervisor'] ? '✓ Reviewed' : 'Mark as Reviewed'; ?>
-                                </button>
-                            </form>
+            <main class="content-wrapper">
+                <div class="view-layout-container">
 
-                            <form method="POST">
-                                <input type="hidden" name="action_approval" value="1">
-                                <input type="hidden" name="stage" value="asds">
-                                <button type="submit" class="approval-btn <?php echo $activity['recommending_asds'] ? 'approved' : 'pending'; ?>"
-                                    <?php echo $activity['recommending_asds'] ? 'disabled' : ''; ?>
-                                    <?php echo !$activity['reviewed_by_supervisor'] ? 'style="opacity: 0.5; cursor: not-allowed;" title="Must be reviewed first" disabled' : ''; ?>>
-                                    <?php echo $activity['recommending_asds'] ? '✓ Recommended' : 'Mark as Recommended'; ?>
-                                </button>
-                            </form>
-
-                            <form method="POST">
-                                <input type="hidden" name="action_approval" value="1">
-                                <input type="hidden" name="stage" value="sds">
-                                <button type="submit" class="approval-btn <?php echo $activity['approved_sds'] ? 'approved' : 'pending'; ?>"
-                                    <?php echo $activity['approved_sds'] ? 'disabled' : ''; ?>
-                                    <?php echo !$activity['recommending_asds'] ? 'style="opacity: 0.5; cursor: not-allowed;" title="Must be recommended first" disabled' : ''; ?>>
-                                    <?php echo $activity['approved_sds'] ? '✓ Approved' : 'Mark as Approved'; ?>
-                                </button>
-                            </form>
-                        </div>
-                    </div>
-                <?php endif; ?>
-
-                <div class="submitter-card">
-                    <div class="submitter-avatar">
-                        <?php if (!empty($activity['profile_picture'])): ?>
-                            <img src="../<?php echo htmlspecialchars($activity['profile_picture']); ?>" 
-                                 style="width: 100%; height: 100%; object-fit: cover; border-radius: inherit;">
-                        <?php else: ?>
+                    <!-- Progress Timeline -->
+                    <div class="view-prog-track">
+                        <div class="view-prog-steps">
+                            <div class="view-prog-line"></div>
                             <?php
-                            $initials = "";
-                            $names = explode(" ", $activity['full_name']);
-                            foreach ($names as $n)
-                                $initials .= strtoupper(substr($n, 0, 1));
-                            echo substr($initials, 0, 2);
+                            $stages = [
+                                ['label' => 'Submitted', 'field' => 'created_at', 'active' => true],
+                                ['label' => 'Reviewed', 'field' => 'reviewed_at', 'active' => (bool) $activity['reviewed_by_supervisor']],
+                                ['label' => 'Recommended', 'field' => 'recommended_at', 'active' => (bool) $activity['recommending_asds']],
+                                ['label' => 'Approved', 'field' => 'approved_at', 'active' => (bool) $activity['approved_sds']]
+                            ];
+                            $active_count = 0;
+                            foreach ($stages as $s)
+                                if ($s['active'])
+                                    $active_count++;
+                            $fill_pct = ($active_count - 1) / (count($stages) - 1) * 100;
                             ?>
-                        <?php endif; ?>
+                            <div class="view-prog-fill" style="width: <?php echo $fill_pct; ?>%;"></div>
+
+                            <?php foreach ($stages as $stage): ?>
+                                <div class="view-prog-step <?php echo $stage['active'] ? 'active' : ''; ?>">
+                                    <div class="view-prog-icon">
+                                        <i class="bi <?php echo $stage['active'] ? 'bi-check2' : 'bi-circle'; ?>"></i>
+                                    </div>
+                                    <span class="view-prog-label"><?php echo $stage['label']; ?></span>
+                                    <span
+                                        class="view-prog-date"><?php echo $activity[$stage['field']] ? date('M d, Y', strtotime($activity[$stage['field']])) : 'Pending'; ?></span>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
                     </div>
-                    <div class="submitter-details">
-                        <span class="submitter-label">Passbook Holder</span>
-                        <h3 class="submitter-name"><?php echo htmlspecialchars($activity['full_name']); ?></h3>
-                        <div class="submitter-meta">
-                            <span class="meta-item">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
-                                <?php echo htmlspecialchars($activity['office_station']); ?>
-                            </span>
-                            <span class="meta-item">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-                                Submitted on <?php echo date('F d, Y', strtotime($activity['created_at'])); ?>
-                            </span>
+
+                    <!-- Admin Controls Panel -->
+                    <?php if ($_SESSION['role'] === 'admin' || $_SESSION['role'] === 'super_admin' || $_SESSION['role'] === 'immediate_head'): ?>
+                        <div class="admin-controls">
+                            <h3
+                                style="font-size: 0.85rem; font-weight: 800; color: var(--primary); text-transform: uppercase; margin-bottom: 16px;">
+                                <i class="bi bi-shield-lock"></i> Administration Controls
+                            </h3>
+                            <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                                <form method="POST" style="flex: 1;">
+                                    <input type="hidden" name="action_approval" value="1">
+                                    <input type="hidden" name="stage" value="supervisor">
+                                    <button type="submit"
+                                        class="btn btn-sm <?php echo $activity['reviewed_by_supervisor'] ? 'btn-success' : 'btn-secondary'; ?>"
+                                        style="width: 100%;" <?php echo $activity['reviewed_by_supervisor'] ? 'disabled' : ''; ?>>
+                                        <?php echo $activity['reviewed_by_supervisor'] ? '<i class="bi bi-check-all"></i> Reviewed' : 'Review Activity'; ?>
+                                    </button>
+                                </form>
+                                <form method="POST" style="flex: 1;">
+                                    <input type="hidden" name="action_approval" value="1">
+                                    <input type="hidden" name="stage" value="asds">
+                                    <button type="submit"
+                                        class="btn btn-sm <?php echo $activity['recommending_asds'] ? 'btn-success' : 'btn-secondary'; ?>"
+                                        style="width: 100%;" <?php echo ($activity['recommending_asds'] || !$activity['reviewed_by_supervisor']) ? 'disabled' : ''; ?>>
+                                        <?php echo $activity['recommending_asds'] ? '<i class="bi bi-check-all"></i> Recommended' : 'Recommend Activity'; ?>
+                                    </button>
+                                </form>
+                                <?php if ($_SESSION['role'] === 'immediate_head'): ?>
+                                    <form method="POST" id="final-approval-form"
+                                        style="flex: 1; display: flex; flex-direction: column; gap: 12px;">
+                                        <input type="hidden" name="action_approval" value="1">
+                                        <input type="hidden" name="stage" value="sds">
+                                        <input type="hidden" name="signature_data" id="signature_data">
+
+                                        <?php if (!$activity['approved_sds'] && $activity['recommending_asds']): ?>
+                                            <div class="form-group"
+                                                style="background: white; padding: 16px; border-radius: var(--radius-md); border: 1px solid var(--primary-light);">
+                                                <label>Immediate Head Name</label>
+                                                <input type="text" name="approved_by" class="form-control form-control-sm" required
+                                                    placeholder="Enter name for signature">
+
+                                                <label style="margin-top: 12px;">Immediate Head Signature</label>
+                                                <div class="signature-pad-container">
+                                                    <canvas id="sig-canvas" width="300" height="100"></canvas>
+                                                    <div style="margin-top: 8px;">
+                                                        <button type="button" class="btn btn-xs btn-secondary"
+                                                            onclick="clearCanvas()">Clear</button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        <?php endif; ?>
+
+                                        <button type="button" onclick="submitFinalApproval()"
+                                            class="btn btn-sm <?php echo $activity['approved_sds'] ? 'btn-success' : 'btn-secondary'; ?>"
+                                            style="width: 100%;" <?php echo ($activity['approved_sds'] || !$activity['recommending_asds']) ? 'disabled' : ''; ?>>
+                                            <?php echo $activity['approved_sds'] ? '<i class="bi bi-trophy"></i> Approved' : 'Final Approval'; ?>
+                                        </button>
+                                    </form>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    <?php endif; ?>
+
+                    <!-- Submitter Details -->
+                    <div class="submitter-hero">
+                        <?php if (!empty($activity['profile_picture'])): ?>
+                            <img src="../<?php echo htmlspecialchars($activity['profile_picture']); ?>"
+                                class="submitter-avatar">
+                        <?php else: ?>
+                            <div class="submitter-avatar"
+                                style="background: var(--bg-tertiary); display: flex; align-items: center; justify-content: center; font-size: 2rem; font-weight: 800; color: var(--text-muted);">
+                                <?php echo strtoupper(substr($activity['full_name'], 0, 1)); ?>
+                            </div>
+                        <?php endif; ?>
+                        <div class="submitter-info">
+                            <p>Activity Submitted By</p>
+                            <h2><?php echo htmlspecialchars($activity['full_name']); ?></h2>
+                            <div
+                                style="display: flex; gap: 16px; font-size: 0.85rem; font-weight: 600; color: var(--text-secondary);">
+                                <span><i class="bi bi-building"></i>
+                                    <?php echo htmlspecialchars($activity['office_station']); ?></span>
+                                <span><i class="bi bi-briefcase"></i>
+                                    <?php echo htmlspecialchars($activity['user_position'] ?: 'Employee'); ?></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Main Activity Details Card -->
+                    <div class="dashboard-card" style="margin-bottom: 40px;">
+                        <div class="card-body" style="padding: 40px;">
+
+                            <div class="data-section-title"><i class="bi bi-book"></i> Activity Details</div>
+
+                            <h2
+                                style="font-size: 1.5rem; font-weight: 800; color: var(--text-primary); margin-bottom: 24px;">
+                                <?php echo htmlspecialchars($activity['title']); ?>
+                            </h2>
+
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-bottom: 40px;">
+                                <div class="form-group">
+                                    <label class="form-label">Date(s) of Attendance</label>
+                                    <div class="form-control"
+                                        style="background: var(--bg-secondary); font-weight: 600; height: auto; min-height: 48px;">
+                                        <?php
+                                        $dates = explode(', ', $activity['date_attended']);
+                                        $formattedDates = array_map(function ($d) {
+                                            return date('M d, Y', strtotime($d));
+                                        }, $dates);
+                                        echo implode(' | ', $formattedDates);
+                                        ?>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Venue</label>
+                                    <div class="form-control"
+                                        style="background: var(--bg-secondary); font-weight: 600;">
+                                        <?php echo htmlspecialchars($activity['venue'] ?: 'Not Specified'); ?>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Competencies Addressed</label>
+                                    <div class="form-control"
+                                        style="background: var(--bg-secondary); font-weight: 600;">
+                                        <?php echo htmlspecialchars($activity['competency']); ?>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Conducted By</label>
+                                    <div class="form-control"
+                                        style="background: var(--bg-secondary); font-weight: 600;">
+                                        <?php echo htmlspecialchars($activity['conducted_by']); ?>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-bottom: 40px;">
+                                <div>
+                                    <label class="form-label">Modalities</label>
+                                    <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                                        <?php
+                                        $mods = explode(', ', $activity['modality']);
+                                        foreach ($mods as $m):
+                                            if (!$m)
+                                                continue; ?>
+                                            <span class="activity-status-badge status-recommending"><?php echo $m; ?></span>
+                                        <?php endforeach; ?>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="form-label">Type of L&D</label>
+                                    <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                                        <?php
+                                        $types = explode(', ', $activity['type_ld']);
+                                        foreach ($types as $t):
+                                            if (!$t)
+                                                continue; ?>
+                                            <span class="activity-status-badge status-reviewed"><?php echo $t; ?></span>
+                                        <?php endforeach; ?>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="data-section-title"><i class="bi bi-rocket-takeoff"></i> Workplace Application
+                                Plan</div>
+
+
+
+                            <?php if (!empty($activity['workplace_image_path'])): ?>
+                                <div class="form-group" style="margin-bottom: 40px;">
+                                    <label class="form-label">Evidence / Attachments</label>
+                                    <div style="display: flex; flex-wrap: wrap; gap: 16px;">
+                                        <?php
+                                        $paths = [];
+                                        $trimmed = trim($activity['workplace_image_path']);
+                                        if (strpos($trimmed, '[') === 0)
+                                            $paths = json_decode($trimmed, true) ?: [];
+                                        else
+                                            $paths = [$trimmed];
+
+                                        foreach ($paths as $path):
+                                            if (empty($path))
+                                                continue;
+                                            $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+                                            $isImg = in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp']); ?>
+                                            <div class="image-attachment">
+                                                <?php if ($isImg): ?>
+                                                    <a href="../<?php echo htmlspecialchars($path); ?>" target="_blank">
+                                                        <img src="../<?php echo htmlspecialchars($path); ?>"
+                                                            style="width: 140px; height: 140px; object-fit: cover; border-radius: var(--radius-sm);">
+                                                    </a>
+                                                <?php else: ?>
+                                                    <a href="../<?php echo htmlspecialchars($path); ?>" target="_blank"
+                                                        style="width: 140px; height: 140px; display: flex; align-items: center; justify-content: center; background: var(--bg-tertiary); border-radius: var(--radius-sm); text-decoration: none; color: var(--primary);">
+                                                        <i class="bi bi-file-earmark-pdf" style="font-size: 3rem;"></i>
+                                                    </a>
+                                                <?php endif; ?>
+                                            </div>
+                                        <?php endforeach; ?>
+                                    </div>
+                                </div>
+                            <?php endif; ?>
+
+                            <div class="data-section-title"><i class="bi bi-journal-text"></i> Personal Reflection</div>
+
+                            <div class="form-group" style="margin-bottom: 32px;">
+                                <label class="form-label">Personal Reflection</label>
+                                <div
+                                    style="line-height: 1.7; color: var(--text-secondary); background: var(--bg-secondary); padding: 24px; border-radius: var(--radius-lg);">
+                                    <?php echo htmlspecialchars($activity['reflection']); ?>
+                                </div>
+                            </div>
+
+                            <div class="data-section-title"><i class="bi bi-pen"></i> Signatures & Authorization</div>
+
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 32px;">
+                                <div style="text-align: center;">
+                                    <div
+                                        style="height: 120px; display: flex; align-items: center; justify-content: center; border-bottom: 1px solid var(--text-primary); margin-bottom: 12px;">
+                                        <?php if (!empty($activity['organizer_signature_path'])): ?>
+                                            <img src="../<?php echo htmlspecialchars($activity['organizer_signature_path']); ?>"
+                                                style="max-height: 100px; filter: contrast(1.2);">
+                                        <?php else: ?>
+                                            <span style="color: var(--text-muted); font-style: italic;">No signature
+                                                provided</span>
+                                        <?php endif; ?>
+                                    </div>
+                                    <p style="font-weight: 800; text-transform: uppercase; font-size: 0.9rem;">
+                                        <?php echo htmlspecialchars($activity['conducted_by']); ?>
+                                    </p>
+                                    <p style="font-size: 0.75rem; color: var(--text-muted);">ORGANIZER / CONDUCTOR</p>
+                                </div>
+                                <div style="text-align: center;">
+                                    <div
+                                        style="height: 120px; display: flex; align-items: center; justify-content: center; border-bottom: 1px solid var(--text-primary); margin-bottom: 12px;">
+                                        <?php if (!empty($activity['signature_path'])): ?>
+                                            <img src="../<?php echo htmlspecialchars($activity['signature_path']); ?>"
+                                                style="max-height: 100px; filter: contrast(1.2);">
+                                        <?php else: ?>
+                                            <span style="color: var(--text-muted); font-style: italic;">No signature
+                                                provided</span>
+                                        <?php endif; ?>
+                                    </div>
+                                    <p style="font-weight: 800; text-transform: uppercase; font-size: 0.9rem;">
+                                        <?php echo htmlspecialchars($activity['approved_by']); ?>
+                                    </p>
+                                    <p style="font-size: 0.75rem; color: var(--text-muted);">IMMEDIATE HEAD</p>
+                                </div>
+                            </div>
+
                         </div>
                     </div>
                 </div>
+            </main>
 
-                <form>
-                    <!-- Removed method/action to prevent submission -->
-
-                    <div class="form-section-title">Learning and Development Attended</div>
-
-                    <div class="form-group">
-                        <label>Title of L&D Activity:</label>
-                        <input type="text" class="form-control"
-                            value="<?php echo htmlspecialchars($activity['title']); ?>" readonly>
-                    </div>
-
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 15px;">
-                        <div class="form-group">
-                            <label>Date:</label>
-                            <input type="text" class="form-control"
-                                value="<?php echo htmlspecialchars($activity['date_attended']); ?>" readonly>
-                        </div>
-                        <div class="form-group">
-                            <label>Venue:</label>
-                            <input type="text" class="form-control"
-                                value="<?php echo htmlspecialchars($activity['venue']); ?>" readonly>
-                        </div>
-                    </div>
-
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 15px;">
-                        <div>
-                            <div class="form-group">
-                                <label>Addressed Competency/ies:</label>
-                                <input type="text" class="form-control"
-                                    value="<?php echo htmlspecialchars($activity['competency']); ?>" readonly>
-                            </div>
-                            <div class="form-group" style="margin-top: 15px;">
-                                <label>Conducted by:</label>
-                                <input type="text" class="form-control"
-                                    value="<?php echo htmlspecialchars($activity['conducted_by']); ?>" readonly>
-                            </div>
-                            <!-- Organizer Signature -->
-                            <?php if (!empty($activity['organizer_signature_path'])): ?>
-                                        <div style="text-align: center; margin-top: 15px;">
-                                            <label
-                                                style="font-size: 0.85em; color: var(--primary-blue); font-weight: 600; display: block; margin-bottom: 5px;">Organizer's
-                                                Signature:</label>
-                                            <div
-                                                style="border: 2px solid #e2e8f0; border-radius: 8px; display: inline-block; width: 100%; height: 160px; display: flex; align-items: center; justify-content: center; overflow: hidden; background: white; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);">
-                                                <img src="../<?php echo htmlspecialchars($activity['organizer_signature_path']); ?>"
-                                                    style="max-width: 90%; max-height: 90%; object-fit: contain;">
-                                            </div>
-                                        </div>
-                            <?php endif; ?>
-                        </div>
-
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                            <div class="form-group">
-                                <label>Modality:</label>
-                                <div class="checkbox-group"
-                                    style="background: #f8fafc; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0;">
-                                    <label><input type="checkbox" disabled <?php echo isChecked('Formal Training', $activity['modality']); ?>> Formal Training</label>
-                                    <label><input type="checkbox" disabled <?php echo isChecked('Job-Embedded Learning', $activity['modality']); ?>> Job-Embedded Learning</label>
-                                    <label><input type="checkbox" disabled <?php echo isChecked('Relationship Discussion Learning', $activity['modality']); ?>> Relationship Discussion</label>
-                                    <label><input type="checkbox" disabled <?php echo isChecked('Learning Action Cell', $activity['modality']); ?>> Learning Action Cell</label>
-                                </div>
-                            </div>
-                            <div class="form-group">
-                                <label>Type of L&D:</label>
-                                <div class="checkbox-group"
-                                    style="background: #f8fafc; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0;">
-                                    <label><input type="checkbox" disabled <?php echo isChecked('Supervisory', $activity['type_ld']); ?>> Supervisory</label>
-                                    <label><input type="checkbox" disabled <?php echo isChecked('Managerial', $activity['type_ld']); ?>> Managerial</label>
-                                    <label><input type="checkbox" disabled <?php echo isChecked('Technical', $activity['type_ld']); ?>> Technical</label>
-                                    <label><input type="checkbox" disabled <?php echo isChecked('Others', $activity['type_ld']); ?>> Others</label>
-                                    <?php if (!empty($activity['type_ld_others'])): ?>
-                                                <div style="font-size: 0.85em; color: #555; margin-left: 20px; font-style: italic;">
-                                                    (<?php echo htmlspecialchars($activity['type_ld_others']); ?>)
-                                                </div>
-                                    <?php endif; ?>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-
-                    <div class="form-section-title print-break-before" style="margin-top: 30px;">Workplace Application
-                    </div>
-
-                    <div class="workplace-box"
-                        style="border: 2px solid var(--primary-blue); padding: 20px; border-radius: 5px; min-height: 100px; display: flex; flex-direction: column; position: relative;">
-                        <?php if (!empty($activity['workplace_application'])): ?>
-                                    <!-- Text Area -->
-                                    <textarea class="form-control" id="workplace-textarea"
-                                        style="width: 100%; border: none; resize: none; min-height: 20px; font-family: inherit; font-size: 1em; outline: none; flex: 1; box-sizing: border-box; overflow: hidden; background: #fdfdfd; padding: 10px; border-radius: 8px;"
-                                        readonly><?php echo htmlspecialchars($activity['workplace_application']); ?></textarea>
-                                    <script>
-                                        window.addEventListener('DOMContentLoaded', function () {
-                                            const tx = document.getElementById('workplace-textarea');
-                                            if (tx) {
-                                                tx.style.height = 'auto';
-                                                tx.style.height = tx.scrollHeight + 'px';
-                                            }
-                                        });
-                                    </script>
-                        <?php endif; ?>
-
-                        <?php if (!empty($activity['workplace_application']) && !empty($activity['workplace_image_path'])): ?>
-                                    <div style="border-top: 1px dashed #e2e8f0; margin: 15px 0;"></div>
-                        <?php endif; ?>
-
-                        <?php
-                        if (!empty($activity['workplace_image_path'])):
-                            $paths = [];
-                            $isJson = false;
-
-                            // Check if it's a JSON array or single path
-                            $trimmed = trim($activity['workplace_image_path']);
-                            if (strpos($trimmed, '[') === 0) {
-                                $decoded = json_decode($trimmed, true);
-                                if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
-                                    $paths = $decoded;
-                                    $isJson = true;
-                                } else {
-                                    // It looks like JSON but is broken (likely truncated)
-                                    $paths = [];
-                                }
-                            } else {
-                                $paths = [$activity['workplace_image_path']];
-                            }
-                            ?>
-                                    <div style="padding: 10px;">
-                                        <div
-                                            style="font-size: 0.8em; color: #64748b; margin-bottom: 12px; font-weight: 600; text-transform: uppercase; text-align: center;">
-                                            <?php echo $isJson ? "Attached Files (" . count($paths) . ")" : "Attached Image"; ?>
-                                        </div>
-                                        <?php if (empty($paths) && !empty($activity['workplace_image_path'])): ?>
-                                                    <p style="text-align: center; color: #ef4444; font-size: 0.9em; font-style: italic;">
-                                                        Error: Attachment data is corrupted/truncated. Please re-upload.
-                                                    </p>
-                                        <?php endif; ?>
-                                        <div style="display: flex; flex-wrap: wrap; gap: 15px; justify-content: center;">
-                                            <?php foreach ($paths as $path):
-                                                if (empty($path))
-                                                    continue;
-                                                $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
-                                                $isImage = in_array($extension, ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp', 'avif']);
-                                                $fileName = basename($path);
-                                                $shortName = strlen($fileName) > 20 ? substr($fileName, 0, 17) . '...' : $fileName;
-                                                ?>
-                                                        <div style="text-align: center; width: 140px;">
-                                                            <?php if ($isImage): ?>
-                                                                        <a href="../<?php echo htmlspecialchars($path); ?>" target="_blank"
-                                                                            style="text-decoration: none;">
-                                                                            <img src="../<?php echo htmlspecialchars($path); ?>"
-                                                                                style="width: 120px; height: 120px; object-fit: cover; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); border: 1px solid #e2e8f0;">
-                                                                        </a>
-                                                            <?php else: ?>
-                                                                        <a href="../<?php echo htmlspecialchars($path); ?>" target="_blank"
-                                                                            style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 120px; height: 120px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; text-decoration: none; color: #475569; position: relative; margin: 0 auto;">
-                                                                            <svg style="width: 48px; height: 48px; color: #3b82f6;" fill="none"
-                                                                                stroke="currentColor" viewBox="0 0 24 24">
-                                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                                                    d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z">
-                                                                                </path>
-                                                                            </svg>
-                                                                            <span
-                                                                                style="font-size: 10px; font-weight: 600; color: #2563eb; background: #dbeafe; padding: 2px 6px; border-radius: 4px; margin-top: 5px;"><?php echo strtoupper($extension); ?></span>
-                                                                        </a>
-                                                            <?php endif; ?>
-                                                            <div style="font-size: 11px; color: #64748b; margin-top: 5px; word-break: break-all; line-height: 1.2;"
-                                                                title="<?php echo htmlspecialchars($fileName); ?>">
-                                                                <?php echo htmlspecialchars($shortName); ?>
-                                                            </div>
-                                                        </div>
-                                            <?php endforeach; ?>
-                                        </div>
-                                    </div>
-                        <?php endif; ?>
-
-                        <?php if (empty($activity['workplace_application']) && empty($activity['workplace_image_path'])): ?>
-                                    <p style="text-align: center; color: #94a3b8; font-style: italic; margin: 20px 0;">No workplace
-                                        application provided.</p>
-                        <?php endif; ?>
-
-                        <!-- Attestation Section (Clearly Separated) -->
-                        <div
-                            style="margin-top: 30px; border-top: 1px solid #f1f5f9; padding-top: 20px; display: flex; justify-content: flex-end;">
-                            <div style="width: 350px; text-align: center;">
-                                <div class="form-section-title"
-                                    style="text-align: center; border: none; margin-bottom: 5px; font-size: 1.1em; color: var(--primary-blue);">
-                                    Attestation</div>
-
-                                <!-- Display Signature Image if available -->
-                                <div
-                                    style="border: 2px solid #e2e8f0; border-radius: 8px; display: inline-block; width: 100%; height: 160px; display: flex; align-items: center; justify-content: center; overflow: hidden; margin: 0 auto; background: white; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);">
-                                    <?php if (!empty($activity['signature_path'])): ?>
-                                                <img src="../<?php echo htmlspecialchars($activity['signature_path']); ?>"
-                                                    style="max-width: 90%; max-height: 90%; object-fit: contain;">
-                                    <?php else: ?>
-                                                <span style="color: #cbd5e1;">No Signature</span>
-                                    <?php endif; ?>
-                                </div>
-
-                                <div class="form-group" style="margin-top: 10px;">
-                                    <input type="text" class="form-control"
-                                        value="<?php echo htmlspecialchars($activity['approved_by']); ?>"
-                                        style="text-align: center;" readonly>
-                                    <label
-                                        style="font-weight: normal; font-size: 0.8em; margin-top: 5px; text-align: center; display: block;">Signature
-                                        overprinted name of the Immediate Head</label>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="form-section-title" style="margin-top: 30px;">Reflection</div>
-                        <div class="form-group" style="margin-bottom: 30px;">
-                            <textarea class="form-control" readonly
-                                style="min-height: 120px;"><?php echo htmlspecialchars($activity['reflection']); ?></textarea>
-                        </div>
-
-                        <div
-                            style="margin-top: 40px; padding-bottom: 20px; border-top: 1px solid #eee; text-align: center;">
-                            <button type="button" class="btn" onclick="window.print()"
-                                style="width: auto; min-width: 250px; background-color: #17a2b8; margin-right: 10px;">Print
-                                Activity</button>
-
-                            <?php if ($_SESSION['role'] === 'admin'): ?>
-                                        <a href="../admin/dashboard.php" class="btn"
-                                            style="width: auto; min-width: 250px; text-align: center; display: inline-block; text-decoration: none;">Back
-                                            to
-                                            Dashboard</a>
-                            <?php else: ?>
-                                        <a href="home.php" class="btn"
-                                            style="width: auto; min-width: 250px; text-align: center; display: inline-block; text-decoration: none;">Back
-                                            to
-                                            Dashboard</a>
-                            <?php endif; ?>
-                        </div>
-                </form>
-
-            </div> <!-- End Passbook Container -->
+            <footer class="user-footer btn-print-hide">
+                <p>&copy; <?php echo date('Y'); ?> SDO L&D Passbook System. All rights reserved.</p>
+            </footer>
         </div>
     </div>
 
+    <script>
+        // Signature Pad Logic for Admin
+        const canvas = document.getElementById('sig-canvas');
+        if (canvas) {
+            const ctx = canvas.getContext('2d');
+            let drawing = false;
+
+            function getMousePos(canvasDom, touchOrMouseEvent) {
+                var rect = canvasDom.getBoundingClientRect();
+                return {
+                    x: (touchOrMouseEvent.clientX || touchOrMouseEvent.touches[0].clientX) - rect.left,
+                    y: (touchOrMouseEvent.clientY || touchOrMouseEvent.touches[0].clientY) - rect.top
+                };
+            }
+
+            canvas.addEventListener("mousedown", function (e) {
+                drawing = true;
+                ctx.beginPath();
+                ctx.lineWidth = 2;
+                ctx.lineCap = 'round';
+                ctx.strokeStyle = '#000';
+                ctx.moveTo(getMousePos(canvas, e).x, getMousePos(canvas, e).y);
+            }, false);
+
+            canvas.addEventListener("mouseup", function (e) {
+                drawing = false;
+            }, false);
+
+            canvas.addEventListener("mousemove", function (e) {
+                if (!drawing) return;
+                ctx.lineTo(getMousePos(canvas, e).x, getMousePos(canvas, e).y);
+                ctx.stroke();
+            }, false);
+
+            // Touch support
+            canvas.addEventListener("touchstart", function (e) {
+                e.preventDefault();
+                drawing = true;
+                ctx.beginPath();
+                ctx.lineWidth = 2;
+                ctx.lineCap = 'round';
+                ctx.strokeStyle = '#000';
+                ctx.moveTo(getMousePos(canvas, e).x, getMousePos(canvas, e).y);
+            }, false);
+            canvas.addEventListener("touchend", function (e) {
+                drawing = false;
+            }, false);
+            canvas.addEventListener("touchmove", function (e) {
+                if (!drawing) return;
+                ctx.lineTo(getMousePos(canvas, e).x, getMousePos(canvas, e).y);
+                ctx.stroke();
+            }, false);
+
+            window.clearCanvas = function () {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            };
+
+            // Check if canvas is empty using pixel data
+            function isCanvasBlank(canvas) {
+                const context = canvas.getContext('2d');
+                const pixelBuffer = new Uint32Array(
+                    context.getImageData(0, 0, canvas.width, canvas.height).data.buffer
+                );
+                return !pixelBuffer.some(color => color !== 0);
+            }
+
+            window.submitFinalApproval = function () {
+                const nameInput = document.querySelector('input[name="approved_by"]');
+                const nameVal = nameInput ? nameInput.value.trim() : '';
+
+                if (nameVal === '') {
+                    showToast('Missing Field', 'Please enter the Immediate Head Name.', 'error');
+                    nameInput.focus();
+                    return;
+                }
+
+                if (isCanvasBlank(canvas)) {
+                    showToast('Missing Signature', 'Please provide a signature.', 'error');
+                    return;
+                }
+
+                const signatureData = canvas.toDataURL();
+                document.getElementById('signature_data').value = signatureData;
+
+                // Confirm action
+                if (confirm('Are you sure you want to approve this submission?')) {
+                    document.getElementById('final-approval-form').submit();
+                }
+            };
+        }
+    </script>
 </body>
 
 </html>

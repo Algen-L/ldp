@@ -14,6 +14,6 @@
     --border-color: #E0E0E0;
     --dark-gray: #9E9E9E;
     --logout-red: #d32f2f;
-    --card-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
-    --input-shadow: 0 0 0 3px rgba(30, 136, 229, 0.1);
+    --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+    --header-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
 }

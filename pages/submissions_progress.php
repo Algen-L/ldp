@@ -32,15 +32,19 @@ if ($search !== '') {
     $params[] = "%$search%";
 }
 
-if ($status_filter !== '') {
-    $where_clauses[] = "status = ?";
-    $params[] = $status_filter;
+// Modified status filtering to match current logic
+if ($status_filter === 'Approved') {
+    $where_clauses[] = "approved_sds = 1";
+} elseif ($status_filter === 'Reviewed') {
+    $where_clauses[] = "reviewed_by_supervisor = 1 AND approved_sds = 0";
+} elseif ($status_filter === 'Pending') {
+    $where_clauses[] = "reviewed_by_supervisor = 0";
 }
 
 $where_sql = implode(" AND ", $where_clauses);
 
 // Fetch all filtered L&D activities
-$sql = "SELECT * FROM ld_activities WHERE $where_sql ORDER BY created_at DESC";
+$sql = "SELECT * FROM ld_activities WHERE $where_sql ORDER BY date_attended DESC, created_at DESC";
 $stmt_ld = $pdo->prepare($sql);
 $stmt_ld->execute($params);
 $activities = $stmt_ld->fetchAll(PDO::FETCH_ASSOC);
@@ -48,25 +52,26 @@ $activities = $stmt_ld->fetchAll(PDO::FETCH_ASSOC);
 /**
  * Helper to determine current stage and progress percentage
  */
-function getProgressInfo($act) {
+function getProgressInfo($act)
+{
     $stages = [
-        ['label' => 'Submitted', 'completed' => true, 'date' => $act['created_at']],
-        ['label' => 'Reviewed', 'completed' => (bool)$act['reviewed_by_supervisor'], 'date' => $act['reviewed_at']],
-        ['label' => 'Recommended', 'completed' => (bool)$act['recommending_asds'], 'date' => $act['recommended_at']],
-        ['label' => 'Approved', 'completed' => (bool)$act['approved_sds'], 'date' => $act['approved_at']]
+        ['label' => 'Submitted', 'completed' => true, 'date' => $act['created_at'], 'icon' => 'bi-send'],
+        ['label' => 'Reviewed', 'completed' => (bool) $act['reviewed_by_supervisor'], 'date' => $act['reviewed_at'], 'icon' => 'bi-eye'],
+        ['label' => 'Recommended', 'completed' => (bool) $act['recommending_asds'], 'date' => $act['recommended_at'], 'icon' => 'bi-check2-circle'],
+        ['label' => 'Approved', 'completed' => (bool) $act['approved_sds'], 'date' => $act['approved_at'], 'icon' => 'bi-trophy']
     ];
-    
+
     $completedCount = 0;
     foreach ($stages as $stage) {
-        if ($stage['completed']) $completedCount++;
+        if ($stage['completed'])
+            $completedCount++;
     }
-    
+
     $percentage = ($completedCount / count($stages)) * 100;
-    
+
     return [
         'stages' => $stages,
-        'percentage' => $percentage,
-        'current_status' => $act['status']
+        'percentage' => $percentage
     ];
 }
 ?>
@@ -76,113 +81,277 @@ function getProgressInfo($act) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Submissions Progress - LDP Passbook</title>
+    <title>My Submissions Progress - LDP</title>
     <?php require '../includes/head.php'; ?>
-    <link rel="stylesheet" href="../css/pages/submissions-progress.css">
+    <style>
+        .submission-card {
+            margin-bottom: 24px;
+            position: relative;
+        }
+
+        .submission-card .card-body {
+            padding: 32px;
+        }
+
+        .prog-track-wrapper {
+            margin-top: 32px;
+            position: relative;
+            padding: 0 10px;
+        }
+
+        .prog-track-line {
+            position: absolute;
+            top: 18px;
+            left: 30px;
+            right: 30px;
+            height: 4px;
+            background: var(--bg-tertiary);
+            z-index: 1;
+            border-radius: 2px;
+        }
+
+        .prog-track-fill {
+            position: absolute;
+            top: 18px;
+            left: 30px;
+            height: 4px;
+            background: var(--success);
+            z-index: 2;
+            border-radius: 2px;
+            transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .prog-steps {
+            display: flex;
+            justify-content: space-between;
+            position: relative;
+            z-index: 3;
+        }
+
+        .prog-step {
+            text-align: center;
+            flex: 1;
+        }
+
+        .prog-icon {
+            width: 40px;
+            height: 40px;
+            background: white;
+            border: 3px solid var(--border-color);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 12px;
+            font-size: 1rem;
+            color: var(--text-muted);
+            transition: all var(--transition-base);
+        }
+
+        .prog-step.active .prog-icon {
+            border-color: var(--success);
+            color: var(--success);
+            box-shadow: 0 0 0 6px var(--success-bg);
+        }
+
+        .prog-label {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+        }
+
+        .prog-date {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            display: block;
+            margin-top: 2px;
+        }
+
+        .filter-bar-custom {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border-color);
+            margin-bottom: 32px;
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            flex-wrap: wrap;
+            box-shadow: var(--shadow-sm);
+        }
+    </style>
 </head>
 
 <body>
 
-    <div class="dashboard-container">
-        <!-- Sidebar -->
+    <div class="user-layout">
         <?php require '../includes/sidebar.php'; ?>
 
-        <!-- Main Content -->
         <div class="main-content">
-            <div class="submissions-container">
-                <div class="page-header">
-                    <h1>Submissions Progress</h1>
-                    <p>Track the status of your Professional Development activities</p>
+            <header class="top-bar">
+                <div class="top-bar-left">
+                    <button class="mobile-menu-toggle" id="toggleSidebar">
+                        <i class="bi bi-list"></i>
+                    </button>
+                    <div class="breadcrumb">
+                        <span class="text-muted">User</span>
+                        <i class="bi bi-chevron-right separator"></i>
+                        <h1 class="page-title">My Submissions</h1>
+                    </div>
                 </div>
-
-                <div class="filter-section">
-                    <form method="GET" class="filter-form">
-                        <div class="search-box">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                            <input type="text" name="search" placeholder="Search by activity title..." value="<?php echo htmlspecialchars($search); ?>">
-                        </div>
-                        <div class="filter-controls">
-                            <select name="status">
-                                <option value="">All Statuses</option>
-                                <option value="Pending" <?php echo $status_filter == 'Pending' ? 'selected' : ''; ?>>Pending</option>
-                                <option value="Reviewed" <?php echo $status_filter == 'Reviewed' ? 'selected' : ''; ?>>Reviewed</option>
-                                <option value="Approved" <?php echo $status_filter == 'Approved' ? 'selected' : ''; ?>>Approved</option>
-                            </select>
-                            <button type="submit" class="btn-filter">Filter</button>
-                            <?php if ($search !== '' || $status_filter !== ''): ?>
-                                <a href="submissions_progress.php" class="btn-reset">Reset</a>
-                            <?php endif; ?>
-                        </div>
-                    </form>
+                <div class="top-bar-right">
+                    <div class="current-date-box">
+                        <i class="bi bi-calendar-check"></i>
+                        <span><?php echo count($activities); ?> Records Found</span>
+                    </div>
                 </div>
+            </header>
 
-                <div class="submissions-scroll-wrapper">
-                    <div class="submissions-list">
-                        <?php if (count($activities) > 0): ?>
-                            <?php foreach ($activities as $act): 
-                                $progress = getProgressInfo($act);
+            <main class="content-wrapper">
+                <!-- Specialized Filter Bar -->
+                <form method="GET" class="filter-bar-custom">
+                    <div style="position: relative; flex: 1; min-width: 250px;">
+                        <i class="bi bi-search"
+                            style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted);"></i>
+                        <input type="text" name="search" class="form-control" placeholder="Search activities..."
+                            value="<?php echo htmlspecialchars($search); ?>" style="padding-left: 42px;">
+                    </div>
+                    <div style="width: 200px;">
+                        <select name="status" class="form-control">
+                            <option value="">All Statuses</option>
+                            <option value="Pending" <?php echo $status_filter == 'Pending' ? 'selected' : ''; ?>>Pending
+                            </option>
+                            <option value="Reviewed" <?php echo $status_filter == 'Reviewed' ? 'selected' : ''; ?>>
+                                Reviewed</option>
+                            <option value="Approved" <?php echo $status_filter == 'Approved' ? 'selected' : ''; ?>>
+                                Approved</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-funnel"></i> Apply Filter
+                    </button>
+                    <?php if ($search || $status_filter): ?>
+                        <a href="submissions_progress.php" class="btn btn-secondary">Reset</a>
+                    <?php endif; ?>
+                </form>
+
+                <div class="submissions-list">
+                    <?php if (count($activities) > 0): ?>
+                        <?php foreach ($activities as $act):
+                            $prog = getProgressInfo($act);
+                            $fill_pct = 0;
+                            if ($prog['percentage'] > 0)
+                                $fill_pct = ($prog['percentage'] - 25) / (100 - 25) * 100; // Adjustment for visual line
+                            // Simpler logic for the fill line:
+                            $active_count = 0;
+                            foreach ($prog['stages'] as $s)
+                                if ($s['completed'])
+                                    $active_count++;
+                            $line_pct = ($active_count - 1) / (count($prog['stages']) - 1) * 100;
+                            if ($line_pct < 0)
+                                $line_pct = 0;
                             ?>
-                                <div class="submission-item">
-                                    <div class="submission-info">
-                                        <div class="submission-header">
-                                            <h3><?php echo htmlspecialchars($act['title']); ?></h3>
-                                            <span class="submission-date">Submitted: <?php echo date('M d, Y', strtotime($act['created_at'])); ?></span>
-                                        </div>
-                                        <div class="submission-details">
-                                            <span><strong>Venue:</strong> <?php echo htmlspecialchars($act['venue'] ?: 'N/A'); ?></span>
-                                            <span><strong>Modality:</strong> <?php echo htmlspecialchars($act['modality'] ?: 'N/A'); ?></span>
-                                            <div class="status-badge" data-status="<?php echo $act['status']; ?>">
-                                                <?php echo htmlspecialchars($act['status']); ?>
+                            <div class="dashboard-card submission-card">
+                                <div class="card-body">
+                                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                                        <div>
+                                            <h3
+                                                style="font-size: 1.25rem; font-weight: 800; color: var(--text-primary); margin-bottom: 8px;">
+                                                <?php echo htmlspecialchars($act['title']); ?>
+                                            </h3>
+                                            <div
+                                                style="display: flex; gap: 16px; font-size: 0.85rem; color: var(--text-muted); font-weight: 500;">
+                                                <span><i class="bi bi-geo-alt"></i>
+                                                    <?php echo htmlspecialchars($act['venue'] ?: 'N/A'); ?></span>
+                                                <span><i class="bi bi-layers"></i>
+                                                    <?php echo htmlspecialchars($act['modality'] ?: 'N/A'); ?></span>
+                                                <span><i class="bi bi-calendar-check"></i> Attended:
+                                                    <?php
+                                                    $dates = explode(', ', $act['date_attended']);
+                                                    echo date('M d, Y', strtotime($dates[0]));
+                                                    if (count($dates) > 1)
+                                                        echo ' (+' . (count($dates) - 1) . ' more)';
+                                                    ?></span>
                                             </div>
+                                        </div>
+                                        <div style="text-align: right;">
+                                            <?php
+                                            $statusLabel = 'Pending';
+                                            $statusClass = 'status-pending';
+                                            if ($act['approved_sds']) {
+                                                $statusLabel = 'Approved';
+                                                $statusClass = 'status-approved';
+                                            } elseif ($act['recommending_asds']) {
+                                                $statusLabel = 'Recommending';
+                                                $statusClass = 'status-recommending';
+                                            } elseif ($act['reviewed_by_supervisor']) {
+                                                $statusLabel = 'Reviewed';
+                                                $statusClass = 'status-reviewed';
+                                            }
+                                            ?>
+                                            <span class="activity-status-badge <?php echo $statusClass; ?>"
+                                                style="padding: 6px 14px; font-size: 0.8rem;">
+                                                <?php echo $statusLabel; ?>
+                                            </span>
+                                            <span
+                                                style="display: block; font-size: 0.7rem; color: var(--text-muted); margin-top: 8px;">
+                                                Submitted <?php echo date('M d, Y', strtotime($act['created_at'])); ?>
+                                            </span>
                                         </div>
                                     </div>
 
-                                    <div class="progress-container">
-                                        <div class="progress-track">
-                                            <div class="progress-bar" style="width: <?php echo $progress['percentage']; ?>%;"></div>
-                                        </div>
-                                        <div class="progress-steps">
-                                            <?php foreach ($progress['stages'] as $index => $stage): ?>
-                                                <div class="step <?php echo $stage['completed'] ? 'completed' : ''; ?>">
-                                                    <div class="step-icon">
-                                                        <?php if ($stage['completed']): ?>
-                                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                                                        <?php else: ?>
-                                                            <?php echo $index + 1; ?>
-                                                        <?php endif; ?>
+                                    <div class="prog-track-wrapper">
+                                        <div class="prog-track-line"></div>
+                                        <div class="prog-track-fill" style="width: <?php echo $line_pct; ?>%;"></div>
+                                        <div class="prog-steps">
+                                            <?php foreach ($prog['stages'] as $index => $stage): ?>
+                                                <div class="prog-step <?php echo $stage['completed'] ? 'active' : ''; ?>">
+                                                    <div class="prog-icon">
+                                                        <i class="bi <?php echo $stage['icon']; ?>"></i>
                                                     </div>
-                                                    <div class="step-label">
-                                                        <?php echo $stage['label']; ?>
-                                                        <?php if ($stage['completed'] && $stage['date']): ?>
-                                                            <small><?php echo date('M d, Y', strtotime($stage['date'])); ?></small>
-                                                        <?php endif; ?>
-                                                    </div>
+                                                    <span class="prog-label"><?php echo $stage['label']; ?></span>
+                                                    <?php if ($stage['completed'] && $stage['date']): ?>
+                                                        <span
+                                                            class="prog-date"><?php echo date('M d', strtotime($stage['date'])); ?></span>
+                                                    <?php endif; ?>
                                                 </div>
                                             <?php endforeach; ?>
                                         </div>
                                     </div>
-                                    
-                                    <div class="submission-actions">
-                                        <a href="view_activity.php?id=<?php echo $act['id']; ?>" class="btn-view">View Details</a>
+
+                                    <div
+                                        style="margin-top: 32px; padding-top: 24px; border-top: 1.5px solid var(--border-light); display: flex; justify-content: flex-end; gap: 12px;">
+                                        <a href="view_activity.php?id=<?php echo $act['id']; ?>" class="btn btn-secondary">
+                                            <i class="bi bi-eye"></i> View Details
+                                        </a>
                                         <?php if (!$act['reviewed_by_supervisor']): ?>
-                                            <a href="edit_activity.php?id=<?php echo $act['id']; ?>" class="btn-edit">Edit</a>
+                                            <a href="edit_activity.php?id=<?php echo $act['id']; ?>" class="btn btn-primary">
+                                                <i class="bi bi-pencil"></i> Edit Record
+                                            </a>
                                         <?php endif; ?>
                                     </div>
                                 </div>
-                            <?php endforeach; ?>
-                        <?php else: ?>
-                            <div class="no-submissions">
-                                <div class="no-data-icon">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                                </div>
-                                <h3>No Submissions Found</h3>
-                                <p>You haven't added any activities yet. Start by adding one!</p>
-                                <a href="add_activity.php" class="btn-primary">Add Activity</a>
                             </div>
-                        <?php endif; ?>
-                    </div>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <div class="dashboard-card" style="padding: 100px 40px; text-align: center;">
+                            <i class="bi bi-clipboard-x"
+                                style="font-size: 4rem; color: var(--text-muted); opacity: 0.3;"></i>
+                            <h2 style="margin-top: 24px; font-weight: 800; color: var(--text-primary);">No records found
+                            </h2>
+                            <p style="color: var(--text-secondary); margin-bottom: 32px;">We couldn't find any activities
+                                matching your filters.</p>
+                            <a href="add_activity.php" class="btn btn-primary btn-lg"><i class="bi bi-plus-lg"></i> Record
+                                New Activity</a>
+                        </div>
+                    <?php endif; ?>
                 </div>
-            </div>
+            </main>
+
+            <footer class="user-footer">
+                <p>&copy; <?php echo date('Y'); ?> SDO L&D Passbook System. All rights reserved.</p>
+            </footer>
         </div>
     </div>
 

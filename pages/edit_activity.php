@@ -32,18 +32,16 @@ $messageType = '';
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     // Collect data
     $title = trim($_POST['title']);
-    $date_attended = $_POST['date_attended'];
+    $date_attended = isset($_POST['date_attended']) ? trim($_POST['date_attended']) : '';
     $venue = trim($_POST['venue']);
     $modality = isset($_POST['modality']) ? implode(', ', $_POST['modality']) : '';
     $competency = trim($_POST['competency']);
     $type_ld = isset($_POST['type_ld']) ? implode(', ', $_POST['type_ld']) : '';
     $type_ld_others = isset($_POST['type_ld_others']) ? trim($_POST['type_ld_others']) : '';
     $conducted_by = trim($_POST['conducted_by']);
-    $approved_by = trim($_POST['approved_by']);
-    $workplace_application = trim($_POST['workplace_application']);
     $reflection = trim($_POST['reflection']);
 
-    // Function to handle file saving (supports 1 or many files)
+    // Function to handle file saving
     function saveUpload($fileKey, $prefix, $subDir = 'signatures')
     {
         if (!isset($_FILES[$fileKey]) || empty($_FILES[$fileKey]['name'][0]))
@@ -63,7 +61,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             if ($error === UPLOAD_ERR_OK) {
                 $tmpName = $isMultiple ? $files['tmp_name'][$i] : $files['tmp_name'];
                 $originalName = $isMultiple ? $files['name'][$i] : $files['name'];
-                $fileName = uniqid() . '_' . $prefix . '_' . basename($originalName);
+                $fileName = uniqid() . '_' . $prefix . '_' . preg_replace('/[^a-zA-Z0-9\._-]/', '', $originalName);
                 $targetPath = $uploadDir . $fileName;
 
                 if (move_uploaded_file($tmpName, $targetPath)) {
@@ -76,40 +74,16 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         return $isMultiple ? json_encode($paths) : $paths[0];
     }
 
-    function saveSignature($fileKey, $dataKey, $prefix)
-    {
-        $path = saveUpload($fileKey, $prefix, 'signatures');
-        if ($path)
-            return $path;
-        if (!empty($_POST[$dataKey])) {
-            $data = $_POST[$dataKey];
-            $data = str_replace('data:image/png;base64,', '', $data);
-            $data = str_replace(' ', '+', $data);
-            $decodedData = base64_decode($data);
-            $fileName = uniqid() . '_' . $prefix . '_signature.png';
-            $filePath = '../uploads/signatures/' . $fileName;
-            if (!is_dir(dirname($filePath)))
-                mkdir(dirname($filePath), 0777, true);
-            if (file_put_contents($filePath, $decodedData))
-                return 'uploads/signatures/' . $fileName;
-        }
-        return null;
-    }
-
-    $new_sig = saveSignature('signature_file', 'signature_data', 'attest');
-    $new_org_sig = saveSignature('organizer_signature_file', 'organizer_signature_data', 'org');
     $new_work_images = saveUpload('workplace_image', 'work', 'workplace');
 
-    $sig_path = $new_sig ?: $activity['signature_path'];
-    $org_sig_path = $new_org_sig ?: $activity['organizer_signature_path'];
     $work_image_path = $new_work_images ?: $activity['workplace_image_path'];
 
     $sql = "UPDATE ld_activities SET 
             title = ?, date_attended = ?, venue = ?, modality = ?, competency = ?, 
-            type_ld = ?, type_ld_others = ?, conducted_by = ?, organizer_signature_path = ?, 
-            approved_by = ?, workplace_application = ?, workplace_image_path = ?, 
-            reflection = ?, signature_path = ? 
-            WHERE id = ?";
+            type_ld = ?, type_ld_others = ?, conducted_by = ?, 
+            workplace_image_path = ?, 
+            reflection = ?, rating_period = ?
+            WHERE id = ? AND user_id = ?";
     $stmt = $pdo->prepare($sql);
     if (
         $stmt->execute([
@@ -121,13 +95,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $type_ld,
             $type_ld_others,
             $conducted_by,
-            $org_sig_path,
-            $approved_by,
-            $workplace_application,
             $work_image_path,
             $reflection,
-            $sig_path,
-            $activity_id
+            $activity['rating_period'],
+            $activity_id,
+            $_SESSION['user_id']
         ])
     ) {
         $logStmt = $pdo->prepare("INSERT INTO activity_logs (user_id, action, details, ip_address) VALUES (?, ?, ?, ?)");
@@ -161,58 +133,193 @@ function isChecked($value, $storedValue)
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Edit Activity - LDP</title>
+    <title>Edit Activity Record - LDP</title>
     <?php require '../includes/head.php'; ?>
-    <link rel="stylesheet" href="../css/pages/add-activity.css">
-    <link rel="stylesheet" href="../css/pages/passbook-view.css">
+    <!-- Flatpickr CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/material_blue.css">
     <style>
-        .existing-file-preview {
+        .form-section {
+            margin-bottom: 40px;
+        }
+
+        .form-section-header {
             display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 24px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid var(--border-light);
+        }
+
+        .form-section-header i {
+            font-size: 1.5rem;
+            color: var(--primary);
+        }
+
+        .form-section-header h3 {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            text-transform: uppercase;
+        }
+
+        .checkbox-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 12px;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
             gap: 10px;
-            margin-top: 10px;
-            padding: 10px;
-            background: #f1f5f9;
-            border-radius: 8px;
+            padding: 12px 16px;
+            background: var(--bg-secondary);
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            border: 1.5px solid transparent;
+        }
+
+        .checkbox-item:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .checkbox-item input:checked+span {
+            color: var(--primary);
+            font-weight: 700;
+        }
+
+        .prog-preview {
+            margin-bottom: 32px;
+            padding: 20px;
+            background: var(--bg-secondary);
+            border-radius: var(--radius-lg);
+        }
+
+        .view-prog-track {
+            margin-bottom: 24px;
+            padding: 12px;
+        }
+
+        .view-prog-steps {
+            display: flex;
+            justify-content: space-between;
+            position: relative;
+        }
+
+        .view-prog-line {
+            position: absolute;
+            top: 18px;
+            left: 40px;
+            right: 40px;
+            height: 3px;
+            background: var(--bg-tertiary);
+            z-index: 1;
+        }
+
+        .view-prog-fill {
+            position: absolute;
+            top: 18px;
+            left: 40px;
+            height: 3px;
+            background: var(--success);
+            z-index: 2;
+        }
+
+        .view-prog-step {
+            position: relative;
+            z-index: 3;
+            text-align: center;
+            flex: 1;
+        }
+
+        .view-prog-icon {
+            width: 36px;
+            height: 36px;
+            background: white;
+            border: 3px solid var(--border-color);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 8px;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .view-prog-step.active .view-prog-icon {
+            border-color: var(--success);
+            color: var(--success);
+            background: var(--success-bg);
+        }
+
+        .view-prog-label {
+            font-size: 0.65rem;
+            font-weight: 800;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+        }
+
+        /* Flatpickr Custom Styling */
+        .flatpickr-calendar {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border-light);
+            box-shadow: var(--shadow-lg);
+            border-radius: var(--radius-lg);
+        }
+
+        .flatpickr-day.selected,
+        .flatpickr-day.startRange,
+        .flatpickr-day.endRange,
+        .flatpickr-day.selected.inRange,
+        .flatpickr-day.startRange.inRange,
+        .flatpickr-day.endRange.inRange,
+        .flatpickr-day.selected:focus,
+        .flatpickr-day.startRange:focus,
+        .flatpickr-day.endRange:focus,
+        .flatpickr-day.selected:hover,
+        .flatpickr-day.startRange:hover,
+        .flatpickr-day.endRange:hover,
+        .flatpickr-day.selected.prevMonthDay,
+        .flatpickr-day.startRange.prevMonthDay,
+        .flatpickr-day.endRange.prevMonthDay,
+        .flatpickr-day.selected.nextMonthDay,
+        .flatpickr-day.startRange.nextMonthDay,
+        .flatpickr-day.endRange.nextMonthDay {
+            background: var(--primary);
+            border-color: var(--primary);
         }
     </style>
 </head>
 
 <body>
-    <div class="dashboard-container">
-        <div class="sidebar">
-            <?php require '../includes/sidebar.php'; ?>
-        </div>
+
+    <div class="user-layout">
+        <?php require '../includes/sidebar.php'; ?>
+
         <div class="main-content">
-            <div class="passbook-container" style="width: 800px;">
-                <div class="header">
-                    <h1>Edit Activity</h1>
-                    <p>
-                        <?php echo htmlspecialchars($activity['title']); ?>
-                    </p>
-                </div>
-
-                <!-- Progress Tracker -->
-                <div class="progress-tracker" style="margin-top: 20px; background: white; border: 1px solid #e2e8f0;">
-                    <div class="progress-step <?php echo $activity['reviewed_by_supervisor'] ? 'active' : ''; ?>">
-                        <div class="step-icon">
-                            <?php echo $activity['reviewed_by_supervisor'] ? '✓' : '1'; ?>
-                        </div>
-                        <div class="step-label">Reviewed</div>
-                    </div>
-                    <div class="progress-step <?php echo $activity['recommending_asds'] ? 'active' : ''; ?>">
-                        <div class="step-icon">
-                            <?php echo $activity['recommending_asds'] ? '✓' : '2'; ?>
-                        </div>
-                        <div class="step-label">Recommending</div>
-                    </div>
-                    <div class="progress-step <?php echo $activity['approved_sds'] ? 'active' : ''; ?>">
-                        <div class="step-icon">
-                            <?php echo $activity['approved_sds'] ? '✓' : '3'; ?>
-                        </div>
-                        <div class="step-label">Approved</div>
+            <header class="top-bar">
+                <div class="top-bar-left">
+                    <button class="mobile-menu-toggle" id="toggleSidebar">
+                        <i class="bi bi-list"></i>
+                    </button>
+                    <div class="breadcrumb">
+                        <span class="text-muted">User</span>
+                        <i class="bi bi-chevron-right separator"></i>
+                        <h1 class="page-title">Edit Activity</h1>
                     </div>
                 </div>
+                <div class="top-bar-right">
+                    <a href="view_activity.php?id=<?php echo $activity_id; ?>" class="btn btn-secondary btn-sm">
+                        <i class="bi bi-arrow-left"></i> Cancel Edit
+                    </a>
+                </div>
+            </header>
 
+            <main class="content-wrapper">
                 <?php if ($message): ?>
                     <script>
                         window.addEventListener('DOMContentLoaded', function () {
@@ -220,103 +327,209 @@ function isChecked($value, $storedValue)
                         });
                     </script>
                 <?php endif; ?>
+                <!-- Flatpickr JS -->
+                <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+                <script>
+                    document.addEventListener('DOMContentLoaded', function () {
+                        flatpickr("#date_picker", {
+                            mode: "multiple",
+                            dateFormat: "Y-m-d",
+                            defaultDate: <?php echo json_encode(explode(', ', $activity['date_attended'])); ?>,
+                            conjunction: ", ",
+                            altInput: true,
+                            altFormat: "M j, Y",
+                            allowInput: false
+                        });
+                    });
+                </script>
 
-                <form method="POST" enctype="multipart/form-data">
-                    <div class="form-section-title">L&D Activity Details</div>
+                <div class="dashboard-card" style="max-width: 900px; margin: 0 auto; overflow: visible;">
+                    <div class="card-body" style="padding: 40px;">
 
-                    <div class="form-group">
-                        <label>Title of L&D Activity:</label>
-                        <input type="text" name="title" value="<?php echo htmlspecialchars($activity['title']); ?>"
-                            class="form-control" required>
-                    </div>
-
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 15px;">
-                        <div class="form-group">
-                            <label>Date:</label>
-                            <input type="date" name="date_attended" value="<?php echo $activity['date_attended']; ?>"
-                                class="form-control" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Venue:</label>
-                            <input type="text" name="venue" value="<?php echo htmlspecialchars($activity['venue']); ?>"
-                                class="form-control">
-                        </div>
-                    </div>
-
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 15px;">
-                        <div class="form-group">
-                            <label>Competency: <span style="color: #ef4444;">*</span></label>
-                            <input type="text" name="competency"
-                                value="<?php echo htmlspecialchars($activity['competency']); ?>" class="form-control">
-                        </div>
-                        <div class="form-group">
-                            <label>Conducted by:</label>
-                            <input type="text" name="conducted_by"
-                                value="<?php echo htmlspecialchars($activity['conducted_by']); ?>" class="form-control"
-                                required>
-                        </div>
-                    </div>
-
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 15px;">
-                        <div class="form-group">
-                            <label>Modality: <span style="color: #ef4444;">*</span></label>
-                            <div class="checkbox-group">
-                                <label><input type="checkbox" name="modality[]" value="Formal Training" <?php echo isChecked('Formal Training', $activity['modality']); ?>> Formal Training</label>
-                                <label><input type="checkbox" name="modality[]" value="Job-Embedded Learning" <?php echo isChecked('Job-Embedded Learning', $activity['modality']); ?>> Job-Embedded
-                                    Learning</label>
-                                <label><input type="checkbox" name="modality[]" value="Relationship Discussion Learning"
-                                        <?php echo isChecked('Relationship Discussion Learning', $activity['modality']); ?>> Relationship Discussion Learning</label>
-                                <label><input type="checkbox" name="modality[]" value="Learning Action Cell" <?php echo isChecked('Learning Action Cell', $activity['modality']); ?>> Learning Action
-                                    Cell</label>
+                        <!-- Progress Visualization Tooltip -->
+                        <div class="prog-preview">
+                            <div class="view-prog-track">
+                                <div class="view-prog-steps">
+                                    <div class="view-prog-line"></div>
+                                    <?php
+                                    $stages = [
+                                        ['label' => 'Submitted', 'active' => true],
+                                        ['label' => 'Reviewed', 'active' => (bool) $activity['reviewed_by_supervisor']],
+                                        ['label' => 'Recommended', 'active' => (bool) $activity['recommending_asds']],
+                                        ['label' => 'Approved', 'active' => (bool) $activity['approved_sds']]
+                                    ];
+                                    $active_count = 0;
+                                    foreach ($stages as $s)
+                                        if ($s['active'])
+                                            $active_count++;
+                                    $fill_pct = ($active_count - 1) / (count($stages) - 1) * 100;
+                                    ?>
+                                    <div class="view-prog-fill" style="width: <?php echo $fill_pct; ?>%;"></div>
+                                    <?php foreach ($stages as $stage): ?>
+                                        <div class="view-prog-step <?php echo $stage['active'] ? 'active' : ''; ?>">
+                                            <div class="view-prog-icon"><i
+                                                    class="bi <?php echo $stage['active'] ? 'bi-check2' : 'bi-circle'; ?>"></i>
+                                            </div>
+                                            <span class="view-prog-label"><?php echo $stage['label']; ?></span>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </div>
                             </div>
+                            <?php if ($activity['reviewed_by_supervisor']): ?>
+                                <div
+                                    style="display: flex; align-items: center; gap: 8px; color: var(--warning); font-size: 0.8rem; font-weight: 700; margin-top: 12px; justify-content: center;">
+                                    <i class="bi bi-exclamation-triangle-fill"></i> This activity has already been reviewed.
+                                    Some changes might require re-approval.
+                                </div>
+                            <?php endif; ?>
                         </div>
-                        <div class="form-group">
-                            <label>Type of L&D: <span style="color: #ef4444;">*</span></label>
-                            <div class="checkbox-group">
-                                <label><input type="checkbox" name="type_ld[]" value="Supervisory" <?php echo isChecked('Supervisory', $activity['type_ld']); ?>> Supervisory</label>
-                                <label><input type="checkbox" name="type_ld[]" value="Managerial" <?php echo isChecked('Managerial', $activity['type_ld']); ?>> Managerial</label>
-                                <label><input type="checkbox" name="type_ld[]" value="Technical" <?php echo isChecked('Technical', $activity['type_ld']); ?>> Technical</label>
-                                <label><input type="checkbox" name="type_ld[]" value="Others" <?php echo isChecked('Others', $activity['type_ld']); ?>> Others</label>
+
+                        <form method="POST" enctype="multipart/form-data">
+
+                            <!-- Section 1: Basic Information -->
+                            <div class="form-section">
+                                <div class="form-section-header">
+                                    <i class="bi bi-info-circle"></i>
+                                    <h3>Basic Information</h3>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Title of L&D Activity <span
+                                            style="color: var(--danger);">*</span></label>
+                                    <input type="text" name="title" class="form-control" required
+                                        value="<?php echo htmlspecialchars($activity['title']); ?>">
+                                </div>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+                                    <div class="form-group">
+                                        <label class="form-label">Date(s) Attended <span
+                                                style="color: var(--danger);">*</span></label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"
+                                                style="background: var(--bg-secondary); border-right: none;">
+                                                <i class="bi bi-calendar3"></i>
+                                            </span>
+                                            <input type="text" name="date_attended" id="date_picker"
+                                                class="form-control"
+                                                value="<?php echo htmlspecialchars($activity['date_attended']); ?>"
+                                                placeholder="Click to select dates" required style="border-left: none;">
+                                        </div>
+                                        <small class="text-muted"
+                                            style="font-size: 0.75rem; margin-top: 4px; display: block;">
+                                            <i class="bi bi-info-circle"></i> Click dates on the calendar to
+                                            select/deselect them.
+                                        </small>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Venue</label>
+                                        <input type="text" name="venue" class="form-control"
+                                            value="<?php echo htmlspecialchars($activity['venue']); ?>"
+                                            placeholder="e.g. SDO Conference Hall">
+                                    </div>
+                                </div>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+                                    <div class="form-group">
+                                        <label class="form-label">Addressed Competency/ies <span
+                                                style="color: var(--danger);">*</span></label>
+                                        <input type="text" name="competency" class="form-control"
+                                            value="<?php echo htmlspecialchars($activity['competency']); ?>">
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Conducted By <span
+                                                style="color: var(--danger);">*</span></label>
+                                        <input type="text" name="conducted_by" class="form-control" required
+                                            value="<?php echo htmlspecialchars($activity['conducted_by']); ?>">
+                                    </div>
+                                </div>
                             </div>
-                            <input type="text" name="type_ld_others"
-                                value="<?php echo htmlspecialchars($activity['type_ld_others']); ?>"
-                                class="form-control" style="margin-top: 5px; font-size: 0.8em;"
-                                placeholder="Specify if others">
-                        </div>
+
+                            <!-- Section 2: Modality & Type -->
+                            <div class="form-section">
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px;">
+                                    <div>
+                                        <div class="form-section-header">
+                                            <i class="bi bi-diagram-3"></i>
+                                            <h3>Modality</h3>
+                                        </div>
+                                        <div class="checkbox-grid" style="grid-template-columns: 1fr;">
+                                            <?php
+                                            $modalities = ["Formal Training", "Job-Embedded Learning", "Relationship Discussion Learning", "Learning Action Cell"];
+                                            foreach ($modalities as $m): ?>
+                                                <label class="checkbox-item">
+                                                    <input type="checkbox" name="modality[]" value="<?php echo $m; ?>" <?php echo isChecked($m, $activity['modality']); ?>>
+                                                    <span><?php echo $m; ?></span>
+                                                </label>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="form-section-header">
+                                            <i class="bi bi-tags"></i>
+                                            <h3>Type of L&D</h3>
+                                        </div>
+                                        <div class="checkbox-grid" style="grid-template-columns: 1fr;">
+                                            <?php
+                                            $types = ["Supervisory", "Managerial", "Technical", "Others"];
+                                            foreach ($types as $t): ?>
+                                                <label class="checkbox-item">
+                                                    <input type="checkbox" name="type_ld[]" value="<?php echo $t; ?>" <?php echo isChecked($t, $activity['type_ld']); ?>>
+                                                    <span><?php echo $t; ?></span>
+                                                </label>
+                                            <?php endforeach; ?>
+                                        </div>
+                                        <div style="margin-top: 12px;">
+                                            <input type="text" name="type_ld_others" class="form-control"
+                                                placeholder="Specify if others..."
+                                                value="<?php echo htmlspecialchars($activity['type_ld_others']); ?>">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Section 3: Workplace Application Plan -->
+                            <div class="form-section">
+                                <div class="form-section-header">
+                                    <i class="bi bi-rocket-takeoff"></i>
+                                    <h3>Workplace Application Plan</h3>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Update Evidence / Attachments (Optional)</label>
+                                    <input type="file" name="workplace_image[]" class="form-control" multiple>
+                                    <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 8px;">Leave
+                                        empty to keep your existing attachments.</p>
+                                </div>
+                                <div class="form-group" style="margin-top: 24px;">
+                                    <label class="form-label">Reflection <span
+                                            style="color: var(--danger);">*</span></label>
+                                    <textarea name="reflection" class="form-control"
+                                        style="min-height: 100px;"><?php echo htmlspecialchars($activity['reflection']); ?></textarea>
+                                </div>
+                            </div>
+
+                            <!-- Section 4: Heads -->
+                            <div class="form-section"
+                                style="border-top: 1px solid var(--border-light); padding-top: 32px; background: var(--bg-secondary); margin: 0 -40px -40px -40px; padding: 40px;">
+                                <div style="max-width: 400px; margin: 0 auto;">
+                                    <!-- Field approved_by removed -->
+                                    <div style="margin-top: 20px; display: flex; gap: 16px;">
+                                        <button type="submit" class="btn btn-primary btn-lg" style="flex: 2;">
+                                            <i class="bi bi-save"></i> UPDATE RECORD
+                                        </button>
+                                        <a href="view_activity.php?id=<?php echo $activity_id; ?>"
+                                            class="btn btn-secondary btn-lg" style="flex: 1;">CANCEL</a>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </form>
                     </div>
+                </div>
+            </main>
 
-                    <div class="form-section-title" style="margin-top: 30px;">Workplace Application</div>
-                    <textarea name="workplace_application" class="form-control"
-                        style="min-height: 100px;"><?php echo htmlspecialchars($activity['workplace_application']); ?></textarea>
-
-                    <div style="margin-top: 15px;">
-                        <label style="font-size: 0.85em; font-weight: 600; color: #64748b;">Update Attachments (Leave
-                            empty to keep current):</label>
-                        <input type="file" name="workplace_image[]" class="form-control" multiple>
-                    </div>
-
-                    <div class="form-section-title" style="margin-top: 30px;">Reflection</div>
-                    <textarea name="reflection" class="form-control"
-                        style="min-height: 100px;"><?php echo htmlspecialchars($activity['reflection']); ?></textarea>
-
-                    <div style="margin-top: 30px; border-top: 1px solid #e2e8f0; padding-top: 20px;">
-                        <div class="form-group">
-                            <label>Immediate Head:</label>
-                            <input type="text" name="approved_by"
-                                value="<?php echo htmlspecialchars($activity['approved_by']); ?>" class="form-control"
-                                required>
-                        </div>
-                    </div>
-
-                    <div style="margin-top: 20px; display: flex; gap: 10px;">
-                        <button type="submit" class="btn" style="flex: 1;">Update Activity</button>
-                        <a href="view_activity.php?id=<?php echo $activity_id; ?>" class="btn"
-                            style="flex: 1; background: #64748b; text-decoration: none; text-align: center; color: white; display: flex; align-items: center; justify-content: center;">Cancel</a>
-                    </div>
-                </form>
-            </div>
+            <footer class="user-footer">
+                <p>&copy; <?php echo date('Y'); ?> SDO L&D Passbook System. All rights reserved.</p>
+            </footer>
         </div>
     </div>
+
 </body>
 
 </html>

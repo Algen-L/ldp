@@ -2,10 +2,11 @@
 $current_page = basename($_SERVER['PHP_SELF']);
 $current_dir = basename(dirname($_SERVER['PHP_SELF']));
 $is_admin_dir = ($current_dir === 'admin');
+$is_hr_dir = ($current_dir === 'hr');
 
 // Define prefixes
 $admin_prefix = $is_admin_dir ? '' : '../admin/';
-$pages_prefix = $is_admin_dir ? '../pages/' : '';
+$pages_prefix = ($is_admin_dir || $is_hr_dir) ? '../pages/' : '';
 $css_prefix = $is_admin_dir ? '../css/' : '../css/'; // Both go up to root
 $js_prefix = $is_admin_dir ? '../js/' : '../js/';   // Both go up to root
 ?>
@@ -13,162 +14,249 @@ $js_prefix = $is_admin_dir ? '../js/' : '../js/';   // Both go up to root
 <script src="<?php echo $js_prefix; ?>notifications.js"></script>
 
 <div id="toast-container"></div>
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-<div class="sidebar">
-    <div class="sidebar-logo">
-        <img src="../assets/LogoLDP.png"
-            alt="<?php echo ($_SESSION['role'] === 'admin' || $_SESSION['role'] === 'super_admin') ? 'Admin Panel' : 'LDP System'; ?>">
-        <div class="sidebar-user">
-            <span
-                class="user-name"><?php echo htmlspecialchars($_SESSION['full_name'] ?: $_SESSION['username']); ?></span>
-            <?php
-            // Fallback for current sessions that don't have 'position' yet
-            if (!isset($_SESSION['position'])) {
-                require_once __DIR__ . '/db.php';
-                $stmt_pos = $pdo->prepare("SELECT position FROM users WHERE id = ?");
-                $stmt_pos->execute([$_SESSION['user_id']]);
-                $_SESSION['position'] = $stmt_pos->fetchColumn();
-            }
-            ?>
-            <span
-                class="user-role"><?php echo htmlspecialchars($_SESSION['position'] ?: str_replace('_', ' ', $_SESSION['role'])); ?></span>
+<div class="sidebar" id="mainSidebar">
+    <div class="sidebar-header">
+        <div class="logo">
+            <img src="../assets/LogoLDP.png" alt="LDP Logo" class="logo-img">
+            <div class="logo-text">
+                <span class="logo-title">LDP</span>
+                <span class="logo-subtitle">Passbook System</span>
+            </div>
         </div>
+        <button class="sidebar-toggle-btn" id="sidebarToggle" title="Toggle Sidebar">
+            <i class="bi bi-chevron-left toggle-icon"></i>
+        </button>
     </div>
+
     <div class="sidebar-nav">
-        <?php if ($_SESSION['role'] === 'admin' || $_SESSION['role'] === 'super_admin'): ?>
+        <?php if ($_SESSION['role'] === 'admin' || $_SESSION['role'] === 'super_admin' || $_SESSION['role'] === 'immediate_head'): ?>
             <?php
-            // Get Pending Count
-            $pending_badges = 0;
-            if (isset($pdo)) { // Ensure DB connection exists
-                $stmt_pending = $pdo->query("SELECT COUNT(*) FROM ld_activities WHERE status = 'Pending'");
-                $pending_badges = $stmt_pending->fetchColumn();
+            // Get Pending Count for Badge
+            $pending_count = 0;
+            if (isset($pdo)) {
+                $stmt_pending = $pdo->query("SELECT COUNT(*) FROM ld_activities WHERE reviewed_by_supervisor = 0");
+                $pending_count = $stmt_pending->fetchColumn();
             }
             ?>
             <a href="<?php echo $admin_prefix; ?>dashboard.php"
-                class="nav-item <?php echo ($current_page == 'dashboard.php') ? 'active' : ''; ?>"
-                style="justify-content: space-between;">
-                <div style="display: flex; align-items: center; gap: 12px;">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <rect x="3" y="3" width="7" height="7"></rect>
-                        <rect x="14" y="3" width="7" height="7"></rect>
-                        <rect x="14" y="14" width="7" height="7"></rect>
-                        <rect x="3" y="14" width="7" height="7"></rect>
-                    </svg>
-                    Dashboard
+                class="nav-item <?php echo ($current_page == 'dashboard.php') ? 'active' : ''; ?>" data-tooltip="Dashboard">
+                <div class="nav-icon">
+                    <i class="bi bi-grid-fill"></i>
                 </div>
-                <?php if ($pending_badges > 0): ?>
-                    <span
-                        style="background-color: #ef4444; color: white; font-size: 0.75em; padding: 2px 8px; border-radius: 10px; font-weight: bold; box-shadow: 0 2px 4px rgba(239,68,68,0.3);">
-                        <?php echo $pending_badges; ?>
-                    </span>
-                <?php endif; ?>
+                <span class="nav-text">Dashboard</span>
             </a>
+
             <a href="<?php echo $admin_prefix; ?>submissions.php"
-                class="nav-item <?php echo ($current_page == 'submissions.php') ? 'active' : ''; ?>">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                    <polyline points="14 2 14 8 20 8"></polyline>
-                    <line x1="16" y1="13" x2="8" y2="13"></line>
-                    <line x1="16" y1="17" x2="8" y2="17"></line>
-                    <polyline points="10 9 9 9 8 9"></polyline>
-                </svg>
-                Submissions
+                class="nav-item <?php echo (in_array($current_page, ['submissions.php', 'view_activity.php', 'edit_activity.php']) && ($_SESSION['role'] === 'admin' || $_SESSION['role'] === 'super_admin')) ? 'active' : ''; ?>"
+                data-tooltip="Submissions">
+                <div class="nav-icon">
+                    <i class="bi bi-file-earmark-text-fill"></i>
+                    <?php if ($pending_count > 0): ?>
+                        <span class="nav-badge"><?php echo $pending_count; ?></span>
+                    <?php endif; ?>
+                </div>
+                <span class="nav-text">Submissions</span>
             </a>
+
             <a href="<?php echo $admin_prefix; ?>users.php"
-                class="nav-item <?php echo ($current_page == 'users.php') ? 'active' : ''; ?>">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
-                </svg>
-                Activity Logs
+                class="nav-item <?php echo ($current_page == 'users.php') ? 'active' : ''; ?>" data-tooltip="Activity Logs">
+                <div class="nav-icon">
+                    <i class="bi bi-clock-history"></i>
+                </div>
+                <span class="nav-text">Activity Logs</span>
             </a>
+
             <a href="<?php echo $admin_prefix; ?>user_status.php"
-                class="nav-item <?php echo ($current_page == 'user_status.php') ? 'active' : ''; ?>">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                    <circle cx="9" cy="7" r="4"></circle>
-                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                </svg>
-                User Status
+                class="nav-item <?php echo ($current_page == 'user_status.php') ? 'active' : ''; ?>"
+                data-tooltip="User Status">
+                <div class="nav-icon">
+                    <i class="bi bi-people-fill"></i>
+                </div>
+                <span class="nav-text">User Status</span>
             </a>
 
             <?php if ($_SESSION['role'] === 'super_admin'): ?>
                 <a href="<?php echo $admin_prefix; ?>manage_users.php"
-                    class="nav-item <?php echo ($current_page == 'manage_users.php') ? 'active' : ''; ?>">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                        <circle cx="9" cy="7" r="4"></circle>
-                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                    </svg>
-                    User Management
+                    class="nav-item <?php echo ($current_page == 'manage_users.php') ? 'active' : ''; ?>"
+                    data-tooltip="User Management">
+                    <div class="nav-icon">
+                        <i class="bi bi-person-fill-gear"></i>
+                    </div>
+                    <span class="nav-text">User Management</span>
+                </a>
+
+                <a href="<?php echo $admin_prefix; ?>register.php"
+                    class="nav-item <?php echo ($current_page == 'register.php') ? 'active' : ''; ?>"
+                    data-tooltip="Register Account">
+                    <div class="nav-icon">
+                        <i class="bi bi-person-plus-fill"></i>
+                    </div>
+                    <span class="nav-text">Register Account</span>
                 </a>
             <?php endif; ?>
+
+            <?php if ($_SESSION['role'] === 'admin' || $_SESSION['role'] === 'immediate_head'): ?>
+                <a href="<?php echo $pages_prefix; ?>add_activity.php"
+                    class="nav-item <?php echo ($current_page == 'add_activity.php') ? 'active' : ''; ?>"
+                    data-tooltip="Record Activity">
+                    <div class="nav-icon">
+                        <i class="bi bi-plus-circle-fill"></i>
+                    </div>
+                    <span class="nav-text">Record Activity</span>
+                </a>
+
+                <a href="<?php echo $pages_prefix; ?>submissions_progress.php"
+                    class="nav-item <?php echo ($current_page == 'submissions_progress.php') ? 'active' : ''; ?>"
+                    data-tooltip="My Submissions">
+                    <div class="nav-icon">
+                        <i class="bi bi-journal-check"></i>
+                    </div>
+                    <span class="nav-text">My Submissions</span>
+                </a>
+            <?php endif; ?>
+
+            <div class="nav-divider"></div>
+
             <a href="<?php echo $admin_prefix; ?>profile.php"
-                class="nav-item <?php echo ($current_page == 'profile.php') ? 'active' : ''; ?>">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                    <circle cx="12" cy="7" r="4"></circle>
-                </svg>
-                Profile
+                class="nav-item <?php echo ($current_page == 'profile.php') ? 'active' : ''; ?>" data-tooltip="My Profile">
+                <div class="nav-icon">
+                    <i class="bi bi-person-circle"></i>
+                </div>
+                <span
+                    class="nav-text"><?php echo ($_SESSION['role'] === 'immediate_head') ? 'My Profile' : 'Admin Profile'; ?></span>
             </a>
-        <?php else: ?>
+
+        <?php else: // HR and Regular Users ?>
             <a href="<?php echo $pages_prefix; ?>home.php"
-                class="nav-item <?php echo ($current_page == 'home.php') ? 'active' : ''; ?>">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-                    <polyline points="9 22 9 12 15 12 15 22"></polyline>
-                </svg>
-                Dashboard
+                class="nav-item <?php echo ($current_page == 'home.php') ? 'active' : ''; ?>" data-tooltip="Dashboard">
+                <div class="nav-icon">
+                    <i class="bi bi-house-door-fill"></i>
+                </div>
+                <span class="nav-text">My Dashboard</span>
             </a>
+
+            <?php if ($_SESSION['role'] === 'hr'): ?>
+                <a href="<?php echo $admin_prefix; ?>../hr/register.php"
+                    class="nav-item <?php echo ($current_page == 'register.php') ? 'active' : ''; ?>"
+                    data-tooltip="Register Personnel">
+                    <div class="nav-icon">
+                        <i class="bi bi-person-plus-fill"></i>
+                    </div>
+                    <span class="nav-text">Register Personnel</span>
+                </a>
+
+                <a href="<?php echo $admin_prefix; ?>manage_users.php"
+                    class="nav-item <?php echo ($current_page == 'manage_users.php') ? 'active' : ''; ?>"
+                    data-tooltip="User Management">
+                    <div class="nav-icon">
+                        <i class="bi bi-people-fill"></i>
+                    </div>
+                    <span class="nav-text">User Management</span>
+                </a>
+            <?php endif; ?>
+
             <a href="<?php echo $pages_prefix; ?>add_activity.php"
-                class="nav-item <?php echo ($current_page == 'add_activity.php') ? 'active' : ''; ?>">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="12" y1="5" x2="12" y2="19"></line>
-                    <line x1="5" y1="12" x2="19" y2="12"></line>
-                </svg>
-                ADD ACTIVITY
+                class="nav-item <?php echo ($current_page == 'add_activity.php') ? 'active' : ''; ?>"
+                data-tooltip="Add Activity">
+                <div class="nav-icon">
+                    <i class="bi bi-plus-circle-fill"></i>
+                </div>
+                <span class="nav-text">Record Activity</span>
             </a>
+
             <a href="<?php echo $pages_prefix; ?>submissions_progress.php"
-                class="nav-item <?php echo ($current_page == 'submissions_progress.php') ? 'active' : ''; ?>">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                    <polyline points="14 2 14 8 20 8"></polyline>
-                    <line x1="16" y1="13" x2="8" y2="13"></line>
-                    <line x1="16" y1="17" x2="8" y2="17"></line>
-                    <polyline points="10 9 9 9 8 9"></polyline>
-                </svg>
-                SUBMISSIONS
+                class="nav-item <?php echo (in_array($current_page, ['submissions_progress.php', 'view_activity.php', 'edit_activity.php']) && $_SESSION['role'] !== 'admin' && $_SESSION['role'] !== 'super_admin') ? 'active' : ''; ?>"
+                data-tooltip="My Submissions">
+                <div class="nav-icon">
+                    <i class="bi bi-journal-check"></i>
+                </div>
+                <span class="nav-text">My Submissions</span>
             </a>
+
+            <div class="nav-divider"></div>
+
             <a href="<?php echo $pages_prefix; ?>profile.php"
-                class="nav-item <?php echo ($current_page == 'profile.php') ? 'active' : ''; ?>">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                    <circle cx="12" cy="7" r="4"></circle>
-                </svg>
-                Profile
+                class="nav-item <?php echo ($current_page == 'profile.php') ? 'active' : ''; ?>"
+                data-tooltip="Profile Settings">
+                <div class="nav-icon">
+                    <i class="bi bi-gear-fill"></i>
+                </div>
+                <span class="nav-text">Settings</span>
             </a>
         <?php endif; ?>
     </div>
 
-    <div class="logout-container">
-        <a href="<?php echo $pages_prefix; ?>logout.php" class="nav-item logout" title="Logout">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                <polyline points="16 17 21 12 16 7"></polyline>
-                <line x1="21" y1="12" x2="9" y2="12"></line>
-            </svg>
+    <div class="sidebar-footer">
+        <div class="user-info">
+            <?php if (!empty($_SESSION['profile_picture'])): ?>
+                <img src="../<?php echo htmlspecialchars($_SESSION['profile_picture']); ?>" alt="User" class="user-avatar">
+            <?php else: ?>
+                <div class="user-avatar-placeholder">
+                    <?php echo strtoupper(substr($_SESSION['full_name'] ?: $_SESSION['username'], 0, 1)); ?>
+                </div>
+            <?php endif; ?>
+            <div class="user-details">
+                <span class="user-name"><?php echo htmlspecialchars($_SESSION['full_name']); ?></span>
+                <span class="user-role"><?php echo htmlspecialchars($_SESSION['position'] ?: 'Employee'); ?></span>
+            </div>
+        </div>
+        <a href="<?php echo $pages_prefix; ?>logout.php" class="logout-btn-new" title="Log out">
+            <i class="bi bi-power"></i>
         </a>
     </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const sidebar = document.getElementById('mainSidebar');
+        const sidebarToggle = document.getElementById('sidebarToggle'); // Chevron
+        const mobileToggle = document.getElementById('toggleSidebar');  // Top-bar Burger
+        const overlay = document.getElementById('sidebarOverlay');
+        const layout = document.querySelector('.admin-layout') || document.querySelector('.user-layout');
+
+        function toggleDesktopCollapse() {
+            sidebar.classList.toggle('collapsed');
+            if (layout) layout.classList.toggle('sidebar-collapsed');
+            localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
+        }
+
+        function toggleMobileMenu() {
+            sidebar.classList.toggle('mobile-open');
+            if (overlay) overlay.classList.toggle('show');
+        }
+
+        // Top Bar Toggle (Burger)
+        if (mobileToggle) {
+            mobileToggle.addEventListener('click', function () {
+                if (window.innerWidth > 992) {
+                    toggleDesktopCollapse();
+                } else {
+                    toggleMobileMenu();
+                }
+            });
+        }
+
+        // Sidebar Internal Toggle (Chevron)
+        if (sidebarToggle) {
+            sidebarToggle.addEventListener('click', function () {
+                toggleDesktopCollapse();
+            });
+        }
+
+        // Overlay Close
+        if (overlay) {
+            overlay.addEventListener('click', function () {
+                sidebar.classList.remove('mobile-open');
+                overlay.classList.remove('show');
+            });
+        }
+
+        // Persistence & Initialization
+        if (window.innerWidth > 992 && localStorage.getItem('sidebarCollapsed') === 'true') {
+            sidebar.classList.add('collapsed');
+            if (layout) layout.classList.add('sidebar-collapsed');
+        }
+    });
+</script>
