@@ -15,7 +15,7 @@ if (!$activity_id) {
 }
 
 // Fetch Activity Logic
-$sql = "SELECT ld.*, u.full_name, u.office_station, u.position as user_position, u.profile_picture FROM ld_activities ld JOIN users u ON ld.user_id = u.id WHERE ld.id = ?";
+$sql = "SELECT ld.*, u.full_name, u.office_station, u.position as user_position, u.profile_picture, ld.certificate_path FROM ld_activities ld JOIN users u ON ld.user_id = u.id WHERE ld.id = ?";
 $stmt = $pdo->prepare($sql);
 $stmt->execute([$activity_id]);
 $activity = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -105,7 +105,7 @@ if (($_SESSION['role'] === 'admin' || $_SESSION['role'] === 'super_admin' || $_S
     }
 
     // Refresh activity data
-    $stmt = $pdo->prepare("SELECT ld.*, u.full_name, u.office_station, u.position as user_position, u.profile_picture FROM ld_activities ld JOIN users u ON ld.user_id = u.id WHERE ld.id = ?");
+    $stmt = $pdo->prepare("SELECT ld.*, u.full_name, u.office_station, u.position as user_position, u.profile_picture, ld.certificate_path FROM ld_activities ld JOIN users u ON ld.user_id = u.id WHERE ld.id = ?");
     $stmt->execute([$activity_id]);
     $activity = $stmt->fetch(PDO::FETCH_ASSOC);
 }
@@ -349,12 +349,7 @@ function isChecked($value, $arrayString)
         <div class="main-content">
             <header class="top-bar">
                 <div class="top-bar-left">
-                    <button class="mobile-menu-toggle" id="toggleSidebar">
-                        <i class="bi bi-list"></i>
-                    </button>
                     <div class="breadcrumb">
-                        <span class="text-muted">User</span>
-                        <i class="bi bi-chevron-right separator"></i>
                         <h1 class="page-title">Activity Details</h1>
                     </div>
                 </div>
@@ -566,16 +561,28 @@ function isChecked($value, $arrayString)
 
 
 
-                            <?php if (!empty($activity['workplace_image_path'])): ?>
+                            <?php if (!empty($activity['workplace_image_path']) || !empty($activity['certificate_path'])): ?>
                                 <div class="form-group" style="margin-bottom: 40px;">
                                     <label class="form-label">Evidence / Attachments</label>
                                     <div style="display: flex; flex-wrap: wrap; gap: 16px;">
+                                        <?php if ($activity['certificate_path']): ?>
+                                            <div class="image-attachment">
+                                                <a href="../<?php echo htmlspecialchars($activity['certificate_path']); ?>"
+                                                    target="_blank"
+                                                    style="width: 140px; height: 140px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #f0fdf4; border: 1.5px solid #bbf7d0; border-radius: var(--radius-sm); text-decoration: none; color: #16a34a;">
+                                                    <i class="bi bi-patch-check-fill" style="font-size: 2.5rem;"></i>
+                                                    <span style="font-size: 0.75rem; font-weight: 700; margin-top: 8px;">View
+                                                        Certificate</span>
+                                                </a>
+                                            </div>
+                                        <?php endif; ?>
+
                                         <?php
                                         $paths = [];
-                                        $trimmed = trim($activity['workplace_image_path']);
+                                        $trimmed = trim($activity['workplace_image_path'] ?? '');
                                         if (strpos($trimmed, '[') === 0)
                                             $paths = json_decode($trimmed, true) ?: [];
-                                        else
+                                        elseif (!empty($trimmed))
                                             $paths = [$trimmed];
 
                                         foreach ($paths as $path):

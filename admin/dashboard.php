@@ -10,13 +10,48 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] !== 'admin' && $_SESSION[
 
 
 
+// Filter Logic
+$filter = $_GET['filter'] ?? 'month'; // Default to month
+$dateFrom = $_GET['date_from'] ?? '';
+$dateTo = $_GET['date_to'] ?? '';
+
+// If dates are provided, force filter to 'custom'
+if (!empty($dateFrom) || !empty($dateTo)) {
+    $filter = 'custom';
+}
+
+$whereClause = "";
+$params = [];
+
+if ($filter === 'custom') {
+    if (!empty($dateFrom) && !empty($dateTo)) {
+        $whereClause = "WHERE DATE(ld.created_at) BETWEEN :date_from AND :date_to";
+        $params['date_from'] = $dateFrom;
+        $params['date_to'] = $dateTo;
+    } elseif (!empty($dateFrom)) {
+        $whereClause = "WHERE DATE(ld.created_at) >= :date_from";
+        $params['date_from'] = $dateFrom;
+    } elseif (!empty($dateTo)) {
+        $whereClause = "WHERE DATE(ld.created_at) <= :date_to";
+        $params['date_to'] = $dateTo;
+    }
+} elseif ($filter === 'today') {
+    $whereClause = "WHERE DATE(ld.created_at) = CURDATE()";
+} elseif ($filter === 'week') {
+    $whereClause = "WHERE YEARWEEK(ld.created_at, 1) = YEARWEEK(CURDATE(), 1)";
+} elseif ($filter === 'month') {
+    $whereClause = "WHERE MONTH(ld.created_at) = MONTH(CURDATE()) AND YEAR(ld.created_at) = YEAR(CURDATE())";
+}
+
 // Fetch all activities
-$stmt = $pdo->query("
+$stmt = $pdo->prepare("
     SELECT ld.*, u.full_name, u.office_station 
     FROM ld_activities ld 
     JOIN users u ON ld.user_id = u.id 
+    $whereClause
     ORDER BY ld.created_at DESC
 ");
+$stmt->execute($params);
 $activities = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Calculate Statistics
@@ -73,16 +108,43 @@ foreach ($activities as $act) {
         <div class="main-content">
             <header class="top-bar">
                 <div class="top-bar-left">
-                    <button class="mobile-menu-toggle" id="toggleSidebar">
-                        <i class="bi bi-list"></i>
-                    </button>
                     <div class="breadcrumb">
-                        <span class="text-muted">Admin Panel</span>
-                        <i class="bi bi-chevron-right separator"></i>
                         <h1 class="page-title">Dashboard Overview</h1>
                     </div>
                 </div>
-                <div class="top-bar-right">
+                <div class="top-bar-right" style="display: flex; gap: 16px; align-items: center;">
+                    <form method="GET" id="filterForm" style="margin: 0; display: flex; gap: 8px; align-items: center;">
+                        <div class="filter-group"
+                            style="display: flex; gap: 6px; align-items: center; background: var(--bg-secondary); padding: 3px; border-radius: 10px; border: 1px solid var(--border-color);">
+                            <select name="filter" id="filterSelect" class="form-select form-select-sm"
+                                style="border: none; background: transparent; padding: 4px 10px; font-weight: 600; font-size: 0.85rem; color: var(--text-primary); cursor: pointer; height: 28px; outline: none; min-width: 120px;">
+                                <option value="today" <?php echo ($filter === 'today') ? 'selected' : ''; ?>>Today
+                                </option>
+                                <option value="week" <?php echo ($filter === 'week') ? 'selected' : ''; ?>>This Week
+                                </option>
+                                <option value="month" <?php echo ($filter === 'month') ? 'selected' : ''; ?>>This Month
+                                </option>
+                                <option value="all" <?php echo ($filter === 'all') ? 'selected' : ''; ?>>All Time</option>
+                                <option value="custom" <?php echo ($filter === 'custom') ? 'selected' : ''; ?>>Custom
+                                    Range</option>
+                            </select>
+
+                            <div id="customDateInputs"
+                                style="display: <?php echo ($filter === 'custom') ? 'flex' : 'none'; ?>; gap: 4px; align-items: center; padding-left: 6px; border-left: 1px solid var(--border-color);">
+                                <input type="date" name="date_from" value="<?php echo htmlspecialchars($dateFrom); ?>"
+                                    class="form-control form-control-sm"
+                                    style="border: 1px solid var(--border-color); border-radius: 6px; padding: 2px 6px; font-size: 0.8rem; height: 28px; background: white; color: var(--text-secondary);" />
+                                <span style="color: var(--text-muted); font-size: 0.75rem; font-weight: 500;">to</span>
+                                <input type="date" name="date_to" value="<?php echo htmlspecialchars($dateTo); ?>"
+                                    class="form-control form-control-sm"
+                                    style="border: 1px solid var(--border-color); border-radius: 6px; padding: 2px 6px; font-size: 0.8rem; height: 28px; background: white; color: var(--text-secondary);" />
+                                <button type="submit" class="btn btn-primary btn-sm"
+                                    style="height: 28px; padding: 0 10px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; white-space: nowrap;">
+                                    Apply
+                                </button>
+                            </div>
+                        </div>
+                    </form>
                     <div class="current-date-box">
                         <i class="bi bi-calendar3"></i>
                         <span><?php echo date('l, F d, Y'); ?></span>
@@ -261,6 +323,22 @@ foreach ($activities as $act) {
     </div>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
+            const filterSelect = document.getElementById('filterSelect');
+            const customDateInputs = document.getElementById('customDateInputs');
+            const filterForm = document.getElementById('filterForm');
+
+            filterSelect.addEventListener('change', function () {
+                if (this.value === 'custom') {
+                    customDateInputs.style.display = 'flex';
+                } else {
+                    customDateInputs.style.display = 'none';
+                    // Clear dates when switching away from custom
+                    filterForm.querySelector('input[name="date_from"]').value = '';
+                    filterForm.querySelector('input[name="date_to"]').value = '';
+                    filterForm.submit();
+                }
+            });
+
             const ctx = document.getElementById('officeChart').getContext('2d');
             new Chart(ctx, {
                 type: 'bar',

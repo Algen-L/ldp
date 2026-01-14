@@ -52,10 +52,9 @@ $progress_pct = $total_count > 0 ? round(($approved_count / $total_count) * 100)
         <div class="main-content">
             <header class="top-bar">
                 <div class="top-bar-left">
-                    <button class="mobile-menu-toggle" id="toggleSidebar">
-                        <i class="bi bi-list"></i>
-                    </button>
-                    <h1 class="page-title">Personal Dashboard</h1>
+                    <div class="breadcrumb">
+                        <h1 class="page-title">My Dashboard</h1>
+                    </div>
                 </div>
                 <div class="top-bar-right">
                     <div class="current-date-box">

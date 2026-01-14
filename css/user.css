@@ -823,16 +823,19 @@ body {
 /* Forms */
 .form-group {
     margin-bottom: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
 
 .form-label {
     display: block;
-    font-size: 0.85rem;
+    font-size: 0.75rem;
     font-weight: 700;
     color: var(--text-secondary);
-    margin-bottom: 8px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    margin: 0;
 }
 
 .form-control {
@@ -844,8 +847,17 @@ body {
     color: var(--text-primary);
     font-family: inherit;
     font-size: 0.95rem;
+    font-weight: 500;
     transition: all var(--transition-fast);
     outline: none;
+}
+
+.form-control[readonly] {
+    background: var(--bg-primary);
+    border-color: var(--border-color);
+    color: var(--text-secondary);
+    font-weight: 600;
+    cursor: default;
 }
 
 .form-control:focus {

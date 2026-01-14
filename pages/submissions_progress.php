@@ -191,13 +191,8 @@ function getProgressInfo($act)
         <div class="main-content">
             <header class="top-bar">
                 <div class="top-bar-left">
-                    <button class="mobile-menu-toggle" id="toggleSidebar">
-                        <i class="bi bi-list"></i>
-                    </button>
                     <div class="breadcrumb">
-                        <span class="text-muted">User</span>
-                        <i class="bi bi-chevron-right separator"></i>
-                        <h1 class="page-title">My Submissions</h1>
+                        <h1 class="page-title">My Activity History</h1>
                     </div>
                 </div>
                 <div class="top-bar-right">

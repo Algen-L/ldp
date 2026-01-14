@@ -178,12 +178,11 @@ $js_prefix = $is_admin_dir ? '../js/' : '../js/';   // Both go up to root
             <div class="nav-divider"></div>
 
             <a href="<?php echo $pages_prefix; ?>profile.php"
-                class="nav-item <?php echo ($current_page == 'profile.php') ? 'active' : ''; ?>"
-                data-tooltip="Profile Settings">
+                class="nav-item <?php echo ($current_page == 'profile.php') ? 'active' : ''; ?>" data-tooltip="My Profile">
                 <div class="nav-icon">
-                    <i class="bi bi-gear-fill"></i>
+                    <i class="bi bi-person-circle"></i>
                 </div>
-                <span class="nav-text">Settings</span>
+                <span class="nav-text">My Profile</span>
             </a>
         <?php endif; ?>
     </div>

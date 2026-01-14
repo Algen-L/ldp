@@ -108,13 +108,8 @@ $cidOffices = ['CURRICULUM IMPLEMENTATION DIVISION (INSTRUCTIONAL MANAGEMENT)', 
         <div class="main-content">
             <header class="top-bar">
                 <div class="top-bar-left">
-                    <button class="mobile-menu-toggle" id="toggleSidebar">
-                        <i class="bi bi-list"></i>
-                    </button>
                     <div class="breadcrumb">
-                        <span class="text-muted">Admin Panel</span>
-                        <i class="bi bi-chevron-right separator"></i>
-                        <h1 class="page-title">Manage Submissions</h1>
+                        <h1 class="page-title">Submission Management</h1>
                     </div>
                 </div>
                 <div class="top-bar-right">
@@ -126,12 +121,21 @@ $cidOffices = ['CURRICULUM IMPLEMENTATION DIVISION (INSTRUCTIONAL MANAGEMENT)', 
             </header>
 
             <main class="content-wrapper">
-                <!-- Filter Section -->
+                <!-- Specialized Minimal Filter Bar -->
                 <div class="filter-bar">
                     <form method="GET" class="filter-form">
+                        <div class="filter-group" style="flex: 2; min-width: 300px;">
+                            <div style="position: relative; width: 100%;">
+                                <i class="bi bi-search"
+                                    style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 0.9rem;"></i>
+                                <input type="text" name="search" value="<?php echo htmlspecialchars($filter_search); ?>"
+                                    placeholder="Search by Title, Personnel or Competency..." class="filter-input"
+                                    style="padding-left: 42px; width: 100%; height: 44px; border-radius: 12px; border-color: var(--border-color);">
+                            </div>
+                        </div>
+
                         <div class="filter-group">
-                            <label>Personnel / User</label>
-                            <select name="user_id" class="filter-select">
+                            <select name="user_id" class="filter-select" style="height: 44px; border-radius: 12px;">
                                 <option value="0">All Personnel</option>
                                 <?php foreach ($all_users as $u): ?>
                                     <option value="<?php echo $u['id']; ?>" <?php echo $filter_user_id == $u['id'] ? 'selected' : ''; ?>>
@@ -142,8 +146,7 @@ $cidOffices = ['CURRICULUM IMPLEMENTATION DIVISION (INSTRUCTIONAL MANAGEMENT)', 
                         </div>
 
                         <div class="filter-group">
-                            <label>Review Status</label>
-                            <select name="status" class="filter-select">
+                            <select name="status" class="filter-select" style="height: 44px; border-radius: 12px;">
                                 <option value="">All Statuses</option>
                                 <option value="Pending" <?php echo $filter_status == 'Pending' ? 'selected' : ''; ?>>
                                     Pending Approval</option>
@@ -155,34 +158,29 @@ $cidOffices = ['CURRICULUM IMPLEMENTATION DIVISION (INSTRUCTIONAL MANAGEMENT)', 
                             </select>
                         </div>
 
-                        <div class="filter-group" style="flex: 2; min-width: 250px;">
-                            <label>Quick Search</label>
-                            <div style="position: relative;">
-                                <i class="bi bi-search"
-                                    style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted);"></i>
-                                <input type="text" name="search" value="<?php echo htmlspecialchars($filter_search); ?>"
-                                    placeholder="Search title, competency..." class="filter-input"
-                                    style="padding-left: 38px; width: 100%;">
-                            </div>
-                        </div>
-
                         <div class="filter-group">
-                            <label>Date Range (From-To)</label>
-                            <div style="display: flex; gap: 8px;">
+                            <div
+                                style="display: flex; align-items: center; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 12px; height: 44px; padding: 0 12px; gap: 8px;">
+                                <i class="bi bi-calendar3 text-muted" style="font-size: 0.85rem;"></i>
                                 <input type="date" name="start_date" value="<?php echo $start_date; ?>"
-                                    class="filter-input" style="min-width: 140px;">
+                                    class="filter-input"
+                                    style="border: none; background: transparent; padding: 0; min-width: 120px; font-size: 0.85rem; height: auto;">
+                                <span class="text-muted" style="font-size: 0.8rem;">to</span>
                                 <input type="date" name="end_date" value="<?php echo $end_date; ?>" class="filter-input"
-                                    style="min-width: 140px;">
+                                    style="border: none; background: transparent; padding: 0; min-width: 120px; font-size: 0.85rem; height: auto;">
                             </div>
                         </div>
 
-                        <div class="filter-actions">
-                            <button type="submit" class="btn btn-primary">
-                                <i class="bi bi-funnel"></i> Apply Filters
+                        <div class="filter-actions" style="margin-left: 12px;">
+                            <button type="submit" class="btn btn-primary"
+                                style="height: 44px; border-radius: 12px; min-width: 110px;">
+                                <i class="bi bi-funnel"></i> Apply
                             </button>
                             <?php if ($filter_user_id > 0 || $filter_status || $filter_search || $start_date || $end_date): ?>
-                                <a href="submissions.php" class="btn btn-secondary">
-                                    <i class="bi bi-x-circle"></i> Reset
+                                <a href="submissions.php" class="btn btn-secondary"
+                                    style="height: 44px; border-radius: 12px; width: 44px; padding: 0;"
+                                    title="Reset Filters">
+                                    <i class="bi bi-arrow-counterclockwise" style="margin: 0;"></i>
                                 </a>
                             <?php endif; ?>
                         </div>

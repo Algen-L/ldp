@@ -106,13 +106,8 @@ function getStatusColor($last_action)
         <div class="main-content">
             <header class="top-bar">
                 <div class="top-bar-left">
-                    <button class="mobile-menu-toggle" id="toggleSidebar">
-                        <i class="bi bi-list"></i>
-                    </button>
                     <div class="breadcrumb">
-                        <span class="text-muted">Admin Panel</span>
-                        <i class="bi bi-chevron-right separator"></i>
-                        <h1 class="page-title">User Engagement Monitor</h1>
+                        <h1 class="page-title">User Network Status</h1>
                     </div>
                 </div>
                 <div class="top-bar-right">
