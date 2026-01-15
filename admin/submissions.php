@@ -198,7 +198,7 @@ $cidOffices = ['CURRICULUM IMPLEMENTATION DIVISION (INSTRUCTIONAL MANAGEMENT)', 
                             <table class="data-table">
                                 <thead>
                                     <tr>
-                                        <th>Attendance Date</th>
+                                        <th>Submission Date</th>
                                         <th>Personnel Info</th>
                                         <th>Activity Details</th>
                                         <th style="text-align: center;">Approvals</th>
@@ -238,12 +238,7 @@ $cidOffices = ['CURRICULUM IMPLEMENTATION DIVISION (INSTRUCTIONAL MANAGEMENT)', 
                                                 <td>
                                                     <span class="cell-primary">
                                                         <i class="bi bi-calendar-event text-muted me-2"></i>
-                                                        <?php
-                                                        $dates = explode(', ', $act['date_attended']);
-                                                        echo date('M d, Y', strtotime($dates[0]));
-                                                        if (count($dates) > 1)
-                                                            echo ' (+' . (count($dates) - 1) . '...)';
-                                                        ?>
+                                                        <?php echo date('M d, Y', strtotime($act['created_at'])); ?>
                                                     </span>
                                                     <span class="cell-secondary">Logged
                                                         <?php echo date('M d, Y', strtotime($act['created_at'])); ?></span>
@@ -324,8 +319,8 @@ $cidOffices = ['CURRICULUM IMPLEMENTATION DIVISION (INSTRUCTIONAL MANAGEMENT)', 
             </main>
 
             <footer class="admin-footer">
-                <p>&copy; <?php echo date('Y'); ?> SDO L&D Passbook System. <span class="text-muted">Empowering
-                        Personnel Professional Growth.</span></p>
+                <p>&copy; <?php echo date('Y'); ?> SDO L&D Passbook System. <span class="text-muted">Developed by Algen
+                        D. Loveres and Cedrick V. Bacaresas</span></p>
             </footer>
         </div>
     </div>

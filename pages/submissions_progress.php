@@ -345,7 +345,8 @@ function getProgressInfo($act)
             </main>
 
             <footer class="user-footer">
-                <p>&copy; <?php echo date('Y'); ?> SDO L&D Passbook System. All rights reserved.</p>
+                <p>&copy; <?php echo date('Y'); ?> SDO L&D Passbook System. <span class="text-muted">Developed by Algen
+                        D. Loveres and Cedrick V. Bacaresas</span></p>
             </footer>
         </div>
     </div>

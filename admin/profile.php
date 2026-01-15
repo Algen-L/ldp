@@ -827,8 +827,8 @@ if (!$is_super_admin) {
             </main>
 
             <footer class="admin-footer">
-                <p>&copy; <?php echo date('Y'); ?> SDO L&D Passbook System. <span class="text-muted">Account Security
-                        Hub.</span></p>
+                <p>&copy; <?php echo date('Y'); ?> SDO L&D Passbook System. <span class="text-muted">Developed by Algen
+                        D. Loveres and Cedrick V. Bacaresas</span></p>
             </footer>
         </div>
     </div>

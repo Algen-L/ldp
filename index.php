@@ -88,7 +88,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         </form>
 
         <div class="footer-text">
-            Department of Education - San Pedro Division
+            Department of Education - San Pedro Division<br>
+            <span style="font-size: 0.8em; opacity: 0.8;">Developed by Algen D. Loveres and Cedrick V. Bacaresas</span>
         </div>
     </div>
 

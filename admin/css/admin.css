@@ -555,9 +555,28 @@ h6 {
 }
 
 .page-title {
-    font-size: 1.25rem;
-    font-weight: 700;
+    font-size: 1.5rem;
+    font-weight: 800;
     color: var(--text-primary);
+    position: relative;
+    padding-left: 20px;
+    display: flex;
+    align-items: center;
+    letter-spacing: -0.5px;
+}
+
+.page-title::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 6px;
+    height: 28px;
+    background: var(--primary);
+    background: linear-gradient(180deg, var(--primary-light) 0%, var(--primary) 100%);
+    border-radius: 12px;
+    box-shadow: 0 4px 10px rgba(15, 76, 117, 0.3);
 }
 
 .top-bar-right {

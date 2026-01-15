@@ -57,8 +57,30 @@ $activities = $stmt->fetchAll(PDO::FETCH_ASSOC);
 // Calculate Statistics
 $totalSubmissions = count($activities);
 
-$stmt = $pdo->query("SELECT COUNT(*) FROM users WHERE role != 'admin'");
-$totalUsers = $stmt->fetchColumn();
+// Define Office Lists
+$osdsOffices = ['ADMINISTRATIVE (PERSONEL)', 'ADMINISTRATIVE (PROPERTY AND SUPPLY)', 'ADMINISTRATIVE (RECORDS)', 'ADMINISTRATIVE (CASH)', 'ADMINISTRATIVE (GENERAL SERVICES)', 'FINANCE (ACCOUNTING)', 'FINANCE (BUDGET)', 'LEGAL', 'ICT'];
+$sgodOffices = ['SCHOOL MANAGEMENT MONITORING & EVALUATION', 'HUMAN RESOURCES DEVELOPMENT', 'DISASTER RISK REDUCTION AND MANAGEMENT', 'EDUCATION FACILITIES', 'SCHOOL HEALTH AND NUTRITION', 'SCHOOL HEALTH AND NUTRITION (DENTAL)', 'SCHOOL HEALTH AND NUTRITION (MEDICAL)'];
+$cidOffices = ['CURRICULUM IMPLEMENTATION DIVISION (INSTRUCTIONAL MANAGEMENT)', 'CURRICULUM IMPLEMENTATION DIVISION (LEARNING RESOURCES MANAGEMENT)', 'CURRICULUM IMPLEMENTATION DIVISION (ALTERNATIVE LEARNING SYSTEM)', 'CURRICULUM IMPLEMENTATION DIVISION (DISTRICT INSTRUCTIONAL SUPERVISION)'];
+
+// Fetch Users for Office Stats
+$stmt = $pdo->query("SELECT office_station FROM users WHERE role != 'admin'");
+$users_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$totalUsers = count($users_data);
+
+$userOsdsCount = 0;
+$userCidCount = 0;
+$userSgodCount = 0;
+
+foreach ($users_data as $u) {
+    $office = strtoupper($u['office_station'] ?? '');
+    if (in_array($office, $osdsOffices)) {
+        $userOsdsCount++;
+    } elseif (in_array($office, $cidOffices)) {
+        $userCidCount++;
+    } elseif (in_array($office, $sgodOffices)) {
+        $userSgodCount++;
+    }
+}
 
 // Count per status
 $pendingCount = 0;
@@ -74,10 +96,6 @@ foreach ($activities as $act) {
 $osdsCount = 0;
 $cidCount = 0;
 $sgodCount = 0;
-
-$osdsOffices = ['ADMINISTRATIVE (PERSONEL)', 'ADMINISTRATIVE (PROPERTY AND SUPPLY)', 'ADMINISTRATIVE (RECORDS)', 'ADMINISTRATIVE (CASH)', 'ADMINISTRATIVE (GENERAL SERVICES)', 'FINANCE (ACCOUNTING)', 'FINANCE (BUDGET)', 'LEGAL', 'ICT'];
-$sgodOffices = ['SCHOOL MANAGEMENT MONITORING & EVALUATION', 'HUMAN RESOURCES DEVELOPMENT', 'DISASTER RISK REDUCTION AND MANAGEMENT', 'EDUCATION FACILITIES', 'SCHOOL HEALTH AND NUTRITION', 'SCHOOL HEALTH AND NUTRITION (DENTAL)', 'SCHOOL HEALTH AND NUTRITION (MEDICAL)'];
-$cidOffices = ['CURRICULUM IMPLEMENTATION DIVISION (INSTRUCTIONAL MANAGEMENT)', 'CURRICULUM IMPLEMENTATION DIVISION (LEARNING RESOURCES MANAGEMENT)', 'CURRICULUM IMPLEMENTATION DIVISION (ALTERNATIVE LEARNING SYSTEM)', 'CURRICULUM IMPLEMENTATION DIVISION (DISTRICT INSTRUCTIONAL SUPERVISION)'];
 
 foreach ($activities as $act) {
     $office = strtoupper($act['office_station'] ?? '');
@@ -153,67 +171,111 @@ foreach ($activities as $act) {
             </header>
 
             <main class="content-wrapper">
-                <div class="dashboard-top-grid">
-                    <div class="stats-column">
-                        <div class="stat-card stat-total">
-                            <div class="stat-icon">
+                <div class="dashboard-top-grid" style="gap: 16px; margin-bottom: 16px;">
+                    <div class="stats-column" style="gap: 12px;">
+                        <div class="stat-card stat-total" style="padding: 12px 16px;">
+                            <div class="stat-icon" style="width: 40px; height: 40px; font-size: 1.2rem;">
                                 <i class="bi bi-journal-text"></i>
                             </div>
                             <div class="stat-content">
-                                <span class="stat-label">Submissions</span>
-                                <span class="stat-value"><?php echo number_format($totalSubmissions); ?></span>
+                                <span class="stat-label" style="font-size: 0.75rem;">Submissions</span>
+                                <span class="stat-value"
+                                    style="font-size: 1.25rem;"><?php echo number_format($totalSubmissions); ?></span>
                             </div>
                         </div>
 
-                        <div class="stat-card stat-total">
-                            <div class="stat-icon">
+                        <div class="stat-card stat-total" style="padding: 12px 16px;">
+                            <div class="stat-icon" style="width: 40px; height: 40px; font-size: 1.2rem;">
                                 <i class="bi bi-people-fill"></i>
                             </div>
                             <div class="stat-content">
-                                <span class="stat-label">Total Users</span>
-                                <span class="stat-value"><?php echo number_format($totalUsers); ?></span>
+                                <span class="stat-label" style="font-size: 0.75rem;">Total Users</span>
+                                <span class="stat-value"
+                                    style="font-size: 1.25rem;"><?php echo number_format($totalUsers); ?></span>
                             </div>
                         </div>
 
-                        <div class="stat-card stat-pending">
-                            <div class="stat-icon">
+                        <div class="stat-card stat-pending" style="padding: 12px 16px;">
+                            <div class="stat-icon" style="width: 40px; height: 40px; font-size: 1.2rem;">
                                 <i class="bi bi-clock-history"></i>
                             </div>
                             <div class="stat-content">
-                                <span class="stat-label">Pending</span>
-                                <span class="stat-value"><?php echo number_format($pendingCount); ?></span>
+                                <span class="stat-label" style="font-size: 0.75rem;">Pending</span>
+                                <span class="stat-value"
+                                    style="font-size: 1.25rem;"><?php echo number_format($pendingCount); ?></span>
                             </div>
                         </div>
 
-                        <div class="stat-card stat-resolved">
-                            <div class="stat-icon">
+                        <div class="stat-card stat-resolved" style="padding: 12px 16px;">
+                            <div class="stat-icon" style="width: 40px; height: 40px; font-size: 1.2rem;">
                                 <i class="bi bi-shield-check"></i>
                             </div>
                             <div class="stat-content">
-                                <span class="stat-label">Approved</span>
-                                <span class="stat-value"><?php echo number_format($approvedCount); ?></span>
+                                <span class="stat-label" style="font-size: 0.75rem;">Approved</span>
+                                <span class="stat-value"
+                                    style="font-size: 1.25rem;"><?php echo number_format($approvedCount); ?></span>
+                            </div>
+                        </div>
+
+                        <div class="stat-card"
+                            style="flex-direction: column; align-items: flex-start; gap: 8px; padding: 12px 16px;">
+                            <div
+                                style="font-size: 0.75rem; font-weight: 600; color: #64748b; width: 100%; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px; margin-bottom: 2px;">
+                                Office Distribution
+                            </div>
+                            <div
+                                style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span
+                                        style="width: 6px; height: 6px; border-radius: 50%; background: #f97316;"></span>
+                                    <span style="font-size: 0.8rem; color: #334155; font-weight: 500;">OSDS</span>
+                                </div>
+                                <span
+                                    style="font-weight: 700; color: #1e293b; font-size: 0.85rem;"><?php echo number_format($userOsdsCount); ?></span>
+                            </div>
+                            <div
+                                style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span
+                                        style="width: 6px; height: 6px; border-radius: 50%; background: #eab308;"></span>
+                                    <span style="font-size: 0.8rem; color: #334155; font-weight: 500;">CID</span>
+                                </div>
+                                <span
+                                    style="font-weight: 700; color: #1e293b; font-size: 0.85rem;"><?php echo number_format($userCidCount); ?></span>
+                            </div>
+                            <div
+                                style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span
+                                        style="width: 6px; height: 6px; border-radius: 50%; background: #3b82f6;"></span>
+                                    <span style="font-size: 0.8rem; color: #334155; font-weight: 500;">SGOD</span>
+                                </div>
+                                <span
+                                    style="font-weight: 700; color: #1e293b; font-size: 0.85rem;"><?php echo number_format($userSgodCount); ?></span>
                             </div>
                         </div>
                     </div>
 
                     <div class="analytics-column">
                         <div class="dashboard-card hover-elevate" style="height: 100%;">
-                            <div class="card-header">
+                            <div class="card-header" style="padding: 16px 20px;">
                                 <h2><i class="bi bi-bar-chart-line text-gradient"></i> Submission Frequency by General
                                     Office
                                 </h2>
-                                <span class="text-muted" style="font-size: 0.85rem; font-weight: 500;">OSDS vs CID vs
+                                <span class="text-muted" style="font-size: 0.75rem; font-weight: 500;">OSDS vs CID vs
                                     SGOD</span>
                             </div>
                             <div class="card-body"
-                                style="padding: 30px 40px; height: calc(100% - 70px); display: flex; align-items: center;">
-                                <div style="height: 100%; width: 100%; position: relative; min-height: 300px;">
+                                style="padding: 20px; height: calc(100% - 60px); display: flex; align-items: center;">
+                                <div style="height: 100%; width: 100%; position: relative; min-height: 220px;">
                                     <canvas id="officeChart"></canvas>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
+
+
 
                 <div class="dashboard-grid">
                     <!-- Recent Activity Section -->
@@ -225,9 +287,10 @@ foreach ($activities as $act) {
                             </a>
                         </div>
                         <div class="card-body">
-                            <div class="table-responsive">
+                            <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
                                 <table class="data-table">
-                                    <thead>
+                                    <thead
+                                        style="position: sticky; top: 0; z-index: 100; background: white; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
                                         <tr>
                                             <th>Submission Date</th>
                                             <th>User / Personnel</th>
@@ -247,7 +310,7 @@ foreach ($activities as $act) {
                                                 </td>
                                             </tr>
                                         <?php else: ?>
-                                            <?php foreach (array_slice($activities, 0, 8) as $act):
+                                            <?php foreach (array_slice($activities, 0, 50) as $act):
                                                 $row_class = '';
                                                 $office = strtoupper($act['office_station'] ?? '');
                                                 if (in_array($office, $osdsOffices))
@@ -316,8 +379,8 @@ foreach ($activities as $act) {
             </main>
 
             <footer class="admin-footer">
-                <p>&copy; <?php echo date('Y'); ?> SDO L&D Passbook System. <span class="text-muted">Digital Service
-                        Excellence.</span></p>
+                <p>&copy; <?php echo date('Y'); ?> SDO L&D Passbook System. <span class="text-muted">Developed by Algen
+                        D. Loveres and Cedrick V. Bacaresas</span></p>
             </footer>
         </div>
     </div>
