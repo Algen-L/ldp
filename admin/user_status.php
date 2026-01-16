@@ -97,7 +97,7 @@ function getStatusColor($last_action)
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>User Status Monitor - Admin</title>
-    <?php require 'includes/admin_head.php'; ?>
+    <?php require '../includes/admin_head.php'; ?>
     <style>
         .user-card.interactive-card {
             cursor: pointer;
@@ -131,20 +131,89 @@ function getStatusColor($last_action)
             opacity: 1;
         }
 
+        /* Condensed Main UI */
+        .user-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 12px;
+        }
+
+        .user-card {
+            padding: 12px 16px;
+        }
+
+        .user-card .card-header {
+            padding-bottom: 8px;
+            margin-bottom: 8px;
+            gap: 10px;
+        }
+
+        .user-card .avatar, 
+        .user-card .avatar-placeholder {
+            width: 44px;
+            height: 44px;
+            font-size: 1.1rem;
+        }
+
+        .user-card .name {
+            font-size: 0.9rem;
+            margin-bottom: 0;
+        }
+
+        .user-card .position {
+            font-size: 0.72rem;
+        }
+
+        .stats-row {
+            padding: 8px 0;
+            margin-bottom: 8px;
+            gap: 8px;
+        }
+
+        .stat-item .stat-val {
+            font-size: 1.1rem;
+        }
+
+        .stat-item .stat-label {
+            font-size: 0.6rem;
+        }
+
+        .progress-section {
+            padding: 8px 0;
+        }
+
+        .progress-label {
+            font-size: 0.7rem;
+            margin-bottom: 4px;
+        }
+
+        .progress-bar-bg {
+            height: 6px;
+        }
+
+        .meta-info {
+            margin-top: 8px;
+            padding-top: 8px;
+            font-size: 0.7rem;
+        }
+
+        .user-card .last-seen-box {
+            padding: 4px 8px;
+        }
+
         .details-modal {
             background: #f1f5f9;
-            /* Light slate background for contrast with white cards */
-            width: 92%;
-            max-width: 900px;
-            max-height: 85vh;
-            border-radius: 32px;
+            width: 95%;
+            max-width: 850px;
+            max-height: 90vh;
+            border-radius: 24px;
             overflow: hidden;
-            box-shadow: 0 50px 100px -20px rgba(15, 23, 42, 0.25);
-            transform: scale(0.9) translateY(40px);
-            transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+            box-shadow: 0 40px 80px -15px rgba(15, 23, 42, 0.3);
+            transform: scale(0.95) translateY(20px);
+            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
             display: flex;
             flex-direction: column;
-            border: 1px solid rgba(255, 255, 255, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.6);
         }
 
         .details-modal-overlay.active .details-modal {
@@ -153,7 +222,7 @@ function getStatusColor($last_action)
 
         .modal-header-premium {
             background: linear-gradient(180deg, var(--primary-dark) 0%, var(--primary) 100%);
-            padding: 24px 32px;
+            padding: 16px 24px;
             color: white;
             position: relative;
             display: flex;
@@ -190,24 +259,24 @@ function getStatusColor($last_action)
         }
 
         .header-avatar {
-            width: 80px;
-            height: 80px;
-            border-radius: 20px;
+            width: 60px;
+            height: 60px;
+            border-radius: 16px;
             border: 2px solid rgba(255, 255, 255, 0.2);
             object-fit: cover;
             background: rgba(255, 255, 255, 0.1);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 2rem;
+            font-size: 1.5rem;
             font-weight: 800;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
         }
 
         .header-text h2 {
-            font-size: 1.5rem;
+            font-size: 1.25rem;
             font-weight: 800;
-            margin: 0 0 2px;
+            margin: 0 0 1px;
             letter-spacing: -0.5px;
             color: #ffffff;
         }
@@ -216,7 +285,7 @@ function getStatusColor($last_action)
             opacity: 0.8;
             margin: 0;
             font-weight: 600;
-            font-size: 0.85rem;
+            font-size: 0.75rem;
             text-transform: uppercase;
             letter-spacing: 0.5px;
             color: #ffffff;
@@ -225,17 +294,17 @@ function getStatusColor($last_action)
         .modal-scroll-area {
             flex: 1;
             overflow-y: auto;
-            padding: 30px;
+            padding: 20px;
             background: #f1f5f9;
         }
 
         .detail-section-title {
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             font-weight: 800;
             text-transform: uppercase;
-            letter-spacing: 1.5px;
+            letter-spacing: 1.2px;
             color: #64748b;
-            margin-bottom: 20px;
+            margin-bottom: 12px;
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -281,14 +350,14 @@ function getStatusColor($last_action)
         .detail-stats-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            gap: 16px;
-            margin-bottom: 40px;
+            gap: 12px;
+            margin-bottom: 24px;
         }
 
         .detail-stat-card {
             background: white;
-            padding: 24px 20px;
-            border-radius: 20px;
+            padding: 16px 12px;
+            border-radius: 16px;
             border: 1px solid #e2e8f0;
             text-align: center;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
@@ -303,16 +372,16 @@ function getStatusColor($last_action)
 
         .detail-stat-val {
             display: block;
-            font-size: 1.75rem;
+            font-size: 1.35rem;
             font-weight: 800;
             color: #1e293b;
             line-height: 1;
-            margin-bottom: 8px;
-            letter-spacing: -1px;
+            margin-bottom: 6px;
+            letter-spacing: -0.5px;
         }
 
         .detail-stat-label {
-            font-size: 0.65rem;
+            font-size: 0.6rem;
             font-weight: 700;
             color: #94a3b8;
             text-transform: uppercase;
@@ -321,17 +390,17 @@ function getStatusColor($last_action)
 
         .activity-frequency-hub {
             background: white;
-            border-radius: 20px;
-            padding: 24px;
+            border-radius: 16px;
+            padding: 16px;
             border: 1px solid #e2e8f0;
-            margin-bottom: 40px;
+            margin-bottom: 24px;
         }
 
         .frequency-chart {
             position: relative;
-            height: 160px;
+            height: 140px;
             width: 100%;
-            margin-bottom: 20px;
+            margin-bottom: 12px;
         }
 
         .chart-svg {
@@ -384,9 +453,9 @@ function getStatusColor($last_action)
         .cert-list {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 12px;
-            margin-bottom: 40px;
-            max-height: 280px;
+            gap: 10px;
+            margin-bottom: 24px;
+            max-height: 240px;
             overflow-y: auto;
             padding-right: 8px;
         }
@@ -455,9 +524,9 @@ function getStatusColor($last_action)
         .submission-grid-modal {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 12px;
-            margin-bottom: 40px;
-            max-height: 380px;
+            gap: 10px;
+            margin-bottom: 24px;
+            max-height: 320px;
             overflow-y: auto;
             padding-right: 8px;
         }
@@ -606,31 +675,37 @@ function getStatusColor($last_action)
             font-style: italic;
         }
 
-        /* Search Bar Premium Styles */
+        /* High-Contrast Search Bar Redesign */
         .search-container-premium {
             background: white;
-            padding: 20px 24px;
-            border-radius: 20px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            padding: 8px 12px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
             border: 1px solid #e2e8f0;
             display: flex;
             align-items: center;
-            gap: 20px;
-            margin-bottom: 30px;
+            gap: 12px;
+            margin-bottom: 20px;
         }
 
         .search-label-premium {
-            font-size: 0.75rem;
+            font-size: 0.65rem;
             font-weight: 800;
-            letter-spacing: 1.2px;
+            letter-spacing: 0.8px;
             color: #94a3b8;
             text-transform: uppercase;
             white-space: nowrap;
+            padding-left: 8px;
         }
 
         .search-input-wrapper {
             position: relative;
             flex: 1;
+            background: var(--primary);
+            padding: 4px;
+            border-radius: 50px;
+            display: flex;
+            align-items: center;
         }
 
         .search-icon-premium {
@@ -639,37 +714,95 @@ function getStatusColor($last_action)
             top: 50%;
             transform: translateY(-50%);
             color: var(--primary);
-            font-size: 1.1rem;
+            font-size: 0.95rem;
             pointer-events: none;
-            transition: color 0.2s;
+            z-index: 2;
         }
 
         .search-input-premium {
             width: 100%;
-            padding: 14px 20px 14px 54px;
-            border: 2px solid #f1f5f9;
-            border-radius: 50px;
-            font-size: 0.95rem;
+            padding: 8px 16px 8px 42px;
+            border: none;
+            border-radius: 40px;
+            font-size: 0.8rem;
             font-weight: 500;
             color: #1e293b;
-            background: #f8fafc;
+            background: white;
             transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         .search-input-premium:focus {
             outline: none;
-            background: white;
-            border-color: var(--primary);
-            box-shadow: 0 0 0 4px rgba(15, 76, 117, 0.1);
+            box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.2);
         }
 
-        .search-input-premium:focus+.search-icon-premium {
-            color: var(--primary);
+        /* Extreme UI Condensation */
+        .user-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 10px;
         }
 
-        .search-input-premium::placeholder {
-            color: #cbd5e1;
-            font-weight: 400;
+        .user-card {
+            padding: 10px 12px;
+        }
+
+        .user-card .avatar, 
+        .user-card .avatar-placeholder {
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            font-size: 1rem;
+        }
+
+        .user-card .name {
+            font-size: 0.85rem;
+            font-weight: 700;
+        }
+
+        .user-card .position {
+            font-size: 0.65rem;
+            color: #64748b;
+        }
+
+        .user-card .last-seen-box {
+            padding: 4px 6px;
+            border-radius: 6px;
+        }
+
+        .user-card .latest-entry-label {
+            font-size: 0.55rem;
+        }
+
+        .user-card .latest-entry-title {
+            font-size: 0.75rem;
+        }
+
+        .user-card .time-ago {
+            font-size: 0.7rem;
+        }
+
+        .stats-row {
+            margin-bottom: 6px;
+            gap: 4px;
+        }
+
+        .stat-item .stat-val {
+            font-size: 1rem;
+        }
+
+        .stat-item .stat-label {
+            font-size: 0.55rem;
+        }
+
+        .progress-label {
+            font-size: 0.65rem;
+        }
+
+        .meta-info {
+            font-size: 0.65rem;
+            margin-top: 6px;
+            padding-top: 6px;
         }
     </style>
 </head>
@@ -861,9 +994,8 @@ function getStatusColor($last_action)
                 <div class="detail-section-title">
                     <span><i class="bi bi-bar-chart"></i> Submission Frequency</span>
                     <div class="timeline-selector">
-                        <button class="timeline-btn" onclick="fetchTimeline('week')" id="btn-week">Week</button>
-                        <button class="timeline-btn active" onclick="fetchTimeline('month')"
-                            id="btn-month">Month</button>
+                        <button class="timeline-btn active" onclick="fetchTimeline('week')" id="btn-week">Week</button>
+                        <button class="timeline-btn" onclick="fetchTimeline('month')" id="btn-month">Month</button>
                         <button class="timeline-btn" onclick="fetchTimeline('year')" id="btn-year">Year</button>
                     </div>
                 </div>
@@ -913,11 +1045,11 @@ function getStatusColor($last_action)
 
     <script>
         let currentUserId = null;
-        let currentTimeframe = 'month';
+        let currentTimeframe = 'week';
 
         function showUserDetails(userId) {
             currentUserId = userId;
-            currentTimeframe = 'month'; // Reset to default
+            currentTimeframe = 'week'; // Reset to default
             const modal = document.getElementById('userDetailsModal');
 
             // Show loading state or clear previous
@@ -937,8 +1069,8 @@ function getStatusColor($last_action)
 
             // Reset buttons
             document.querySelectorAll('.timeline-btn').forEach(btn => btn.classList.remove('active'));
-            const monthBtn = document.getElementById('btn-month');
-            if (monthBtn) monthBtn.classList.add('active');
+            const weekBtn = document.getElementById('btn-week');
+            if (weekBtn) weekBtn.classList.add('active');
 
             modal.style.display = 'flex';
             setTimeout(() => modal.classList.add('active'), 10);

@@ -83,7 +83,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <title>Edit User -
         <?php echo htmlspecialchars($user_to_edit['full_name']); ?>
     </title>
-    <?php require 'includes/admin_head.php'; ?>
+    <?php require '../includes/admin_head.php'; ?>
     <link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.css" rel="stylesheet">
     <style>
         .edit-container {
@@ -258,7 +258,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                                 <img src="" class="preview-circle" id="imgPreview" style="display: none;">
                             <?php endif; ?>
 
-                            <label class="btn btn-secondary btn-sm w-100" style="cursor: pointer; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 10px; font-weight: 600;">
+                            <label class="btn btn-secondary btn-sm w-100"
+                                style="cursor: pointer; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 10px; font-weight: 600;">
                                 <i class="bi bi-camera" style="margin-right: 8px;"></i> Change Photo
                                 <input type="file" name="profile_picture" hidden onchange="previewImage(this)">
                             </label>
@@ -278,8 +279,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                                 <div class="form-group">
                                     <label class="form-label">Age</label>
                                     <input type="number" name="age" class="form-control"
-                                        value="<?php echo $user_to_edit['age']; ?>"
-                                        placeholder="Enter age">
+                                        value="<?php echo $user_to_edit['age']; ?>" placeholder="Enter age">
                                 </div>
                                 <div class="form-group">
                                     <label class="form-label">Sex</label>
@@ -290,7 +290,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                                 </div>
                             </div>
 
-                            <div class="form-section-title"><i class="bi bi-briefcase"></i> Professional assignment</div>
+                            <div class="form-section-title"><i class="bi bi-briefcase"></i> Professional assignment
+                            </div>
                             <div class="form-grid-inner">
                                 <div class="form-group full-width">
                                     <label class="form-label">Office / Station</label>
@@ -301,10 +302,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                                         </option>
                                         <optgroup label="OSDS">
                                             <option value="ADMINISTRATIVE (PERSONEL)">ADMINISTRATIVE (PERSONEL)</option>
-                                            <option value="ADMINISTRATIVE (PROPERTY AND SUPPLY)">ADMINISTRATIVE (PROPERTY AND SUPPLY)</option>
+                                            <option value="ADMINISTRATIVE (PROPERTY AND SUPPLY)">ADMINISTRATIVE
+                                                (PROPERTY AND SUPPLY)</option>
                                             <option value="ADMINISTRATIVE (RECORDS)">ADMINISTRATIVE (RECORDS)</option>
                                             <option value="ADMINISTRATIVE (CASH)">ADMINISTRATIVE (CASH)</option>
-                                            <option value="ADMINISTRATIVE (GENERAL SERVICES)">ADMINISTRATIVE (GENERAL SERVICES)</option>
+                                            <option value="ADMINISTRATIVE (GENERAL SERVICES)">ADMINISTRATIVE (GENERAL
+                                                SERVICES)</option>
                                             <option value="FINANCE (ACCOUNTING)">FINANCE (ACCOUNTING)</option>
                                             <option value="FINANCE (BUDGET)">FINANCE (BUDGET)</option>
                                             <option value="LEGAL">LEGAL</option>
@@ -349,7 +352,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                                         <select name="role" class="form-select">
                                             <option value="user" <?php echo $user_to_edit['role'] === 'user' ? 'selected' : ''; ?>>L&D Personnel</option>
                                             <option value="hr" <?php echo $user_to_edit['role'] === 'hr' ? 'selected' : ''; ?>>HR Personnel</option>
-                                            <option value="immediate_head" <?php echo $user_to_edit['role'] === 'immediate_head' ? 'selected' : ''; ?>>Immediate Head</option>
+                                            <option value="immediate_head" <?php echo $user_to_edit['role'] === 'immediate_head' ? 'selected' : ''; ?>>Immediate
+                                                Head</option>
                                             <option value="admin" <?php echo $user_to_edit['role'] === 'admin' ? 'selected' : ''; ?>>System Admin</option>
                                             <option value="super_admin" <?php echo $user_to_edit['role'] === 'super_admin' ? 'selected' : ''; ?>>Super Admin</option>
                                         </select>

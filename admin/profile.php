@@ -92,7 +92,7 @@ if (!$is_super_admin) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Profile - LDP</title>
-    <?php require 'includes/admin_head.php'; ?>
+    <?php require '../includes/admin_head.php'; ?>
     <!-- Tom Select CSS -->
     <link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.css" rel="stylesheet">
     <style>

@@ -13,13 +13,13 @@ $path_to_root = ($current_page_dir === 'pages') ? '../' : '';
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
 
 <!-- Base Styles fallback -->
-<link rel="stylesheet" href="<?php echo $path_to_root; ?>css/base/variables.css">
+<link rel="stylesheet" href="<?php echo $path_to_root; ?>css/base/variables.css?v=3.0">
 
 <!-- Notification Styles -->
-<link rel="stylesheet" href="<?php echo $path_to_root; ?>css/layout/notifications.css">
+<link rel="stylesheet" href="<?php echo $path_to_root; ?>css/layout/notifications.css?v=3.0">
 
 <!-- Centralized User Design System -->
-<link rel="stylesheet" href="<?php echo $path_to_root; ?>css/user.css">
+<link rel="stylesheet" href="<?php echo $path_to_root; ?>css/user.css?v=3.0">
 
 <!-- Global Notification JS -->
 <script src="<?php echo $path_to_root; ?>js/notifications.js"></script>
@@ -36,3 +36,13 @@ $path_to_root = ($current_page_dir === 'pages') ? '../' : '';
     </script>
     <?php unset($_SESSION['toast']); ?>
 <?php endif; ?>
+
+<!-- Prevent Sidebar Flash/Animation -->
+<script>
+    (function () {
+        const collapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+        if (collapsed && window.innerWidth > 992) {
+            document.documentElement.classList.add('sidebar-initial-collapsed');
+        }
+    })();
+</script>

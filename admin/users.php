@@ -63,7 +63,238 @@ $logs = $logStmt->fetchAll(PDO::FETCH_ASSOC);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Activity Logs - Admin Dashboard</title>
-    <?php require 'includes/admin_head.php'; ?>
+    <?php require '../includes/admin_head.php'; ?>
+    <style>
+        /* --- New Premium Filter Styles --- */
+        .premium-filter-container {
+            background: white;
+            padding: 12px 16px;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-color);
+            margin-bottom: 20px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .filter-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            width: 100%;
+        }
+
+        /* Custom Select Component */
+        .custom-select-wrapper {
+            position: relative;
+            min-width: 180px;
+        }
+
+        #userSelect {
+            flex: 1;
+        }
+
+        .custom-select-trigger {
+            height: 40px;
+            padding: 0 12px;
+            background: white;
+            border: 1.5px solid var(--border-color);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .custom-select-trigger:hover {
+            border-color: var(--primary);
+            background: #f8fafc;
+        }
+
+        .custom-select-trigger.active {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(15, 76, 117, 0.1);
+        }
+
+        .custom-select-text {
+            font-size: 0.82rem;
+            font-weight: 500;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .custom-select-trigger i {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            transition: transform 0.3s ease;
+        }
+
+        .custom-select-trigger.active i {
+            transform: rotate(180deg);
+        }
+
+        .custom-select-options {
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            width: 100%;
+            background: white;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow-lg);
+            z-index: 1000;
+            max-height: 250px;
+            overflow-y: auto;
+            display: none;
+            animation: dropdownFade 0.2s ease-out;
+        }
+
+        @keyframes dropdownFade {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .custom-select-options.show {
+            display: block;
+        }
+
+        .custom-option {
+            padding: 8px 12px;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .custom-option:hover {
+            background: #f1f5f9;
+            color: var(--primary);
+        }
+
+        .custom-option.selected {
+            background: rgba(15, 76, 117, 0.05);
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        /* Date Picker Range */
+        .date-range-pills {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: #f8fafc;
+            padding: 0 10px;
+            border-radius: 8px;
+            border: 1.5px solid var(--border-color);
+            height: 40px;
+        }
+
+        .date-range-pills i {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        .date-pill-input {
+            border: none;
+            background: transparent;
+            font-size: 0.8rem;
+            color: var(--text-primary);
+            font-weight: 600;
+            outline: none;
+            width: 95px;
+        }
+
+        /* Action Buttons */
+        .apply-btn {
+            height: 40px;
+            padding: 0 16px;
+            background: linear-gradient(135deg, #0f4c75 0%, #1b6ca8 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.82rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .apply-btn:hover {
+            filter: brightness(1.1);
+            transform: translateY(-1px);
+        }
+
+        .reset-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            background: white;
+            border: 1.5px solid var(--border-color);
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            text-decoration: none;
+        }
+
+        .reset-btn:hover {
+            border-color: #ef4444;
+            color: #ef4444;
+            background: #fee2e2;
+        }
+
+        /* Activity List Density */
+        .activity-logs-scroll-container {
+            max-height: calc(100vh - 320px);
+            min-height: 400px;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: var(--border-color) transparent;
+        }
+
+        .activity-logs-scroll-container::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .activity-logs-scroll-container::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .activity-logs-scroll-container::-webkit-scrollbar-thumb {
+            background-color: var(--border-color);
+            border-radius: 10px;
+        }
+
+        .activity-item {
+            padding: 12px 16px;
+        }
+
+        .activity-user {
+            font-size: 0.82rem;
+            font-weight: 600;
+        }
+
+        .activity-time {
+            font-size: 0.72rem;
+        }
+
+        .activity-desc {
+            font-size: 0.8rem;
+        }
+    </style>
 </head>
 
 <body>
@@ -118,69 +349,108 @@ $logs = $logStmt->fetchAll(PDO::FETCH_ASSOC);
             </header>
 
             <main class="content-wrapper">
-                <!-- Filter Section -->
-                <div class="filter-bar">
-                    <form method="GET" class="filter-form">
-                        <div class="filter-group">
-                            <label>System User</label>
-                            <select name="user_id" class="filter-select">
-                                <option value="0">All System Users</option>
-                                <?php foreach ($all_users as $u): ?>
-                                    <option value="<?php echo $u['id']; ?>" <?php echo $filter_user_id == $u['id'] ? 'selected' : ''; ?>>
-                                        <?php echo htmlspecialchars($u['full_name']); ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-
-                        <div class="filter-group">
-                            <label>Log Type</label>
-                            <select name="action_type" class="filter-select">
-                                <option value="">Every Action</option>
-                                <option value="Logged In" <?php echo $filter_action == 'Logged In' ? 'selected' : ''; ?>>
-                                    Success Logins</option>
-                                <option value="Logged Out" <?php echo $filter_action == 'Logged Out' ? 'selected' : ''; ?>>Success Logouts</option>
-                                <option value="Submitted" <?php echo $filter_action == 'Submitted' ? 'selected' : ''; ?>>
-                                    Submissions</option>
-                                <option value="Viewed Specific" <?php echo $filter_action == 'Viewed Specific' ? 'selected' : ''; ?>>Detailed Views</option>
-                                <option value="Viewed" <?php echo $filter_action == 'Viewed' ? 'selected' : ''; ?>>List
-                                    Views</option>
-                                <option value="Profile" <?php echo $filter_action == 'Profile' ? 'selected' : ''; ?>>
-                                    Profile Changes</option>
-                            </select>
-                        </div>
-
-                        <div class="filter-group">
-                            <label>Date Threshold (From-To)</label>
-                            <div style="display: flex; gap: 8px;">
-                                <input type="date" name="start_date" value="<?php echo $start_date; ?>"
-                                    class="filter-input">
-                                <input type="date" name="end_date" value="<?php echo $end_date; ?>"
-                                    class="filter-input">
+                <!-- Premium Filter Bar -->
+                <div class="premium-filter-container">
+                    <form method="GET" class="filter-form" id="logFilterForm">
+                        <div class="filter-grid">
+                            <!-- User Custom Select -->
+                            <div class="custom-select-wrapper" id="userSelect">
+                                <input type="hidden" name="user_id" value="<?php echo $filter_user_id; ?>">
+                                <div class="custom-select-trigger">
+                                    <span class="custom-select-text">
+                                        <?php
+                                        $uText = 'All System Users';
+                                        foreach ($all_users as $u) {
+                                            if ($u['id'] == $filter_user_id)
+                                                $uText = $u['full_name'];
+                                        }
+                                        echo htmlspecialchars($uText);
+                                        ?>
+                                    </span>
+                                    <i class="bi bi-chevron-down"></i>
+                                </div>
+                                <div class="custom-select-options">
+                                    <div class="custom-option <?php echo $filter_user_id == 0 ? 'selected' : ''; ?>"
+                                        data-value="0">All System Users</div>
+                                    <?php foreach ($all_users as $u): ?>
+                                        <div class="custom-option <?php echo $filter_user_id == $u['id'] ? 'selected' : ''; ?>"
+                                            data-value="<?php echo $u['id']; ?>">
+                                            <?php echo htmlspecialchars($u['full_name']); ?>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </div>
                             </div>
-                        </div>
 
-                        <div class="filter-actions">
-                            <button type="submit" class="btn btn-primary">
-                                <i class="bi bi-funnel"></i> Apply Filter
-                            </button>
-                            <?php if ($filter_user_id > 0 || $filter_action || $start_date || $end_date): ?>
-                                <a href="users.php" class="btn btn-secondary">
-                                    <i class="bi bi-x-circle"></i> Clear
-                                </a>
-                            <?php endif; ?>
+                            <!-- Log Type Custom Select -->
+                            <div class="custom-select-wrapper" id="actionSelect">
+                                <input type="hidden" name="action_type"
+                                    value="<?php echo htmlspecialchars($filter_action); ?>">
+                                <div class="custom-select-trigger">
+                                    <span class="custom-select-text">
+                                        <?php
+                                        $aText = 'Every Action';
+                                        $actions = [
+                                            'Logged In' => 'Success Logins',
+                                            'Logged Out' => 'Success Logouts',
+                                            'Submitted' => 'Submissions',
+                                            'Viewed Specific' => 'Detailed Views',
+                                            'Viewed' => 'List Views',
+                                            'Profile' => 'Profile Changes'
+                                        ];
+                                        if (isset($actions[$filter_action]))
+                                            $aText = $actions[$filter_action];
+                                        echo htmlspecialchars($aText);
+                                        ?>
+                                    </span>
+                                    <i class="bi bi-chevron-down"></i>
+                                </div>
+                                <div class="custom-select-options">
+                                    <div class="custom-option <?php echo $filter_action == '' ? 'selected' : ''; ?>"
+                                        data-value="">Every Action</div>
+                                    <?php foreach ($actions as $val => $label): ?>
+                                        <div class="custom-option <?php echo $filter_action == $val ? 'selected' : ''; ?>"
+                                            data-value="<?php echo $val; ?>">
+                                            <?php echo $label; ?>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </div>
+                            </div>
+
+                            <!-- Date Range -->
+                            <div class="date-range-pills">
+                                <i class="bi bi-calendar-range"></i>
+                                <input type="date" name="start_date" value="<?php echo $start_date; ?>"
+                                    class="date-pill-input" title="From Date">
+                                <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 700;">TO</span>
+                                <input type="date" name="end_date" value="<?php echo $end_date; ?>"
+                                    class="date-pill-input" title="To Date">
+                            </div>
+
+                            <!-- Actions -->
+                            <div style="display: flex; gap: 10px;">
+                                <button type="submit" class="apply-btn">
+                                    <i class="bi bi-funnel-fill"></i> Apply
+                                </button>
+                                <?php if ($filter_user_id > 0 || $filter_action || $start_date || $end_date): ?>
+                                    <a href="users.php" class="reset-btn" title="Reset all filters">
+                                        <i class="bi bi-arrow-counterclockwise"></i>
+                                    </a>
+                                <?php endif; ?>
+                            </div>
                         </div>
                     </form>
                 </div>
 
                 <!-- Logs List Section -->
-                <div class="dashboard-card hover-elevate">
-                    <div class="card-header">
-                        <h2><i class="bi bi-clock-history text-gradient"></i> Detailed System Events</h2>
-                        <span class="result-count">Found <?php echo count($logs); ?> recent events</span>
+                <div class="dashboard-card hover-elevate" style="margin-bottom: 0;">
+                    <div class="card-header" style="padding: 10px 20px;">
+                        <h2 style="font-size: 0.95rem;"><i class="bi bi-clock-history text-gradient"></i> Detailed
+                            System Events</h2>
+                        <span class="result-count" style="font-size: 0.75rem;">Found <?php echo count($logs); ?> recent
+                            events</span>
                     </div>
                     <div class="card-body" style="padding: 0;">
-                        <div class="activity-list">
+                        <div class="activity-logs-scroll-container">
                             <?php if (empty($logs)): ?>
                                 <div class="text-center py-5">
                                     <div class="empty-state">
@@ -235,6 +505,59 @@ $logs = $logStmt->fetchAll(PDO::FETCH_ASSOC);
             </footer>
         </div>
     </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Generic Custom Select Handler
+            const setupCustomSelect = (containerId) => {
+                const container = document.getElementById(containerId);
+                if (!container) return;
+
+                const trigger = container.querySelector('.custom-select-trigger');
+                const options = container.querySelector('.custom-select-options');
+                const text = container.querySelector('.custom-select-text');
+                const hiddenInput = container.querySelector('input[type="hidden"]');
+                const optionItems = container.querySelectorAll('.custom-option');
+
+                trigger.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    // Close other dropdowns first
+                    document.querySelectorAll('.custom-select-options').forEach(opt => {
+                        if (opt !== options) opt.classList.remove('show');
+                    });
+                    document.querySelectorAll('.custom-select-trigger').forEach(trig => {
+                        if (trig !== trigger) trig.classList.remove('active');
+                    });
+
+                    options.classList.toggle('show');
+                    trigger.classList.toggle('active');
+                });
+
+                optionItems.forEach(item => {
+                    item.addEventListener('click', () => {
+                        const val = item.getAttribute('data-value');
+                        hiddenInput.value = val;
+                        text.textContent = item.textContent.trim();
+
+                        // Update UI
+                        optionItems.forEach(i => i.classList.remove('selected'));
+                        item.classList.add('selected');
+
+                        options.classList.remove('show');
+                        trigger.classList.remove('active');
+                    });
+                });
+            };
+
+            setupCustomSelect('userSelect');
+            setupCustomSelect('actionSelect');
+
+            // Global Click to close dropdowns
+            document.addEventListener('click', () => {
+                document.querySelectorAll('.custom-select-options').forEach(opt => opt.classList.remove('show'));
+                document.querySelectorAll('.custom-select-trigger').forEach(trig => trig.classList.remove('active'));
+            });
+        });
+    </script>
 </body>
 
 </html>

@@ -78,7 +78,7 @@ try {
     }
 
     // Assuming $timeline is passed via GET or defined elsewhere, e.g., $_GET['timeline']
-    $timeline = $_GET['timeline'] ?? 'month'; // Default to month if not specified
+    $timeline = $_GET['timeline'] ?? 'week'; // Default to week if not specified
 
     $rangeData = getDateRange($timeline);
 

@@ -3,15 +3,16 @@ $current_page = basename($_SERVER['PHP_SELF']);
 $current_dir = basename(dirname($_SERVER['PHP_SELF']));
 $is_admin_dir = ($current_dir === 'admin');
 $is_hr_dir = ($current_dir === 'hr');
+$is_pages_dir = ($current_dir === 'pages');
+
+// Determine path to root
+$to_root = ($is_admin_dir || $is_hr_dir || $is_pages_dir) ? '../' : '';
 
 // Define prefixes
-$admin_prefix = $is_admin_dir ? '' : '../admin/';
-$pages_prefix = ($is_admin_dir || $is_hr_dir) ? '../pages/' : '';
-$css_prefix = $is_admin_dir ? '../css/' : '../css/'; // Both go up to root
-$js_prefix = $is_admin_dir ? '../js/' : '../js/';   // Both go up to root
+$admin_prefix = $is_admin_dir ? '' : $to_root . 'admin/';
+$pages_prefix = $is_pages_dir ? '' : $to_root . 'pages/';
 ?>
-<?php // Sidebar no longer manages its own CSS links; they are handled in head/admin_head PHP includes ?>
-<script src="<?php echo $js_prefix; ?>notifications.js"></script>
+<?php // Sidebar no longer manages its own CSS/JS links; they are handled in head/admin_head PHP includes ?>
 
 <div id="toast-container"></div>
 <div class="sidebar-overlay" id="sidebarOverlay"></div>
@@ -19,7 +20,7 @@ $js_prefix = $is_admin_dir ? '../js/' : '../js/';   // Both go up to root
 <div class="sidebar" id="mainSidebar">
     <div class="sidebar-header">
         <div class="logo">
-            <img src="../assets/LogoLDP.png" alt="LDP Logo" class="logo-img">
+            <img src="<?php echo $to_root; ?>assets/LogoLDP.png" alt="LDP Logo" class="logo-img">
             <div class="logo-text">
                 <span class="logo-title">LDP</span>
                 <span class="logo-subtitle">Passbook System</span>
@@ -257,5 +258,8 @@ $js_prefix = $is_admin_dir ? '../js/' : '../js/';   // Both go up to root
             sidebar.classList.add('collapsed');
             if (layout) layout.classList.add('sidebar-collapsed');
         }
+
+        // Cleanup flash-prevention class
+        document.documentElement.classList.remove('sidebar-initial-collapsed');
     });
 </script>

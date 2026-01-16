@@ -90,20 +90,20 @@ function getProgressInfo($act)
         }
 
         .submission-card .card-body {
-            padding: 32px;
+            padding: 16px 20px;
         }
 
         .prog-track-wrapper {
-            margin-top: 32px;
+            margin-top: 16px;
             position: relative;
             padding: 0 10px;
         }
 
         .prog-track-line {
             position: absolute;
-            top: 18px;
-            left: 30px;
-            right: 30px;
+            top: 14px;
+            left: 20px;
+            right: 20px;
             height: 4px;
             background: var(--bg-tertiary);
             z-index: 1;
@@ -134,16 +134,16 @@ function getProgressInfo($act)
         }
 
         .prog-icon {
-            width: 40px;
-            height: 40px;
+            width: 32px;
+            height: 32px;
             background: white;
-            border: 3px solid var(--border-color);
+            border: 2.5px solid var(--border-color);
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin: 0 auto 12px;
-            font-size: 1rem;
+            margin: 0 auto 8px;
+            font-size: 0.85rem;
             color: var(--text-muted);
             transition: all var(--transition-base);
         }
@@ -155,27 +155,27 @@ function getProgressInfo($act)
         }
 
         .prog-label {
-            font-size: 0.75rem;
+            font-size: 0.65rem;
             font-weight: 700;
             color: var(--text-secondary);
             text-transform: uppercase;
         }
 
         .prog-date {
-            font-size: 0.65rem;
+            font-size: 0.6rem;
             color: var(--text-muted);
             display: block;
-            margin-top: 2px;
+            margin-top: 1px;
         }
 
         .filter-bar-custom {
             background: var(--card-bg);
-            padding: 20px;
-            border-radius: var(--radius-lg);
+            padding: 12px 16px;
+            border-radius: var(--radius-md);
             border: 1px solid var(--border-color);
-            margin-bottom: 32px;
+            margin-bottom: 20px;
             display: flex;
-            gap: 16px;
+            gap: 12px;
             align-items: center;
             flex-wrap: wrap;
             box-shadow: var(--shadow-sm);
@@ -210,10 +210,12 @@ function getProgressInfo($act)
                         <i class="bi bi-search"
                             style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted);"></i>
                         <input type="text" name="search" class="form-control" placeholder="Search activities..."
-                            value="<?php echo htmlspecialchars($search); ?>" style="padding-left: 42px;">
+                            value="<?php echo htmlspecialchars($search); ?>"
+                            style="padding-left: 42px; padding-top: 6px; padding-bottom: 6px; height: 38px; font-size: 0.85rem;">
                     </div>
-                    <div style="width: 200px;">
-                        <select name="status" class="form-control">
+                    <div style="width: 180px;">
+                        <select name="status" class="form-control"
+                            style="height: 38px; font-size: 0.85rem; padding-top: 6px; padding-bottom: 6px;">
                             <option value="">All Statuses</option>
                             <option value="Pending" <?php echo $status_filter == 'Pending' ? 'selected' : ''; ?>>Pending
                             </option>
@@ -223,7 +225,7 @@ function getProgressInfo($act)
                                 Approved</option>
                         </select>
                     </div>
-                    <button type="submit" class="btn btn-primary">
+                    <button type="submit" class="btn btn-primary" style="height: 38px; font-size: 0.85rem;">
                         <i class="bi bi-funnel"></i> Apply Filter
                     </button>
                     <?php if ($search || $status_filter): ?>
@@ -252,11 +254,11 @@ function getProgressInfo($act)
                                     <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                                         <div>
                                             <h3
-                                                style="font-size: 1.25rem; font-weight: 800; color: var(--text-primary); margin-bottom: 8px;">
+                                                style="font-size: 1.15rem; font-weight: 800; color: var(--text-primary); margin-bottom: 4px;">
                                                 <?php echo htmlspecialchars($act['title']); ?>
                                             </h3>
                                             <div
-                                                style="display: flex; gap: 16px; font-size: 0.85rem; color: var(--text-muted); font-weight: 500;">
+                                                style="display: flex; gap: 12px; font-size: 0.75rem; color: var(--text-muted); font-weight: 500;">
                                                 <span><i class="bi bi-geo-alt"></i>
                                                     <?php echo htmlspecialchars($act['venue'] ?: 'N/A'); ?></span>
                                                 <span><i class="bi bi-layers"></i>
@@ -286,7 +288,7 @@ function getProgressInfo($act)
                                             }
                                             ?>
                                             <span class="activity-status-badge <?php echo $statusClass; ?>"
-                                                style="padding: 6px 14px; font-size: 0.8rem;">
+                                                style="padding: 4px 12px; font-size: 0.75rem;">
                                                 <?php echo $statusLabel; ?>
                                             </span>
                                             <span
@@ -316,12 +318,14 @@ function getProgressInfo($act)
                                     </div>
 
                                     <div
-                                        style="margin-top: 32px; padding-top: 24px; border-top: 1.5px solid var(--border-light); display: flex; justify-content: flex-end; gap: 12px;">
-                                        <a href="view_activity.php?id=<?php echo $act['id']; ?>" class="btn btn-secondary">
+                                        style="margin-top: 20px; padding-top: 16px; border-top: 1.5px solid var(--border-light); display: flex; justify-content: flex-end; gap: 10px;">
+                                        <a href="view_activity.php?id=<?php echo $act['id']; ?>"
+                                            class="btn btn-secondary btn-sm" style="font-size: 0.8rem;">
                                             <i class="bi bi-eye"></i> View Details
                                         </a>
                                         <?php if (!$act['reviewed_by_supervisor']): ?>
-                                            <a href="edit_activity.php?id=<?php echo $act['id']; ?>" class="btn btn-primary">
+                                            <a href="edit_activity.php?id=<?php echo $act['id']; ?>" class="btn btn-primary btn-sm"
+                                                style="font-size: 0.8rem;">
                                                 <i class="bi bi-pencil"></i> Edit Record
                                             </a>
                                         <?php endif; ?>

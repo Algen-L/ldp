@@ -44,18 +44,18 @@
     --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
 
     /* Layout - Synchronized with Admin */
-    --sidebar-width: 280px;
-    --sidebar-collapsed: 80px;
-    --topbar-height: 70px;
-    --radius-sm: 8px;
-    --radius-md: 12px;
-    --radius-lg: 16px;
-    --radius-xl: 24px;
+    --sidebar-width: 260px;
+    --sidebar-collapsed: 76px;
+    --topbar-height: 56px;
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+    --radius-xl: 20px;
 
-    /* Transitions */
-    --transition-fast: 150ms ease;
-    --transition-base: 200ms ease;
-    --transition-slow: 300ms ease;
+    /* Transitions - Synchronized with Admin */
+    --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-base: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-slow: 400ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Reset & Base */
@@ -69,6 +69,7 @@
 
 html {
     scroll-behavior: smooth;
+    font-size: 15px;
 }
 
 body {
@@ -81,22 +82,41 @@ body {
 
 /* User Layout - Similar to Admin for consistency */
 .user-layout {
-    display: flex;
+    width: 100%;
     min-height: 100vh;
 }
 
 .main-content {
-    flex: 1;
     margin-left: var(--sidebar-width);
-    transition: margin-left var(--transition-slow);
+    min-height: 100vh;
     display: flex;
     flex-direction: column;
-    min-width: 0;
+    width: auto;
+    transition: margin-left var(--transition-slow);
 }
 
 .user-layout.sidebar-collapsed .main-content {
     margin-left: var(--sidebar-collapsed);
 }
+
+/* Pre-load Collapsed States (Prevent Flash) */
+.sidebar-initial-collapsed .sidebar {
+    width: var(--sidebar-collapsed) !important;
+    transition: none !important;
+}
+
+.sidebar-initial-collapsed .main-content {
+    margin-left: var(--sidebar-collapsed) !important;
+    transition: none !important;
+}
+
+.sidebar-initial-collapsed .logo-text,
+.sidebar-initial-collapsed .nav-text,
+.sidebar-initial-collapsed .user-details,
+.sidebar-initial-collapsed .user-info {
+    display: none !important;
+}
+
 
 /* Sidebar */
 .sidebar {
@@ -197,16 +217,16 @@ body {
 }
 
 .nav-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px 16px;
-    color: rgba(255, 255, 255, 0.7);
-    text-decoration: none;
-    border-radius: var(--radius-md);
-    transition: all var(--transition-base);
-    font-weight: 500;
-    position: relative;
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    padding: 9px 14px !important;
+    color: rgba(255, 255, 255, 0.7) !important;
+    text-decoration: none !important;
+    border-radius: 8px !important;
+    transition: all var(--transition-base) !important;
+    font-weight: 500 !important;
+    position: relative !important;
 }
 
 .nav-item:hover {
@@ -220,18 +240,18 @@ body {
 }
 
 .nav-icon {
-    font-size: 1.2rem;
-    width: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
+    font-size: 1.1rem !important;
+    width: 22px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    position: relative !important;
 }
 
 .nav-badge {
     position: absolute;
-    top: -8px;
-    right: -10px;
+    top: -5px;
+    right: -6px;
     min-width: 18px;
     height: 18px;
     padding: 0 5px;
@@ -260,8 +280,8 @@ body {
 }
 
 .nav-text {
-    font-size: 0.95rem;
-    white-space: nowrap;
+    font-size: 0.9rem !important;
+    white-space: nowrap !important;
 }
 
 .nav-divider {
@@ -408,8 +428,8 @@ body {
 }
 
 .sidebar.collapsed .nav-item {
-    justify-content: center;
-    padding: 12px 0;
+    justify-content: center !important;
+    padding: 9px 0 !important;
 }
 
 .sidebar.collapsed .sidebar-footer {
@@ -469,7 +489,7 @@ body {
     position: sticky;
     top: 0;
     z-index: 90;
-    box-shadow: var(--shadow-sm);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.1);
 }
 
 .top-bar-left {
@@ -510,7 +530,7 @@ body {
 
 /* Content Wrapper */
 .content-wrapper {
-    padding: 32px;
+    padding: 16px 24px;
     max-width: 1400px;
     margin: 0 auto;
     width: 100%;
