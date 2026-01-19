@@ -37,13 +37,12 @@
     --border-color: #e2e8f0;
     --border-light: #f1f5f9;
 
-    /* Shadows - Strong visible shadows for card pop effect */
-    /* Shadows - Refined for professional lift effect */
-    --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.03), 0 1px 2px rgba(0, 0, 0, 0.02);
-    --shadow-md: 0 10px 25px rgba(0, 0, 0, 0.05), 0 4px 8px rgba(0, 0, 0, 0.03);
-    --shadow-lg: 0 15px 35px rgba(0, 0, 0, 0.08), 0 5px 15px rgba(0, 0, 0, 0.04);
-    --shadow-xl: 0 20px 48px rgba(0, 0, 0, 0.12), 0 8px 20px rgba(0, 0, 0, 0.08);
-    --shadow-2xl: 0 28px 64px rgba(0, 0, 0, 0.15), 0 12px 30px rgba(0, 0, 0, 0.1);
+    /* Shadows - Smaller and darker for crisp definition */
+    --shadow-sm: 0 2px 6px -1px rgba(0, 0, 0, 0.25);
+    --shadow-md: 0 3px 10px -2px rgba(0, 0, 0, 0.3);
+    --shadow-lg: 0 4px 12px -2px rgba(0, 0, 0, 0.3);
+    --shadow-xl: 0 4px 16px -2px rgba(0, 0, 0, 0.3);
+    --shadow-2xl: 0 8px 24px -2px rgba(0, 0, 0, 0.4);
 
     /* Layout */
     --sidebar-width: 260px;
@@ -119,7 +118,7 @@ h6 {
     top: 0;
     left: 0;
     height: 100vh;
-    z-index: 100;
+    z-index: 9999;
     display: flex;
     flex-direction: column;
     transition: width var(--transition-slow), transform var(--transition-slow);
@@ -155,10 +154,11 @@ h6 {
 }
 
 .logo-title {
-    font-size: 1.25rem;
+    font-size: 1.15rem;
     font-weight: 800;
     color: white;
-    letter-spacing: -0.5px;
+    letter-spacing: -0.3px;
+    line-height: 1.2;
 }
 
 .logo-subtitle {
@@ -1092,18 +1092,42 @@ h6 {
 
 .current-date-box {
     display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 8px 16px;
-    background: var(--bg-secondary);
-    border-radius: 99px;
-    font-size: 0.85rem;
-    color: var(--text-secondary);
-    font-weight: 500;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 2px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    font-family: 'Plus Jakarta Sans', sans-serif;
 }
 
-.current-date-box i {
+.time-section {
     color: var(--primary);
+    font-size: 0.98rem;
+    font-weight: 700;
+    letter-spacing: 0.2px;
+    line-height: 1.1;
+}
+
+.date-section {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    color: var(--text-secondary);
+    font-size: 0.72rem;
+    font-weight: 600;
+    line-height: 1.1;
+}
+
+.date-section i {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.date-divider {
+    display: none;
 }
 
 /* Activity Stream */
@@ -1417,16 +1441,45 @@ h6 {
 @media (max-width: 992px) {
     .sidebar {
         transform: translateX(-100%);
-        transition: transform 0.3s ease, width 0.3s ease;
+        transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s ease;
     }
 
     .sidebar.mobile-open {
         transform: translateX(0);
-        box-shadow: 20px 0 50px rgba(0, 0, 0, 0.3);
+        box-shadow: 20px 0 60px rgba(0, 0, 0, 0.4);
     }
 
     .main-content {
         margin-left: 0 !important;
+    }
+
+    .mobile-menu-toggle {
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        width: 42px;
+        height: 42px;
+        border-radius: 12px;
+        background: rgba(15, 76, 117, 0.08);
+        /* Subtle blue background */
+        color: var(--primary);
+        border: none;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        margin-right: 15px;
+        font-size: 1.5rem;
+        box-shadow: 0 4px 6px -1px rgba(15, 76, 117, 0.05);
+    }
+
+    .mobile-menu-toggle:hover {
+        background: var(--primary);
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: 0 10px 15px -3px rgba(15, 76, 117, 0.2);
+    }
+
+    .mobile-menu-toggle:active {
+        transform: scale(0.95);
     }
 
     .sidebar-toggle-btn {
@@ -1439,9 +1492,9 @@ h6 {
         left: 0;
         right: 0;
         bottom: 0;
-        background: rgba(0, 0, 0, 0.4);
-        backdrop-filter: blur(4px);
-        z-index: 95;
+        background: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(8px);
+        z-index: 990;
         opacity: 0;
         visibility: hidden;
         transition: all 0.3s ease;
@@ -1450,6 +1503,96 @@ h6 {
     .sidebar-overlay.show {
         opacity: 1;
         visibility: visible;
+    }
+
+    /* Dashboard Grid Optimizations */
+    .dashboard-top-grid,
+    .dashboard-grid,
+    .stats-row {
+        grid-template-columns: 1fr !important;
+    }
+
+    .stats-column {
+        grid-template-columns: 1fr 1fr !important;
+    }
+
+    .page-title {
+        font-size: 1.1rem;
+    }
+
+    .top-bar-right .current-date-box {
+        display: none !important;
+    }
+
+    /* Common Table Container Responsiveness */
+    .table-responsive,
+    .submissions-scroll-container,
+    .user-list-container {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Filter Grid Improvements */
+    .filter-grid,
+    .premium-filter-container form {
+        flex-direction: column !important;
+        align-items: stretch !important;
+    }
+
+    .search-wrapper,
+    .custom-select-wrapper,
+    .date-range-pills,
+    .filter-actions {
+        width: 100% !important;
+        flex: none !important;
+    }
+
+    /* Dashboard Layout Adjustments */
+    .dashboard-row-middle,
+    .dashboard-row-bottom {
+        grid-template-columns: 1fr !important;
+    }
+}
+
+@media (max-width: 640px) {
+    .stats-column {
+        grid-template-columns: 1fr !important;
+    }
+
+    .top-bar {
+        padding: 0 12px;
+    }
+
+    .current-date-box {
+        display: none !important;
+    }
+
+    .content-wrapper {
+        padding: 12px;
+    }
+
+    /* Table adjustments */
+    .data-table td {
+        padding: 16px;
+    }
+
+    .user-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .filter-form {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .filter-actions {
+        margin-left: 0;
+        width: 100%;
+    }
+
+    .btn {
+        width: 100%;
+        justify-content: center;
     }
 }
 

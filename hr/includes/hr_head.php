@@ -15,4 +15,24 @@
             document.documentElement.classList.add('sidebar-initial-collapsed');
         }
     })();
+
+    // Real-time Clock Functionality
+    function updateClock() {
+        const clockElement = document.getElementById('real-time-clock');
+        if (!clockElement) return;
+
+        const now = new Date();
+        const options = {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: true
+        };
+        clockElement.textContent = now.toLocaleTimeString('en-US', options);
+    }
+
+    // Update every second
+    setInterval(updateClock, 1000);
+    // Initial call
+    document.addEventListener('DOMContentLoaded', updateClock);
 </script>

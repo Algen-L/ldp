@@ -102,7 +102,7 @@ $cidOffices = ['CURRICULUM IMPLEMENTATION DIVISION (INSTRUCTIONAL MANAGEMENT)', 
         .submissions-scroll-container .data-table thead {
             position: sticky;
             top: 0;
-            z-index: 100;
+            z-index: 20;
             background: white;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
         }
@@ -394,8 +394,13 @@ $cidOffices = ['CURRICULUM IMPLEMENTATION DIVISION (INSTRUCTIONAL MANAGEMENT)', 
                 </div>
                 <div class="top-bar-right">
                     <div class="current-date-box">
-                        <i class="bi bi-calendar3"></i>
-                        <span><?php echo date('l, F d, Y'); ?></span>
+                        <div class="time-section">
+                            <span id="real-time-clock"><?php echo date('h:i:s A'); ?></span>
+                        </div>
+                        <div class="date-section">
+                            <i class="bi bi-calendar3"></i>
+                            <span><?php echo date('F j, Y'); ?></span>
+                        </div>
                     </div>
                 </div>
             </header>

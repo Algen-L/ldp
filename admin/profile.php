@@ -476,15 +476,20 @@ if (!$is_super_admin) {
                     </div>
                 </div>
                 <div class="top-bar-right">
+                    <div class="current-date-box">
+                        <div class="time-section">
+                            <span id="real-time-clock"><?php echo date('h:i:s A'); ?></span>
+                        </div>
+                        <div class="date-section">
+                            <i class="bi bi-calendar3"></i>
+                            <span><?php echo date('F j, Y'); ?></span>
+                        </div>
+                    </div>
                     <?php if (!$is_super_admin): ?>
                         <button id="toggleSettings" class="toggle-settings-btn">
                             <i class="bi bi-person-gear"></i> Account Information
                         </button>
                     <?php endif; ?>
-                    <div class="current-date-box">
-                        <i class="bi bi-person-badge"></i>
-                        <span><?php echo date('F d, Y'); ?></span>
-                    </div>
                 </div>
             </header>
 

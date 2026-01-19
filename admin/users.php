@@ -342,8 +342,13 @@ $logs = $logStmt->fetchAll(PDO::FETCH_ASSOC);
                 </div>
                 <div class="top-bar-right">
                     <div class="current-date-box">
-                        <i class="bi bi-clock"></i>
-                        <span><?php echo date('F d, Y • h:i A'); ?></span>
+                        <div class="time-section">
+                            <span id="real-time-clock"><?php echo date('h:i:s A'); ?></span>
+                        </div>
+                        <div class="date-section">
+                            <i class="bi bi-calendar3"></i>
+                            <span><?php echo date('F j, Y'); ?></span>
+                        </div>
                     </div>
                 </div>
             </header>

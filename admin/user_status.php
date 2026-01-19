@@ -148,7 +148,7 @@ function getStatusColor($last_action)
             gap: 10px;
         }
 
-        .user-card .avatar, 
+        .user-card .avatar,
         .user-card .avatar-placeholder {
             width: 44px;
             height: 44px;
@@ -747,7 +747,7 @@ function getStatusColor($last_action)
             padding: 10px 12px;
         }
 
-        .user-card .avatar, 
+        .user-card .avatar,
         .user-card .avatar-placeholder {
             width: 40px;
             height: 40px;
@@ -820,8 +820,13 @@ function getStatusColor($last_action)
                 </div>
                 <div class="top-bar-right">
                     <div class="current-date-box">
-                        <i class="bi bi-calendar-check"></i>
-                        <span><?php echo date('l, F d, Y'); ?></span>
+                        <div class="time-section">
+                            <span id="real-time-clock"><?php echo date('h:i:s A'); ?></span>
+                        </div>
+                        <div class="date-section">
+                            <i class="bi bi-calendar3"></i>
+                            <span><?php echo date('F j, Y'); ?></span>
+                        </div>
                     </div>
                 </div>
             </header>

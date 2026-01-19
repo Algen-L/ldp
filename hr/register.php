@@ -77,37 +77,41 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <title>Register Personnel - HR Panel</title>
     <?php require 'includes/hr_head.php'; ?>
     <link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.css" rel="stylesheet">
+    <link rel="stylesheet" href="../css/layout/notifications.css">
     <style>
         .register-container {
             display: grid;
             grid-template-columns: 320px 1fr;
-            gap: 20px;
+            gap: 16px;
             align-items: start;
-            max-width: 1300px;
-            margin: 0 auto;
+            max-width: 1250px;
+            margin: 20px auto;
+            justify-content: center;
         }
 
         .register-card {
             background: white;
-            border-radius: 16px;
-            border: none;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+            border-radius: 20px;
+            border: 1px solid var(--border-color, #e2e8f0);
+            box-shadow: var(--shadow-sm, 0 2px 6px -1px rgba(0, 0, 0, 0.1));
             overflow: hidden;
         }
 
         .card-header-custom {
-            padding: 12px 24px;
+            padding: 14px 20px;
             border-bottom: 1px solid #f1f5f9;
         }
 
         .card-header-custom h2 {
-            font-size: 1rem;
-            font-weight: 700;
+            font-size: 0.95rem;
+            font-weight: 800;
             color: #1e293b;
             margin: 0;
             display: flex;
             align-items: center;
             gap: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
         .card-header-primary {
@@ -116,18 +120,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             border: none;
         }
 
-        .card-header-primary h2 {
-            color: white;
-        }
-
         .card-body-custom {
-            padding: 16px 24px;
+            padding: 20px;
         }
 
         .form-label {
-            font-size: 0.7rem;
+            font-size: 0.72rem;
             font-weight: 700;
-            color: #64748b;
+            color: #475569;
             text-transform: uppercase;
             letter-spacing: 0.5px;
             margin-bottom: 6px;
@@ -135,16 +135,17 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         }
 
         .form-group {
-            margin-bottom: 20px;
+            margin-bottom: 16px;
         }
 
         .form-control,
         .form-select {
-            height: 38px;
-            border-radius: 10px;
+            height: 42px;
+            border-radius: 12px;
             border: 1.5px solid #e2e8f0;
-            padding: 0 14px;
-            font-size: 0.88rem;
+            padding: 0 16px;
+            font-size: 0.92rem;
+            font-weight: 600;
             color: #1e293b;
             transition: all 0.2s;
             background: #f8fafc;
@@ -154,7 +155,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         .form-select:focus {
             background: white;
             border-color: #3282b8;
-            box-shadow: 0 0 0 3px rgba(50, 130, 184, 0.1);
+            box-shadow: 0 0 0 4px rgba(50, 130, 184, 0.1);
             outline: none;
         }
 
@@ -162,14 +163,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 16px;
-            margin-bottom: 12px;
+            margin-bottom: 8px;
         }
 
         .form-section-header {
-            font-size: 0.72rem;
+            font-size: 0.75rem;
             font-weight: 800;
             text-transform: uppercase;
-            color: #94a3b8;
+            color: #64748b;
             display: flex;
             align-items: center;
             gap: 10px;
@@ -180,8 +181,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         .form-section-header::after {
             content: '';
             flex: 1;
-            height: 1px;
+            height: 2px;
             background: #f1f5f9;
+            border-radius: 2px;
         }
 
         .profile-upload-zone {
@@ -216,10 +218,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         .input-group-text {
             background: rgba(255, 255, 255, 0.15);
             border: none;
-            border-radius: 10px 0 0 10px;
+            border-radius: 12px 0 0 12px;
             color: white;
             padding: 0 14px;
-            font-size: 0.9rem;
+            font-size: 1rem;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -227,7 +229,47 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
         .input-group .form-control {
             flex: 1;
-            border-radius: 0 10px 10px 0;
+            border-radius: 0 12px 12px 0;
+        }
+
+        /* TomSelect Hierarchy & Styles */
+        .ts-wrapper.form-control {
+            padding: 0 !important;
+            border: none !important;
+            background: transparent !important;
+            box-shadow: none !important;
+            height: auto !important;
+        }
+
+        .ts-control {
+            background: #f8fafc !important;
+            border: 1.5px solid #e2e8f0 !important;
+            border-radius: 12px !important;
+            padding: 0 16px !important;
+            font-size: 0.92rem !important;
+            font-weight: 600 !important;
+            color: #1e293b !important;
+            min-height: 42px !important;
+            display: flex !important;
+            align-items: center !important;
+            transition: all 0.2s !important;
+        }
+
+        .ts-dropdown .optgroup-header {
+            font-weight: 800 !important;
+            background: #0f4c75 !important;
+            color: white !important;
+            font-size: 0.72rem !important;
+            padding: 8px 12px !important;
+            text-transform: uppercase !important;
+            letter-spacing: 1px !important;
+            border-radius: 8px !important;
+            margin: 8px 8px 4px !important;
+            line-height: 1.2 !important;
+        }
+
+        .ts-dropdown .optgroup .option {
+            padding-left: 24px !important;
         }
 
         @media (max-width: 1200px) {
@@ -238,7 +280,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         }
 
         .content-wrapper {
-            padding: 8px 20px;
+            padding: 12px 24px;
         }
 
         @media (max-width: 768px) {
@@ -266,20 +308,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 </div>
                 <div class="top-bar-right">
                     <div class="current-date-box">
-                        <i class="bi bi-calendar-check"></i>
-                        <span>
-                            <?php echo date('l, F d, Y'); ?>
-                        </span>
+                        <div class="time-section">
+                            <span id="real-time-clock"><?php echo date('h:i:s A'); ?></span>
+                        </div>
+                        <div class="date-section">
+                            <i class="bi bi-calendar3"></i>
+                            <span><?php echo date('F j, Y'); ?></span>
+                        </div>
                     </div>
                 </div>
             </header>
 
             <main class="content-wrapper">
-                <?php if ($message): ?>
-                    <div class="alert alert-<?php echo $messageType; ?> fade show" role="alert">
-                        <?php echo $message; ?>
-                    </div>
-                <?php endif; ?>
+                <!-- Alert Removed in favor of Toast Notification -->
 
                 <form method="POST" action="" enctype="multipart/form-data" id="registerForm">
                     <div class="register-container">
@@ -297,7 +338,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                                             onclick="document.getElementById('profile_picture').click()">
                                             <i class="bi bi-camera-fill" style="font-size: 1.2rem;"></i>
                                         </div>
-                                        <img src="../assets/default_avatar.png" id="preview-image" class="shadow-lg"
+                                        <img src="../assets/human_avatar.png" id="preview-image" class="shadow-lg"
                                             style="width: 100px; height: 100px; border-radius: 50%; object-fit:cover; border: 3px solid rgba(255,255,255,0.2); display: block; background: #f1f5f9;">
                                     </div>
                                     <input type="file" name="profile_picture" id="profile_picture" class="d-none"
@@ -457,7 +498,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
+    <script src="../js/notifications.js"></script>
     <script>
+        // PHP Message to Toast
+        <?php if ($message): ?>
+            document.addEventListener('DOMContentLoaded', function () {
+                showToast(
+                    '<?php echo $messageType === 'success' ? 'Success' : 'Action Failed'; ?>',
+                    '<?php echo addslashes($message); ?>',
+                    '<?php echo $messageType; ?>'
+                );
+            });
+        <?php endif; ?>
+
         new TomSelect("#office-select", {
             create: true,
             sortField: {
@@ -478,7 +531,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             if (file) {
                 reader.readAsDataURL(file);
             } else {
-                preview.src = "../assets/default_avatar.png";
+                preview.src = "../assets/human_avatar.png";
             }
         }
     </script>

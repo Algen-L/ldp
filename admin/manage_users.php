@@ -262,8 +262,13 @@ $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 </div>
                 <div class="top-bar-right">
                     <div class="current-date-box">
-                        <i class="bi bi-calendar3"></i>
-                        <span><?php echo date('l, F d, Y'); ?></span>
+                        <div class="time-section">
+                            <span id="real-time-clock"><?php echo date('h:i:s A'); ?></span>
+                        </div>
+                        <div class="date-section">
+                            <i class="bi bi-calendar3"></i>
+                            <span><?php echo date('F j, Y'); ?></span>
+                        </div>
                     </div>
                 </div>
             </header>
@@ -271,27 +276,28 @@ $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
             <main class="content-wrapper">
                 <div style="height: 1px;"></div>
 
-                <!-- Redesigned Minimal Filter Section -->
+                <!-- Redesigned High-Fidelity Filter Bar -->
                 <div class="filter-bar"
-                    style="padding: 24px; background: white; border-radius: 16px; margin-bottom: 24px;">
+                    style="padding: 16px; background: white; border-radius: 12px; margin-bottom: 24px; box-shadow: var(--shadow-sm); border: 1.5px solid #f1f5f9;">
                     <form method="GET" class="filter-form"
-                        style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-end;">
-                        <div class="filter-group" style="flex: 1; min-width: 200px;">
-                            <label
-                                style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; margin-bottom: 8px; display: block;">Search</label>
+                        style="display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: nowrap;">
+
+                        <!-- Search Field with Icon -->
+                        <div class="filter-item" style="position: relative; flex: 1.5; min-width: 0;">
+                            <i class="bi bi-search"
+                                style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 0.95rem;"></i>
                             <input type="text" name="search" value="<?php echo htmlspecialchars($search); ?>"
-                                class="filter-input" placeholder="Name or username..."
-                                style="width: 100%; border-radius: 10px; height: 44px;">
+                                placeholder="Search entries..."
+                                style="width: 100%; height: 42px; padding: 0 12px 0 42px; border: 1.2px solid #e2e8f0; border-radius: 10px; font-size: 0.9rem; color: #475569; font-weight: 500; background: #fafbfc; outline: none; transition: all 0.2s;">
                         </div>
 
-                        <div class="filter-group" style="width: 200px;">
-                            <label
-                                style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; margin-bottom: 8px; display: block;">Role</label>
-                            <select name="filter_role" class="filter-select"
-                                style="width: 100%; border-radius: 10px; height: 44px;">
-                                <option value="">All Roles</option>
-                                <option value="user" <?php echo $filter_role === 'user' ? 'selected' : ''; ?>>L&D
-                                    Personnel</option>
+                        <!-- Role Field -->
+                        <div class="filter-item" style="position: relative; flex: 1;">
+                            <select name="filter_role"
+                                style="width: 100%; height: 42px; padding: 0 40px 0 16px; border: 1.2px solid #e2e8f0; border-radius: 10px; font-size: 0.9rem; color: #475569; font-weight: 600; background: white; appearance: none; cursor: pointer; outline: none;">
+                                <option value="">All Personnel</option>
+                                <option value="user" <?php echo $filter_role === 'user' ? 'selected' : ''; ?>>Staff
+                                </option>
                                 <option value="hr" <?php echo $filter_role === 'hr' ? 'selected' : ''; ?>>HR Personnel
                                 </option>
                                 <option value="immediate_head" <?php echo $filter_role === 'immediate_head' ? 'selected' : ''; ?>>Immediate Head</option>
@@ -299,25 +305,27 @@ $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                     Admin</option>
                                 <option value="super_admin" <?php echo $filter_role === 'super_admin' ? 'selected' : ''; ?>>Super Admin</option>
                             </select>
+                            <i class="bi bi-chevron-down"
+                                style="position: absolute; right: 14px; top: 50%; transform: translateY(-50%); color: #94a3b8; pointer-events: none; font-size: 0.8rem;"></i>
                         </div>
 
-                        <div class="filter-group" style="width: 200px;">
-                            <label
-                                style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; margin-bottom: 8px; display: block;">Unit</label>
+                        <!-- Unit Field -->
+                        <div class="filter-item" style="position: relative; flex: 1;">
                             <input type="text" name="filter_office"
-                                value="<?php echo htmlspecialchars($filter_office); ?>" class="filter-input"
-                                placeholder="All Units" style="width: 100%; border-radius: 10px; height: 44px;">
+                                value="<?php echo htmlspecialchars($filter_office); ?>" placeholder="All Units"
+                                style="width: 100%; height: 42px; padding: 0 12px; border: 1.2px solid #e2e8f0; border-radius: 10px; font-size: 0.9rem; color: #475569; font-weight: 500; background: white; outline: none;">
                         </div>
 
-                        <div class="filter-actions" style="display: flex; gap: 12px; margin-left: auto;">
-                            <button type="submit" class="btn btn-primary"
-                                style="height: 44px; padding: 0 24px; border-radius: 10px;">
-                                <i class="bi bi-search"></i> Filter
+                        <!-- Apply Button -->
+                        <div class="filter-actions" style="display: flex; gap: 8px; align-items: center;">
+                            <button type="submit" class="btn-apply"
+                                style="height: 42px; padding: 0 24px; background: #0f4c75; color: white; border: none; border-radius: 10px; font-weight: 700; font-size: 0.9rem; display: flex; align-items: center; gap: 10px; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 10px rgba(15, 76, 117, 0.2);">
+                                <i class="bi bi-funnel-fill" style="font-size: 0.85rem;"></i> Apply
                             </button>
                             <?php if ($search || $filter_role || $filter_office): ?>
-                                <a href="manage_users.php" class="btn btn-secondary"
-                                    style="height: 44px; display: flex; align-items: center; border-radius: 10px; padding: 0 20px;">
-                                    Clear
+                                <a href="manage_users.php" class="btn-clear"
+                                    style="height: 42px; width: 42px; display: flex; align-items: center; justify-content: center; background: #f1f5f9; color: #64748b; border-radius: 10px; border: none; text-decoration: none; transition: all 0.2s;">
+                                    <i class="bi bi-x-lg"></i>
                                 </a>
                             <?php endif; ?>
                         </div>

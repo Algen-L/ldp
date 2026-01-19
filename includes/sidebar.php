@@ -22,13 +22,10 @@ $pages_prefix = $is_pages_dir ? '' : $to_root . 'pages/';
         <div class="logo">
             <img src="<?php echo $to_root; ?>assets/LogoLDP.png" alt="LDP Logo" class="logo-img">
             <div class="logo-text">
-                <span class="logo-title">LDP</span>
+                <span class="logo-title">Learning & Development</span>
                 <span class="logo-subtitle">Passbook System</span>
             </div>
         </div>
-        <button class="sidebar-toggle-btn" id="sidebarToggle" title="Toggle Sidebar">
-            <i class="bi bi-chevron-left toggle-icon"></i>
-        </button>
     </div>
 
     <div class="sidebar-nav">
@@ -211,8 +208,7 @@ $pages_prefix = $is_pages_dir ? '' : $to_root . 'pages/';
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const sidebar = document.getElementById('mainSidebar');
-        const sidebarToggle = document.getElementById('sidebarToggle'); // Chevron
-        const mobileToggle = document.getElementById('toggleSidebar');  // Top-bar Burger
+        const sidebarToggle = document.getElementById('sidebarToggle'); // Internal Chevron
         const overlay = document.getElementById('sidebarOverlay');
         const layout = document.querySelector('.admin-layout') || document.querySelector('.user-layout');
 
@@ -227,16 +223,34 @@ $pages_prefix = $is_pages_dir ? '' : $to_root . 'pages/';
             if (overlay) overlay.classList.toggle('show');
         }
 
-        // Top Bar Toggle (Burger)
-        if (mobileToggle) {
-            mobileToggle.addEventListener('click', function () {
-                if (window.innerWidth > 992) {
-                    toggleDesktopCollapse();
-                } else {
-                    toggleMobileMenu();
+        // Logic to inject/bind the Burger Button (Top-bar Burger)
+        function initBurgerToggle() {
+            let mobileToggle = document.getElementById('toggleSidebar');
+
+            // If button doesn't exist, try to inject it into .top-bar-left
+            if (!mobileToggle) {
+                const topBarLeft = document.querySelector('.top-bar-left');
+                if (topBarLeft) {
+                    mobileToggle = document.createElement('button');
+                    mobileToggle.className = 'mobile-menu-toggle';
+                    mobileToggle.id = 'toggleSidebar';
+                    mobileToggle.innerHTML = '<i class="bi bi-list"></i>';
+                    topBarLeft.prepend(mobileToggle);
                 }
-            });
+            }
+
+            if (mobileToggle) {
+                mobileToggle.addEventListener('click', function () {
+                    if (window.innerWidth > 992) {
+                        toggleDesktopCollapse();
+                    } else {
+                        toggleMobileMenu();
+                    }
+                });
+            }
         }
+
+        initBurgerToggle();
 
         // Sidebar Internal Toggle (Chevron)
         if (sidebarToggle) {

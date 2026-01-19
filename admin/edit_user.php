@@ -219,6 +219,65 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             transform: translateY(-2px);
             box-shadow: 0 8px 20px rgba(15, 76, 117, 0.3);
         }
+
+        /* Fix TomSelect Double Box & Styling */
+        .ts-wrapper.form-control {
+            padding: 0 !important;
+            border: none !important;
+            background: transparent !important;
+            box-shadow: none !important;
+            height: auto !important;
+        }
+
+        .ts-control {
+            background: #f8fafc !important;
+            border: 1.5px solid #e2e8f0 !important;
+            border-radius: 12px !important;
+            padding: 10px 16px !important;
+            font-size: 0.95rem !important;
+            font-weight: 600 !important;
+            color: #1e293b !important;
+            min-height: 46px !important;
+            display: flex !important;
+            align-items: center !important;
+            transition: all 0.2s !important;
+        }
+
+        .ts-wrapper.form-control.focus .ts-control {
+            background: white !important;
+            border-color: var(--primary) !important;
+            box-shadow: 0 0 0 4px rgba(15, 76, 117, 0.1) !important;
+        }
+
+        /* Refined Category Labels (Headers) */
+        .ts-dropdown .optgroup-header {
+            font-weight: 800 !important;
+            background: var(--primary) !important;
+            color: white !important;
+            font-size: 0.72rem !important;
+            padding: 8px 12px !important;
+            text-transform: uppercase !important;
+            letter-spacing: 1px !important;
+            border-radius: 8px !important;
+            margin: 10px 8px 6px !important;
+            display: block !important;
+            line-height: 1 !important;
+            pointer-events: none !important;
+            /* Non-clickable */
+        }
+
+        /* Indent options within groups */
+        .ts-dropdown .optgroup .option {
+            padding-left: 24px !important;
+        }
+
+        .ts-dropdown .option[data-value="SCHOOL GOVERNANCE AND OPERATION DIVISION"],
+        .ts-dropdown .option[data-value="CURRICULUM IMPLEMENTATION DIVISION"] {
+            font-weight: 700 !important;
+            color: var(--primary) !important;
+            background: rgba(15, 76, 117, 0.05) !important;
+            border-left: 3px solid var(--primary) !important;
+        }
     </style>
 </head>
 
@@ -312,6 +371,42 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                                             <option value="FINANCE (BUDGET)">FINANCE (BUDGET)</option>
                                             <option value="LEGAL">LEGAL</option>
                                             <option value="ICT">ICT</option>
+                                        </optgroup>
+                                        <optgroup label="SGOD">
+                                            <option value="SCHOOL GOVERNANCE AND OPERATION DIVISION">SCHOOL GOVERNANCE
+                                                AND OPERATION DIVISION</option>
+                                            <option value="SCHOOL MANAGEMENT MONITORING & EVALUATION">SCHOOL MANAGEMENT
+                                                MONITORING & EVALUATION</option>
+                                            <option value="HUMAN RESOURCES DEVELOPMENT">HUMAN RESOURCES DEVELOPMENT
+                                            </option>
+                                            <option value="DISASTER RISK REDUCTION AND MANAGEMENT">DISASTER RISK
+                                                REDUCTION AND MANAGEMENT</option>
+                                            <option value="EDUCATION FACILITIES">EDUCATION FACILITIES</option>
+                                            <option value="SCHOOL HEALTH AND NUTRITION">SCHOOL HEALTH AND NUTRITION
+                                            </option>
+                                            <option value="SCHOOL HEALTH AND NUTRITION (DENTAL)">SCHOOL HEALTH AND
+                                                NUTRITION (DENTAL)</option>
+                                            <option value="SCHOOL HEALTH AND NUTRITION (MEDICAL)">SCHOOL HEALTH AND
+                                                NUTRITION (MEDICAL)</option>
+                                        </optgroup>
+                                        <optgroup label="CID">
+                                            <option value="CURRICULUM IMPLEMENTATION DIVISION">CURRICULUM IMPLEMENTATION
+                                                DIVISION</option>
+                                            <option
+                                                value="CURRICULUM IMPLEMENTATION DIVISION (INSTRUCTIONAL MANAGEMENT)">
+                                                CURRICULUM IMPLEMENTATION DIVISION (INSTRUCTIONAL MANAGEMENT)</option>
+                                            <option
+                                                value="CURRICULUM IMPLEMENTATION DIVISION (LEARNING RESOURCES MANAGEMENT)">
+                                                CURRICULUM IMPLEMENTATION DIVISION (LEARNING RESOURCES MANAGEMENT)
+                                            </option>
+                                            <option
+                                                value="CURRICULUM IMPLEMENTATION DIVISION (ALTERNATIVE LEARNING SYSTEM)">
+                                                CURRICULUM IMPLEMENTATION DIVISION (ALTERNATIVE LEARNING SYSTEM)
+                                            </option>
+                                            <option
+                                                value="CURRICULUM IMPLEMENTATION DIVISION (DISTRICT INSTRUCTIONAL SUPERVISION)">
+                                                CURRICULUM IMPLEMENTATION DIVISION (DISTRICT INSTRUCTIONAL SUPERVISION)
+                                            </option>
                                         </optgroup>
                                     </select>
                                 </div>

@@ -354,9 +354,15 @@ function isChecked($value, $arrayString)
                     </div>
                 </div>
                 <div class="top-bar-right">
-                    <button type="button" class="btn btn-secondary btn-sm" onclick="window.print()">
-                        <i class="bi bi-printer"></i> Print Record
-                    </button>
+                    <div class="current-date-box">
+                        <div class="time-section">
+                            <span id="real-time-clock"><?php echo date('h:i:s A'); ?></span>
+                        </div>
+                        <div class="date-section">
+                            <i class="bi bi-calendar3"></i>
+                            <span><?php echo date('F j, Y'); ?></span>
+                        </div>
+                    </div>
                 </div>
             </header>
 

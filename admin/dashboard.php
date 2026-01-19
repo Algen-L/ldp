@@ -154,17 +154,21 @@ $freqValues = array_values($frequencyData);
             transition: all 0.3s ease;
             border: 1px solid var(--border-color);
             border-top: 3px solid var(--accent-color);
+            background: white;
+            box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.3);
+            /* Smaller, darker shadow */
         }
 
         .stat-card:hover {
             border-color: var(--accent-color);
             transform: translateY(-5px);
-            box-shadow: var(--shadow-lg);
+            box-shadow: 0 6px 18px -2px rgba(0, 0, 0, 0.4);
+            /* Darker shadow on hover */
         }
 
         .stat-card:hover .stat-icon {
             transform: scale(1.1);
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
         }
 
         .dashboard-row-middle {
@@ -187,6 +191,24 @@ $freqValues = array_values($frequencyData);
             .dashboard-row-bottom {
                 grid-template-columns: 1fr;
             }
+        }
+
+        /* Generic Dashboard Card with Dark Shadow */
+        .dashboard-card {
+            background: white;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.3);
+            /* Smaller, darker shadow */
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .dashboard-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 24px -2px rgba(0, 0, 0, 0.4);
         }
 
         /* Recent Activity Submitted Feed */
@@ -410,6 +432,15 @@ $freqValues = array_values($frequencyData);
                     </div>
                 </div>
                 <div class="top-bar-right" style="display: flex; gap: 16px; align-items: center;">
+                    <div class="current-date-box">
+                        <div class="time-section">
+                            <span id="real-time-clock"><?php echo date('h:i:s A'); ?></span>
+                        </div>
+                        <div class="date-section">
+                            <i class="bi bi-calendar3"></i>
+                            <span><?php echo date('F j, Y'); ?></span>
+                        </div>
+                    </div>
                     <form method="GET" id="filterForm" style="margin: 0; display: flex; gap: 8px; align-items: center;">
                         <div class="custom-dropdown" id="filterDropdown">
                             <input type="hidden" name="filter" id="filterInput"
@@ -492,11 +523,6 @@ $freqValues = array_values($frequencyData);
                             </div>
                         </div>
                     </form>
-                    <div class="current-date-box"
-                        style="display: flex; align-items: center; gap: 8px; background: rgba(15, 76, 117, 0.05); padding: 4px 14px; border-radius: 99px; border: 1px solid rgba(15, 76, 117, 0.1); color: var(--primary); font-weight: 700; font-size: 0.8rem;">
-                        <i class="bi bi-calendar3" style="font-size: 1rem; color: var(--primary);"></i>
-                        <span><?php echo date('l, F d, Y'); ?></span>
-                    </div>
                 </div>
             </header>
 
@@ -644,8 +670,10 @@ $freqValues = array_values($frequencyData);
                                                 <?php if ($i < 3): ?>
                                                     <span class="pulse-indicator"></span>
                                                 <?php endif; ?>
-                                                <span
-                                                    class="feed-time"><?php echo time_elapsed_string($act['created_at']); ?></span>
+                                                <span class="feed-time"
+                                                    title="<?php echo date('M d, Y h:i A', strtotime($act['created_at'])); ?>">
+                                                    <?php echo time_elapsed_string($act['created_at']); ?>
+                                                </span>
                                             </div>
                                         </a>
                                     <?php endforeach; ?>
@@ -669,7 +697,7 @@ $freqValues = array_values($frequencyData);
                             <div class="table-responsive" style="max-height: 350px; overflow-y: auto;">
                                 <table class="data-table">
                                     <thead
-                                        style="position: sticky; top: 0; z-index: 100; background: white; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+                                        style="position: sticky; top: 0; z-index: 20; background: white; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
                                         <tr>
                                             <th>Submission Date</th>
                                             <th>User / Personnel</th>

@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 session_start();
 require '../includes/db.php';
 
@@ -308,9 +308,15 @@ function isChecked($value, $storedValue)
                     </div>
                 </div>
                 <div class="top-bar-right">
-                    <a href="view_activity.php?id=<?php echo $activity_id; ?>" class="btn btn-secondary btn-sm">
-                        <i class="bi bi-arrow-left"></i> Cancel Edit
-                    </a>
+                    <div class="current-date-box">
+                        <div class="time-section">
+                            <span id="real-time-clock"><?php echo date('h:i:s A'); ?></span>
+                        </div>
+                        <div class="date-section">
+                            <i class="bi bi-calendar3"></i>
+                            <span><?php echo date('F j, Y'); ?></span>
+                        </div>
+                    </div>
                 </div>
             </header>
 

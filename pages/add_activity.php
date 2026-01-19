@@ -295,13 +295,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             <header class="top-bar">
                 <div class="top-bar-left">
                     <div class="breadcrumb">
-                        <h1 class="page-title">Record New Activity</h1>
+                        <h1 class="page-title">Record Attended Activity</h1>
                     </div>
                 </div>
                 <div class="top-bar-right">
-                    <a href="home.php" class="btn btn-secondary btn-sm">
-                        <i class="bi bi-arrow-left"></i> Dashboard
-                    </a>
+                    <div class="current-date-box">
+                        <div class="time-section">
+                            <span id="real-time-clock"><?php echo date('h:i:s A'); ?></span>
+                        </div>
+                        <div class="date-section">
+                            <i class="bi bi-calendar3"></i>
+                            <span><?php echo date('F j, Y'); ?></span>
+                        </div>
+                    </div>
                 </div>
             </header>
 
@@ -314,15 +320,46 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     </script>
                 <?php endif; ?>
 
+                <!-- Privacy Notice Container -->
+                <div style="max-width: 900px; margin: 0 auto 24px auto;">
+                    <div
+                        style="background: linear-gradient(to right, #f8fafc, #f1f5f9); border-left: 5px solid var(--vibrant-blue); border-radius: 12px; padding: 24px; display: flex; gap: 20px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08); border: 1px solid var(--border-light);">
+                        <div
+                            style="flex-shrink: 0; width: 44px; height: 44px; background: white; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: var(--vibrant-blue); box-shadow: 0 4px 12px rgba(14, 165, 233, 0.15);">
+                            <i class="bi bi-shield-lock-fill" style="font-size: 1.4rem;"></i>
+                        </div>
+                        <div>
+                            <h4
+                                style="margin: 0 0 8px 0; font-size: 0.8rem; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; color: var(--vibrant-blue);">
+                                Data Privacy Notice</h4>
+                            <p
+                                style="margin: 0; font-size: 0.9rem; line-height: 1.6; color: #475569; text-align: justify; font-weight: 400;">
+                                We collect the following personal information from you when you manually or
+                                electronically submit to us your inquiry/ies: Name, Address, E-mail address, Contact
+                                Number, ID information. The collected personal information will be utilized solely for
+                                documentation and processing of your request within DepEd and, when appropriate,
+                                endorsement to other government agency/ies that has/have jurisdiction over the subject
+                                of your inquiry. Only authorized DepEd personnel have access to this personal
+                                information, the exchange of which will be facilitated through email and/or hard copy.
+                                DepEd will only retain personal data as long as necessary for the fulfillment of the
+                                purpose.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="dashboard-card" style="max-width: 900px; margin: 0 auto; overflow: visible;">
                     <div class="card-body" style="padding: 40px;">
+
                         <form method="POST" action="" enctype="multipart/form-data" id="activity-form">
 
                             <!-- Section 1: Basic Information -->
                             <div class="form-section">
-                                <div class="form-section-header">
-                                    <i class="bi bi-info-circle"></i>
-                                    <h3>Basic Information</h3>
+                                <div class="form-section-header"
+                                    style="background: linear-gradient(135deg, #0f4c75 0%, #1b6ca8 100%); padding: 16px 24px; border-radius: 12px 12px 0 0; margin: -40px -40px 24px -40px;">
+                                    <i class="bi bi-info-circle" style="color: white; font-size: 1.2rem;"></i>
+                                    <h3 style="color: white; margin: 0; font-size: 1.1rem; font-weight: 700;">Learning
+                                        and Development attended:</h3>
                                 </div>
                                 <div class="form-group">
                                     <label class="form-label">Title of L&D Activity <span

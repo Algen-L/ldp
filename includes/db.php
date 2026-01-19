@@ -4,6 +4,9 @@ $username = 'root';
 $password = '';
 $dbname = 'ldp_db';
 
+// Set Global Timezone
+date_default_timezone_set('Asia/Manila');
+
 try {
     // Connect to MySQL server first to create database if not exists
     $pdo = new PDO("mysql:host=$host", $username, $password);
