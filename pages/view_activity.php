@@ -67,10 +67,16 @@ if (($_SESSION['role'] === 'admin' || $_SESSION['role'] === 'super_admin' || $_S
 
     if ($stage === 'supervisor') {
         $stmt = $pdo->prepare("UPDATE ld_activities SET reviewed_by_supervisor = 1, reviewed_at = ? WHERE id = ?");
-        $stmt->execute([$current_time, $activity_id]);
+        if ($stmt->execute([$current_time, $activity_id])) {
+            $logStmt = $pdo->prepare("INSERT INTO activity_logs (user_id, action, details, ip_address) VALUES (?, ?, ?, ?)");
+            $logStmt->execute([$_SESSION['user_id'], 'Reviewed Activity', "Activity ID: $activity_id", $_SERVER['REMOTE_ADDR']]);
+        }
     } elseif ($stage === 'asds') {
         $stmt = $pdo->prepare("UPDATE ld_activities SET recommending_asds = 1, recommended_at = ? WHERE id = ?");
-        $stmt->execute([$current_time, $activity_id]);
+        if ($stmt->execute([$current_time, $activity_id])) {
+            $logStmt = $pdo->prepare("INSERT INTO activity_logs (user_id, action, details, ip_address) VALUES (?, ?, ?, ?)");
+            $logStmt->execute([$_SESSION['user_id'], 'Recommended Activity', "Activity ID: $activity_id", $_SERVER['REMOTE_ADDR']]);
+        }
     } elseif ($stage === 'sds') {
         if ($_SESSION['role'] !== 'immediate_head') {
             die("Unauthorized final approval.");
@@ -98,10 +104,12 @@ if (($_SESSION['role'] === 'admin' || $_SESSION['role'] === 'super_admin' || $_S
             exit;
         }
 
-        $stmt = $pdo->prepare("UPDATE ld_activities SET approved_sds = 1, approved_at = ?, status = 'Approved', approved_by = ?, signature_path = ? WHERE id = ?");
-        $stmt->execute([$current_time, $head_name, $sig_path, $activity_id]);
+        if ($stmt->execute([$current_time, $head_name, $sig_path, $activity_id])) {
+            $logStmt = $pdo->prepare("INSERT INTO activity_logs (user_id, action, details, ip_address) VALUES (?, ?, ?, ?)");
+            $logStmt->execute([$_SESSION['user_id'], 'Approved Activity', "Activity ID: $activity_id, Approved By: $head_name", $_SERVER['REMOTE_ADDR']]);
 
-        $_SESSION['toast'] = ['title' => 'Success', 'message' => 'Activity successfully approved!', 'type' => 'success'];
+            $_SESSION['toast'] = ['title' => 'Success', 'message' => 'Activity successfully approved!', 'type' => 'success'];
+        }
     }
 
     // Refresh activity data
@@ -283,32 +291,103 @@ function isChecked($value, $arrayString)
         }
 
         @media print {
+            @page {
+                size: A4;
+                margin: 0.5cm;
+            }
+
+            body {
+                background: white !important;
+                color: black !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
 
             .sidebar,
             .top-bar,
             .admin-controls,
             .user-footer,
-            .btn-print-hide {
+            .btn-print-hide,
+            .view-prog-track,
+            .data-section-title i {
                 display: none !important;
+            }
+
+            .submitter-hero {
+                display: flex !important;
+                background: transparent !important;
+                border: 1px solid #000 !important;
+                box-shadow: none !important;
+                padding: 15px !important;
+                margin-bottom: 0 !important;
+                border-bottom: none !important;
+                border-bottom-left-radius: 0 !important;
+                border-bottom-right-radius: 0 !important;
+                page-break-inside: avoid;
+                page-break-after: avoid !important;
             }
 
             .user-layout {
                 display: block !important;
                 padding: 0 !important;
+                background: white !important;
             }
 
             .main-content {
-                margin-left: 0 !important;
+                margin: 0 !important;
                 padding: 0 !important;
+                width: 100% !important;
+                background: white !important;
             }
 
             .content-wrapper {
                 padding: 0 !important;
+                margin: 0 !important;
+                background: white !important;
+            }
+
+            .view-layout-container {
+                max-width: 100% !important;
+                margin: 0 !important;
+                width: 100% !important;
             }
 
             .dashboard-card {
-                border: none !important;
+                border: 1px solid #000 !important;
+                border-top: none !important;
+                border-top-left-radius: 0 !important;
+                border-top-right-radius: 0 !important;
                 box-shadow: none !important;
+                padding: 20px !important;
+                background: white !important;
+                margin: 0 !important;
+                page-break-before: avoid !important;
+            }
+
+            .card-body {
+                padding: 0 !important;
+            }
+
+            /* Ensure form groups don't break awkwardly */
+            .form-group {
+                page-break-inside: avoid;
+                margin-bottom: 15px !important;
+            }
+
+            /* Clean up input look */
+            .form-control {
+                background: none !important;
+                border: 1px solid #ccc !important;
+                color: black !important;
+                padding: 5px 0 !important;
+                border: none !important;
+                border-bottom: 1px solid #ddd !important;
+                border-radius: 0 !important;
+                min-height: auto !important;
+            }
+
+            .image-attachment a {
+                border: 1px solid #eee !important;
             }
         }
 
@@ -337,6 +416,58 @@ function isChecked($value, $arrayString)
             background: white;
             border: 1px solid var(--border-light);
             cursor: crosshair;
+        }
+
+        .print-status-header {
+            display: none;
+        }
+
+        @media print {
+            .print-status-header {
+                display: block;
+                font-size: 1.2rem;
+                font-weight: 800;
+                text-transform: uppercase;
+                text-align: right;
+                margin-bottom: 20px;
+                padding-bottom: 10px;
+                border-bottom: 2px solid black;
+            }
+
+            .print-page-break {
+                page-break-before: always !important;
+                break-before: page !important;
+                margin-top: 1cm !important;
+                display: block !important;
+            }
+
+            .signatures-grid {
+                display: flex !important;
+                justify-content: space-between !important;
+                gap: 20px !important;
+                margin-top: 50px !important;
+                page-break-inside: avoid !important;
+            }
+
+            .signature-box {
+                flex: 1 !important;
+                text-align: center !important;
+                border: none !important;
+            }
+
+            .signature-line {
+                border-bottom: 1px solid black !important;
+                margin-bottom: 8px !important;
+                height: 100px !important;
+                display: flex !important;
+                align-items: flex-end !important;
+                justify-content: center !important;
+            }
+
+            .signature-img {
+                max-height: 80px !important;
+                filter: contrast(1.5) !important;
+            }
         }
     </style>
 </head>
@@ -490,6 +621,18 @@ function isChecked($value, $arrayString)
                     <!-- Main Activity Details Card -->
                     <div class="dashboard-card" style="margin-bottom: 40px;">
                         <div class="card-body" style="padding: 40px;">
+                            <?php
+                            $printStatus = 'PENDING';
+                            if ($activity['approved_sds'])
+                                $printStatus = 'APPROVED';
+                            elseif ($activity['recommending_asds'])
+                                $printStatus = 'RECOMMENDED';
+                            elseif ($activity['reviewed_by_supervisor'])
+                                $printStatus = 'REVIEWED';
+                            ?>
+                            <div class="print-status-header">
+                                STATUS: <?php echo $printStatus; ?>
+                            </div>
 
                             <div class="data-section-title"><i class="bi bi-book"></i> Activity Details</div>
 
@@ -567,21 +710,10 @@ function isChecked($value, $arrayString)
 
 
 
-                            <?php if (!empty($activity['workplace_image_path']) || !empty($activity['certificate_path'])): ?>
+                            <?php if (!empty($activity['workplace_image_path'])): ?>
                                 <div class="form-group" style="margin-bottom: 40px;">
                                     <label class="form-label">Evidence / Attachments</label>
                                     <div style="display: flex; flex-wrap: wrap; gap: 16px;">
-                                        <?php if ($activity['certificate_path']): ?>
-                                            <div class="image-attachment">
-                                                <a href="../<?php echo htmlspecialchars($activity['certificate_path']); ?>"
-                                                    target="_blank"
-                                                    style="width: 140px; height: 140px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #f0fdf4; border: 1.5px solid #bbf7d0; border-radius: var(--radius-sm); text-decoration: none; color: #16a34a;">
-                                                    <i class="bi bi-patch-check-fill" style="font-size: 2.5rem;"></i>
-                                                    <span style="font-size: 0.75rem; font-weight: 700; margin-top: 8px;">View
-                                                        Certificate</span>
-                                                </a>
-                                            </div>
-                                        <?php endif; ?>
 
                                         <?php
                                         $paths = [];
@@ -614,25 +746,51 @@ function isChecked($value, $arrayString)
                                 </div>
                             <?php endif; ?>
 
-                            <div class="data-section-title"><i class="bi bi-journal-text"></i> Personal Reflection</div>
+                            <div class="print-page-break">
+                                <div class="data-section-title"><i class="bi bi-journal-text"></i> Personal Reflection
+                                </div>
+
+                                <div class="form-group" style="margin-bottom: 32px;">
+                                    <label class="form-label">Personal Reflection</label>
+                                    <div
+                                        style="line-height: 1.7; color: var(--text-secondary); background: var(--bg-secondary); padding: 24px; border-radius: var(--radius-lg);">
+                                        <?php echo htmlspecialchars($activity['reflection']); ?>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="data-section-title"><i class="bi bi-award"></i> Certificate of Participation
+                            </div>
 
                             <div class="form-group" style="margin-bottom: 32px;">
-                                <label class="form-label">Personal Reflection</label>
-                                <div
-                                    style="line-height: 1.7; color: var(--text-secondary); background: var(--bg-secondary); padding: 24px; border-radius: var(--radius-lg);">
-                                    <?php echo htmlspecialchars($activity['reflection']); ?>
-                                </div>
+                                <?php if ($activity['certificate_path']): ?>
+                                    <div class="image-attachment" style="display: inline-block;">
+                                        <a href="../<?php echo htmlspecialchars($activity['certificate_path']); ?>"
+                                            target="_blank"
+                                            style="width: 160px; height: 160px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #f0fdf4; border: 1.5px solid #bbf7d0; border-radius: var(--radius-md); text-decoration: none; color: #16a34a; transition: transform 0.2s;">
+                                            <i class="bi bi-patch-check-fill" style="font-size: 3rem;"></i>
+                                            <span style="font-size: 0.8rem; font-weight: 700; margin-top: 12px;">View
+                                                Certificate</span>
+                                        </a>
+                                    </div>
+                                <?php else: ?>
+                                    <div
+                                        style="padding: 24px; background: var(--bg-secondary); border-radius: var(--radius-md); color: var(--text-muted); font-style: italic;">
+                                        No certificate attached for this activity.
+                                    </div>
+                                <?php endif; ?>
                             </div>
 
                             <div class="data-section-title"><i class="bi bi-pen"></i> Signatures & Authorization</div>
 
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 32px;">
-                                <div style="text-align: center;">
-                                    <div
+                            <div class="signatures-grid"
+                                style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 32px;">
+                                <div class="signature-box" style="text-align: center;">
+                                    <div class="signature-line"
                                         style="height: 120px; display: flex; align-items: center; justify-content: center; border-bottom: 1px solid var(--text-primary); margin-bottom: 12px;">
                                         <?php if (!empty($activity['organizer_signature_path'])): ?>
                                             <img src="../<?php echo htmlspecialchars($activity['organizer_signature_path']); ?>"
-                                                style="max-height: 100px; filter: contrast(1.2);">
+                                                class="signature-img" style="max-height: 100px; filter: contrast(1.2);">
                                         <?php else: ?>
                                             <span style="color: var(--text-muted); font-style: italic;">No signature
                                                 provided</span>
@@ -643,12 +801,12 @@ function isChecked($value, $arrayString)
                                     </p>
                                     <p style="font-size: 0.75rem; color: var(--text-muted);">ORGANIZER / CONDUCTOR</p>
                                 </div>
-                                <div style="text-align: center;">
-                                    <div
+                                <div class="signature-box" style="text-align: center;">
+                                    <div class="signature-line"
                                         style="height: 120px; display: flex; align-items: center; justify-content: center; border-bottom: 1px solid var(--text-primary); margin-bottom: 12px;">
                                         <?php if (!empty($activity['signature_path'])): ?>
                                             <img src="../<?php echo htmlspecialchars($activity['signature_path']); ?>"
-                                                style="max-height: 100px; filter: contrast(1.2);">
+                                                class="signature-img" style="max-height: 100px; filter: contrast(1.2);">
                                         <?php else: ?>
                                             <span style="color: var(--text-muted); font-style: italic;">No signature
                                                 provided</span>
@@ -662,6 +820,14 @@ function isChecked($value, $arrayString)
                             </div>
 
                         </div>
+                    </div>
+
+                    <!-- Print Button at Bottom -->
+                    <div style="text-align: center; margin-top: 40px; margin-bottom: 60px;" class="btn-print-hide">
+                        <button onclick="window.print()" class="btn btn-primary btn-lg"
+                            style="padding: 12px 32px; font-weight: 800; display: inline-flex; align-items: center; gap: 10px; box-shadow: 0 4px 6px rgba(15, 76, 117, 0.2);">
+                            <i class="bi bi-printer-fill"></i> PRINT ACTIVITY RECORD
+                        </button>
                     </div>
                 </div>
             </main>

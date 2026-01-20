@@ -42,6 +42,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['upload_certificate']))
                 $dbPath = 'uploads/certificates/' . $fileName;
                 $stmt = $pdo->prepare("UPDATE ld_activities SET certificate_path = ? WHERE id = ? AND user_id = ?");
                 if ($stmt->execute([$dbPath, $activity_id, $_SESSION['user_id']])) {
+                    $logStmt = $pdo->prepare("INSERT INTO activity_logs (user_id, action, details, ip_address) VALUES (?, ?, ?, ?)");
+                    $logStmt->execute([$_SESSION['user_id'], 'Updated Certificate', "Activity ID: $activity_id", $_SERVER['REMOTE_ADDR']]);
+
                     $message = "Certificate uploaded successfully!";
                     $messageType = "success";
                 }
@@ -82,57 +85,63 @@ $activities = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         .profile-hero {
             background: var(--primary-gradient);
-            padding: 30px;
-            border-radius: 20px;
+            padding: 24px 30px;
+            border-radius: 16px;
             display: flex;
             gap: 24px;
             align-items: center;
             margin-bottom: 24px;
             color: white;
-            box-shadow: 0 10px 25px -5px rgba(50, 130, 184, 0.3);
+            box-shadow: 0 4px 12px -2px rgba(15, 76, 117, 0.2);
             position: relative;
             overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
         .profile-hero::before {
             content: '';
             position: absolute;
-            top: -50px;
-            right: -50px;
-            width: 200px;
-            height: 200px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 50%;
+            top: -40px;
+            right: -40px;
+            width: 180px;
+            height: 180px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 40px;
+            transform: rotate(15deg);
         }
 
         .hero-avatar {
-            width: 100px;
-            height: 100px;
-            border-radius: 50%;
-            border: 4px solid rgba(255, 255, 255, 0.3);
+            width: 90px;
+            height: 90px;
+            border-radius: 14px;
+            /* Squircle for sharp look */
+            border: 3px solid rgba(255, 255, 255, 0.2);
             object-fit: cover;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
             flex-shrink: 0;
             background: rgba(255, 255, 255, 0.1);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 2.5rem;
+            font-size: 2.2rem;
             font-weight: 800;
         }
 
         .hero-info h2 {
-            font-size: 1.75rem;
+            font-size: 1.6rem;
             font-weight: 800;
-            margin: 0 0 4px 0;
-            letter-spacing: -0.02em;
+            margin: 0 0 2px 0;
+            letter-spacing: -0.5px;
         }
 
         .hero-info p {
-            opacity: 0.9;
-            font-weight: 500;
+            opacity: 0.85;
+            font-weight: 600;
             margin: 0;
-            font-size: 1rem;
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
         .stats-grid {
@@ -144,63 +153,79 @@ $activities = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         .stat-card {
             background: #ffffff;
-            padding: 16px;
+            padding: 12px 14px;
             border-radius: 12px;
-            box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.04);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
             display: flex;
             align-items: center;
-            gap: 14px;
-            border: 1px solid #e2e8f0;
-            transition: all 0.3s ease;
+            gap: 12px;
+            border: 1px solid #eef2f6;
+            transition: all 0.2s ease;
         }
 
         .stat-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 12px -3px rgba(0, 0, 0, 0.08);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08);
+            border-color: var(--primary-light);
         }
 
         .stat-icon {
-            width: 44px;
-            height: 44px;
-            border-radius: 10px;
+            width: 38px;
+            height: 38px;
+            border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.4rem;
+            font-size: 1.25rem;
             flex-shrink: 0;
-            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.03);
+            opacity: 0.9;
         }
 
         .stat-value {
-            font-size: 1.1rem;
+            font-size: 1rem;
             font-weight: 800;
-            color: #1e293b;
+            color: #0f172a;
             display: block;
+            line-height: 1.1;
         }
 
         .stat-label {
-            font-size: 0.65rem;
-            color: #64748b;
+            font-size: 0.6rem;
+            color: #94a3b8;
             text-transform: uppercase;
-            font-weight: 600;
+            font-weight: 700;
             letter-spacing: 0.5px;
         }
 
         .section-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 16px;
+            background: #ffffff;
+            padding: 12px 20px;
+            border-radius: 16px 16px 0 0;
+            border: 1px solid #eef2f6;
+            border-bottom: none;
+            margin-bottom: 0;
         }
 
         .section-title {
             font-size: 1.1rem;
             font-weight: 800;
-            color: #1e293b;
+            color: var(--primary);
             display: flex;
             align-items: center;
             gap: 10px;
             margin: 0;
+        }
+
+        .section-title i {
+            color: #F57C00;
+        }
+
+        .scrollable-cert-container {
+            background: #f8fafc;
+            border: 1px solid #eef2f6;
+            border-radius: 0 0 16px 16px;
+            padding: 20px;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.02);
         }
 
         .certificate-grid {
@@ -212,20 +237,20 @@ $activities = $stmt->fetchAll(PDO::FETCH_ASSOC);
         .activity-card {
             background: #ffffff;
             border-radius: 12px;
-            border: 1px solid #e2e8f0;
+            border: 1px solid #eef2f6;
             padding: 14px;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             position: relative;
-            box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.04);
+            box-shadow: 0 4px 12px -2px rgba(15, 76, 117, 0.08);
             display: flex;
             flex-direction: column;
-            border-left: 3px solid var(--primary-light);
+            cursor: pointer;
         }
 
         .activity-card:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 8px 12px -3px rgba(0, 0, 0, 0.08);
-            border-color: var(--primary-light);
+            transform: translateY(-4px);
+            box-shadow: 0 12px 20px -5px rgba(15, 76, 117, 0.15);
+            border-color: #F57C00;
         }
 
         .activity-type {
@@ -233,21 +258,21 @@ $activities = $stmt->fetchAll(PDO::FETCH_ASSOC);
             font-weight: 800;
             text-transform: uppercase;
             color: #ffffff;
-            background: var(--primary-gradient);
-            padding: 3px 8px;
-            border-radius: 6px;
+            background: var(--primary);
+            padding: 2px 10px;
+            border-radius: 4px;
             display: inline-block;
             margin-bottom: 8px;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.8px;
             width: fit-content;
         }
 
         .activity-title {
-            font-weight: 700;
-            color: #0f172a;
+            font-weight: 800;
+            color: var(--primary);
             font-size: 0.85rem;
-            margin-bottom: 6px;
-            line-height: 1.4;
+            margin-bottom: 8px;
+            line-height: 1.3;
             display: -webkit-box;
             -webkit-line-clamp: 2;
             -webkit-box-orient: vertical;
@@ -258,11 +283,11 @@ $activities = $stmt->fetchAll(PDO::FETCH_ASSOC);
         .activity-meta {
             display: flex;
             flex-direction: column;
-            gap: 4px;
+            gap: 6px;
             font-size: 0.72rem;
             color: #64748b;
-            margin-bottom: 12px;
-            padding-bottom: 10px;
+            margin-bottom: 14px;
+            padding-bottom: 12px;
             border-bottom: 1px dashed #f1f5f9;
         }
 
@@ -274,43 +299,43 @@ $activities = $stmt->fetchAll(PDO::FETCH_ASSOC);
         }
 
         .activity-meta i {
-            color: var(--primary-light);
-            font-size: 0.8rem;
+            color: #F57C00;
+            font-size: 0.85rem;
         }
 
         .cert-upload-zone {
-            border: 1.5px dashed #cbd5e1;
+            border: 2px dashed #cbd5e1;
             border-radius: 10px;
-            padding: 10px;
+            padding: 12px;
             text-align: center;
             cursor: pointer;
             transition: all 0.2s;
             position: relative;
             background: #f8fafc;
+            color: #64748b;
         }
 
         .cert-upload-zone:hover {
-            background: #eff6ff;
-            border-color: var(--primary);
-            color: var(--primary);
+            background: #fff7ed;
+            border-color: #F57C00;
+            color: #F57C00;
         }
 
-        .cert-upload-zone input[type="file"] {
-            position: absolute;
-            inset: 0;
-            opacity: 0;
-            cursor: pointer;
+        .cert-upload-zone i {
+            font-size: 1.4rem;
+            display: block;
+            margin-bottom: 4px;
         }
 
         .has-cert {
-            background: #f0fdf4;
-            border: 1.5px solid #dcfce7;
-            padding: 10px;
+            background: #fff7ed;
+            border: 1px solid #ffedd5;
+            padding: 10px 14px;
             border-radius: 10px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.02);
+            box-shadow: 0 2px 4px rgba(245, 124, 0, 0.05);
         }
 
         .account-settings-card {
@@ -446,9 +471,6 @@ $activities = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     <button id="toggleSettings" class="toggle-settings-btn">
                         <i class="bi bi-person-gear"></i> Account Information
                     </button>
-                    <a href="home.php" class="btn btn-secondary btn-sm">
-                        <i class="bi bi-house"></i> Home
-                    </a>
                 </div>
             </header>
 
@@ -466,11 +488,13 @@ $activities = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         <?php endif; ?>
                         <div class="hero-info">
                             <h2><?php echo htmlspecialchars($user['full_name']); ?></h2>
-                            <p><?php echo htmlspecialchars($user['position'] ?: 'Educational Professional'); ?></p>
-                            <div
-                                style="margin-top: 10px; font-size: 0.85rem; background: rgba(255,255,255,0.15); padding: 4px 12px; border-radius: 99px; display: inline-flex; align-items: center; gap: 6px;">
-                                <i class="bi bi-building"></i> <?php echo htmlspecialchars($user['office_station']); ?>
-                            </div>
+                            <p>
+                                <i class="bi bi-person-badge"></i>
+                                <?php echo htmlspecialchars($user['position'] ?: 'Educational Professional'); ?>
+                                <span style="opacity: 0.5; margin: 0 4px;">•</span>
+                                <i class="bi bi-building"></i>
+                                <?php echo htmlspecialchars($user['office_station']); ?>
+                            </p>
                         </div>
                     </div>
 
@@ -597,44 +621,48 @@ $activities = $stmt->fetchAll(PDO::FETCH_ASSOC);
                             <?php else: ?>
                                 <?php foreach ($activities as $act): ?>
                                     <div class="activity-card">
-                                        <span
-                                            class="activity-type"><?php echo htmlspecialchars($act['type_ld'] ?: 'Professional Development'); ?></span>
-                                        <h3 class="activity-title" title="<?php echo htmlspecialchars($act['title']); ?>">
-                                            <?php echo htmlspecialchars($act['title']); ?>
-                                        </h3>
-                                        <div class="activity-meta">
-                                            <span><i class="bi bi-calendar-event"></i>
-                                                <?php echo date('M d, Y', strtotime($act['date_attended'])); ?></span>
-                                            <span><i class="bi bi-geo-alt"></i>
-                                                <?php echo htmlspecialchars(substr($act['venue'], 0, 20)); ?>...</span>
+                                        <div onclick="location.href='view_activity.php?id=<?php echo $act['id']; ?>'"
+                                            style="cursor: pointer;">
+                                            <span
+                                                class="activity-type"><?php echo htmlspecialchars($act['type_ld'] ?: 'Professional Development'); ?></span>
+                                            <h3 class="activity-title" title="<?php echo htmlspecialchars($act['title']); ?>">
+                                                <?php echo htmlspecialchars($act['title']); ?>
+                                            </h3>
+                                            <div class="activity-meta">
+                                                <span><i class="bi bi-calendar-event"></i>
+                                                    <?php echo date('M d, Y', strtotime($act['date_attended'])); ?></span>
+                                                <span><i class="bi bi-geo-alt"></i>
+                                                    <?php echo htmlspecialchars(substr($act['venue'], 0, 20)); ?>...</span>
+                                            </div>
                                         </div>
 
                                         <?php if ($act['certificate_path']): ?>
                                             <div class="has-cert">
                                                 <div style="display: flex; align-items: center; gap: 10px;">
-                                                    <i class="bi bi-file-earmark-pdf-fill"
-                                                        style="font-size: 1.5rem; color: #ef4444;"></i>
-                                                    <div style="font-size: 0.8rem; font-weight: 600; color: #16a34a;">Certificate
-                                                        Ready
+                                                    <i class="bi bi-patch-check-fill"
+                                                        style="font-size: 1.5rem; color: #F57C00;"></i>
+                                                    <div style="font-size: 0.8rem; font-weight: 800; color: var(--primary);">
+                                                        CERTIFICATE READY
                                                     </div>
                                                 </div>
                                                 <div style="display: flex; gap: 8px;">
                                                     <a href="../<?php echo $act['certificate_path']; ?>" target="_blank"
-                                                        class="btn btn-secondary btn-sm"
-                                                        style="padding: 4px 8px; font-size: 0.75rem;">View</a>
+                                                        class="btn btn-primary btn-sm"
+                                                        style="padding: 4px 10px; font-size: 0.7rem; font-weight: 700;">View</a>
                                                     <button
                                                         onclick="document.getElementById('file-input-<?php echo $act['id']; ?>').click()"
-                                                        class="btn btn-secondary btn-sm"
-                                                        style="padding: 4px 8px; font-size: 0.75rem;">Change</button>
+                                                        class="btn btn-outline-primary btn-sm"
+                                                        style="padding: 4px 10px; font-size: 0.7rem; font-weight: 700;">Change</button>
                                                 </div>
                                             </div>
                                         <?php else: ?>
                                             <div class="cert-upload-zone"
                                                 onclick="document.getElementById('file-input-<?php echo $act['id']; ?>').click()">
-                                                <i class="bi bi-cloud-upload"
-                                                    style="font-size: 1.25rem; color: #94a3b8; display: block; margin-bottom: 4px;"></i>
-                                                <span style="font-size: 0.8rem; font-weight: 600; color: #64748b;">Upload
-                                                    Certificate</span>
+                                                <i class="bi bi-cloud-arrow-up-fill" style="color: #F57C00;"></i>
+                                                <div
+                                                    style="font-size: 0.75rem; font-weight: 800; color: var(--primary); text-transform: uppercase;">
+                                                    Upload Certificate
+                                                </div>
                                             </div>
                                         <?php endif; ?>
 

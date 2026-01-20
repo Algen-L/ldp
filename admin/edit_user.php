@@ -65,6 +65,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $params[] = $id;
 
     if ($stmt->execute($params)) {
+        // Log the action
+        $logStmt = $pdo->prepare("INSERT INTO activity_logs (user_id, action, details, ip_address) VALUES (?, ?, ?, ?)");
+        $logStmt->execute([$_SESSION['user_id'], 'Edited User Profile', "Target User: $full_name (ID: $id)", $_SERVER['REMOTE_ADDR']]);
+
         $_SESSION['toast'] = ['title' => 'User Updated', 'message' => 'The user record has been updated successfully.', 'type' => 'success'];
         header("Location: manage_users.php");
         exit;

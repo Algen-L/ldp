@@ -76,12 +76,12 @@ $progress_pct = $total_count > 0 ? round(($approved_count / $total_count) * 100)
                         <div class="card-profile-body">
                             <div class="profile-avatar-container">
                                 <?php if (!empty($user['profile_picture'])): ?>
-                                        <img src="../<?php echo htmlspecialchars($user['profile_picture']); ?>" alt="Profile"
-                                            class="profile-avatar">
+                                    <img src="../<?php echo htmlspecialchars($user['profile_picture']); ?>" alt="Profile"
+                                        class="profile-avatar">
                                 <?php else: ?>
-                                        <div class="profile-avatar-placeholder">
-                                            <?php echo strtoupper(substr($user['full_name'], 0, 1)); ?>
-                                        </div>
+                                    <div class="profile-avatar-placeholder">
+                                        <?php echo strtoupper(substr($user['full_name'], 0, 1)); ?>
+                                    </div>
                                 <?php endif; ?>
                             </div>
 
@@ -158,7 +158,7 @@ $progress_pct = $total_count > 0 ? round(($approved_count / $total_count) * 100)
                             <div class="hero-content">
                                 <div class="hero-text">
                                     <h3>Ready to record a new success?</h3>
-                                    <p>This document will track your learning and development engagements to address
+                                    <p>This System will track your learning and development engagements to address
                                         your competency gaps that surfaced in your Individual Development Plan (IDP).
                                     </p>
                                 </div>
@@ -182,53 +182,53 @@ $progress_pct = $total_count > 0 ? round(($approved_count / $total_count) * 100)
                             <div class="card-body" style="padding: 0;">
                                 <div class="activity-list" style="max-height: 400px; overflow-y: auto;">
                                     <?php if (count($activities) > 0): ?>
-                                            <?php foreach ($activities as $act): ?>
-                                                    <div class="activity-item">
-                                                        <div class="activity-icon">
-                                                            <i class="bi bi-journal-check"></i>
-                                                        </div>
-                                                        <div class="activity-content">
-                                                            <div class="activity-header">
-                                                                <span
-                                                                    class="activity-title"><?php echo htmlspecialchars($act['title']); ?></span>
-                                                                <span class="activity-time"><?php
-                                                                $dates = explode(', ', $act['date_attended']);
-                                                                echo date('M d, Y', strtotime($dates[0]));
-                                                                ?></span>
-                                                            </div>
-                                                            <div
-                                                                style="display: flex; align-items: center; justify-content: space-between; margin-top: 6px;">
-                                                                <span
-                                                                    style="font-size: 0.85rem; color: var(--text-muted);"><?php echo htmlspecialchars($act['competency']); ?></span>
-                                                                <?php
-                                                                $statusLabel = 'Pending';
-                                                                $statusClass = 'status-pending';
-
-                                                                if ($act['approved_sds']) {
-                                                                    $statusLabel = 'Approved';
-                                                                    $statusClass = 'status-approved';
-                                                                } elseif ($act['recommending_asds']) {
-                                                                    $statusLabel = 'Recommending';
-                                                                    $statusClass = 'status-recommending';
-                                                                } elseif ($act['reviewed_by_supervisor']) {
-                                                                    $statusLabel = 'Reviewed';
-                                                                    $statusClass = 'status-reviewed';
-                                                                }
-                                                                ?>
-                                                                <span class="activity-status-badge <?php echo $statusClass; ?>">
-                                                                    <i class="bi bi-circle-fill"
-                                                                        style="font-size: 0.4rem; margin-right: 4px;"></i>
-                                                                    <?php echo $statusLabel; ?>
-                                                                </span>
-                                                            </div>
-                                                        </div>
+                                        <?php foreach ($activities as $act): ?>
+                                            <div class="activity-item">
+                                                <div class="activity-icon">
+                                                    <i class="bi bi-journal-check"></i>
+                                                </div>
+                                                <div class="activity-content">
+                                                    <div class="activity-header">
+                                                        <span
+                                                            class="activity-title"><?php echo htmlspecialchars($act['title']); ?></span>
+                                                        <span class="activity-time"><?php
+                                                        $dates = explode(', ', $act['date_attended']);
+                                                        echo date('M d, Y', strtotime($dates[0]));
+                                                        ?></span>
                                                     </div>
-                                            <?php endforeach; ?>
-                                    <?php else: ?>
-                                            <div style="text-align: center; padding: 60px; color: var(--text-muted);">
-                                                <i class="bi bi-inbox" style="font-size: 3rem; opacity: 0.3;"></i>
-                                                <p style="margin-top: 15px; font-weight: 500;">No activities recorded yet.</p>
+                                                    <div
+                                                        style="display: flex; align-items: center; justify-content: space-between; margin-top: 6px;">
+                                                        <span
+                                                            style="font-size: 0.85rem; color: var(--text-muted);"><?php echo htmlspecialchars($act['competency']); ?></span>
+                                                        <?php
+                                                        $statusLabel = 'Pending';
+                                                        $statusClass = 'status-pending';
+
+                                                        if ($act['approved_sds']) {
+                                                            $statusLabel = 'Approved';
+                                                            $statusClass = 'status-approved';
+                                                        } elseif ($act['recommending_asds']) {
+                                                            $statusLabel = 'Recommending';
+                                                            $statusClass = 'status-recommending';
+                                                        } elseif ($act['reviewed_by_supervisor']) {
+                                                            $statusLabel = 'Reviewed';
+                                                            $statusClass = 'status-reviewed';
+                                                        }
+                                                        ?>
+                                                        <span class="activity-status-badge <?php echo $statusClass; ?>">
+                                                            <i class="bi bi-circle-fill"
+                                                                style="font-size: 0.4rem; margin-right: 4px;"></i>
+                                                            <?php echo $statusLabel; ?>
+                                                        </span>
+                                                    </div>
+                                                </div>
                                             </div>
+                                        <?php endforeach; ?>
+                                    <?php else: ?>
+                                        <div style="text-align: center; padding: 60px; color: var(--text-muted);">
+                                            <i class="bi bi-inbox" style="font-size: 3rem; opacity: 0.3;"></i>
+                                            <p style="margin-top: 15px; font-weight: 500;">No activities recorded yet.</p>
+                                        </div>
                                     <?php endif; ?>
                                 </div>
                             </div>

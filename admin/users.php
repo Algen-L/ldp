@@ -294,6 +294,55 @@ $logs = $logStmt->fetchAll(PDO::FETCH_ASSOC);
         .activity-desc {
             font-size: 0.8rem;
         }
+
+        .log-type-update {
+            border-left: 3px solid #ff9800;
+            background: #fff3e0;
+        }
+
+        .log-type-review {
+            border-left: 3px solid #4caf50;
+            background: #e8f5e9;
+        }
+
+        .log-type-recommend {
+            border-left: 3px solid #2196f3;
+            background: #e3f2fd;
+        }
+
+        .log-type-approve {
+            border-left: 3px solid #9c27b0;
+            background: #f3e5f5;
+        }
+
+        .log-type-user-mgmt {
+            border-left: 3px solid #607d8b;
+            background: #eceff1;
+        }
+
+        .log-type-update .activity-icon {
+            background-color: #ffe0b2;
+            color: #ef6c00;
+        }
+
+        .log-type-review .activity-icon {
+            background-color: #c8e6c9;
+            color: #2e7d32;
+        }
+
+        .log-type-recommend .activity-icon {
+            background-color: #bbdefb;
+            color: #1565c0;
+        }
+
+        .log-type-approve .activity-icon {
+            background-color: #e1bee7;
+            color: #7b1fa2;
+        }
+
+        .log-type-update .activity-desc strong {
+            color: #ef6c00 !important;
+        }
     </style>
 </head>
 
@@ -307,6 +356,16 @@ $logs = $logStmt->fetchAll(PDO::FETCH_ASSOC);
             return '<i class="bi bi-box-arrow-right"></i>';
         } elseif (strpos($action, 'Submitted') !== false) {
             return '<i class="bi bi-file-earmark-plus"></i>';
+        } elseif (strpos($action, 'Updated') !== false || strpos($action, 'Certificate') !== false) {
+            return '<i class="bi bi-pencil-square"></i>';
+        } elseif (strpos($action, 'Reviewed') !== false) {
+            return '<i class="bi bi-shield-check"></i>';
+        } elseif (strpos($action, 'Recommended') !== false) {
+            return '<i class="bi bi-hand-thumbs-up"></i>';
+        } elseif (strpos($action, 'Approved') !== false) {
+            return '<i class="bi bi-trophy"></i>';
+        } elseif (strpos($action, 'User') !== false || strpos($action, 'Status') !== false) {
+            return '<i class="bi bi-person-gear"></i>';
         } elseif (strpos($action, 'Viewed') !== false) {
             return '<i class="bi bi-eye"></i>';
         } elseif (strpos($action, 'Profile') !== false) {
@@ -324,6 +383,16 @@ $logs = $logStmt->fetchAll(PDO::FETCH_ASSOC);
             return 'log-type-logout';
         if (strpos($action, 'Submitted') !== false)
             return 'log-type-submission';
+        if (strpos($action, 'Updated') !== false || strpos($action, 'Certificate') !== false)
+            return 'log-type-update';
+        if (strpos($action, 'Reviewed') !== false)
+            return 'log-type-review';
+        if (strpos($action, 'Recommended') !== false)
+            return 'log-type-recommend';
+        if (strpos($action, 'Approved') !== false)
+            return 'log-type-approve';
+        if (strpos($action, 'User') !== false || strpos($action, 'Status') !== false)
+            return 'log-type-user-mgmt';
         if (strpos($action, 'Viewed') !== false)
             return 'log-type-view';
         return '';
@@ -398,6 +467,11 @@ $logs = $logStmt->fetchAll(PDO::FETCH_ASSOC);
                                             'Logged In' => 'Success Logins',
                                             'Logged Out' => 'Success Logouts',
                                             'Submitted' => 'Submissions',
+                                            'Updated' => 'Activity Edits',
+                                            'Certificate' => 'Cert Uploads',
+                                            'Reviewed' => 'Supervisor Reviews',
+                                            'Recommended' => 'ASDS Recommend',
+                                            'Approved' => 'Final Approvals',
                                             'Viewed Specific' => 'Detailed Views',
                                             'Viewed' => 'List Views',
                                             'Profile' => 'Profile Changes'
