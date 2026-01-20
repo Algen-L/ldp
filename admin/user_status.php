@@ -767,7 +767,7 @@ function getStatusColor($last_action)
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
             gap: 10px;
-            max-height: 420px;
+            max-height: 640px;
             overflow-y: auto;
             padding-right: 8px;
             padding-bottom: 4px;

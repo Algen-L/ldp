@@ -173,7 +173,7 @@ $progress_pct = $total_count > 0 ? round(($approved_count / $total_count) * 100)
                         </div>
 
                         <!-- Recent Activity -->
-                        <div class="dashboard-card">
+                        <div class="dashboard-card recent-activity-card">
                             <div class="card-header">
                                 <h2><i class="bi bi-clock-history"></i> Recent Activity Log</h2>
                                 <a href="submissions_progress.php"

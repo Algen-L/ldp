@@ -1413,3 +1413,30 @@ body {
     flex-direction: column;
     gap: 4px;
 }
+
+/* Recent Activity Header Customization */
+.recent-activity-card .card-header {
+    background: var(--primary-gradient);
+    border-bottom: none;
+}
+
+.recent-activity-card .card-header h2 {
+    color: white;
+}
+
+.recent-activity-card .card-header h2 i {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.recent-activity-card .card-header a {
+    color: rgba(255, 255, 255, 0.9) !important;
+}
+
+.recent-activity-card .card-header a:hover {
+    color: white !important;
+    text-decoration: underline !important;
+}
+
+.recent-activity-card .card-header a i {
+    color: rgba(255, 255, 255, 0.9) !important;
+}

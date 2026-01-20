@@ -78,7 +78,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
         <form method="POST" action="">
             <div class="form-group">
-                <label>Username / Email Address</label>
+                <label>Username</label>
                 <input type="text" name="username" class="form-control" placeholder="Enter your username" required>
             </div>
             <div class="form-group">
@@ -91,7 +91,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
         <div class="footer-text">
             Department of Education - San Pedro Division<br>
-            <span style="font-size: 0.8em; opacity: 0.8;">Developed by Algen D. Loveres and Cedrick V. Bacaresas</span>
+            <span style="font-size: 0.8em; opacity: 0.8;">Developed by A.L and C.B</span>
         </div>
     </div>
 
