@@ -8,11 +8,13 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] !== 'admin' && $_SESSION[
     exit;
 }
 
-// Fetch all users
-$usersStmt = $pdo->query("SELECT id, username, full_name, office_station, role, created_at FROM users ORDER BY created_at DESC");
-$all_users = $usersStmt->fetchAll(PDO::FETCH_ASSOC);
+// 1. Define Office Categories for Search Logic
+$osdsOffices = ['ADMINISTRATIVE (PERSONEL)', 'ADMINISTRATIVE (PROPERTY AND SUPPLY)', 'ADMINISTRATIVE (RECORDS)', 'ADMINISTRATIVE (CASH)', 'ADMINISTRATIVE (GENERAL SERVICES)', 'FINANCE (ACCOUNTING)', 'FINANCE (BUDGET)', 'LEGAL', 'ICT'];
+$sgodOffices = ['SCHOOL MANAGEMENT MONITORING & EVALUATION', 'HUMAN RESOURCES DEVELOPMENT', 'DISASTER RISK REDUCTION AND MANAGEMENT', 'EDUCATION FACILITIES', 'SCHOOL HEALTH AND NUTRITION', 'SCHOOL HEALTH AND NUTRITION (DENTAL)', 'SCHOOL HEALTH AND NUTRITION (MEDICAL)'];
+$cidOffices = ['CURRICULUM IMPLEMENTATION DIVISION (INSTRUCTIONAL MANAGEMENT)', 'CURRICULUM IMPLEMENTATION DIVISION (LEARNING RESOURCES MANAGEMENT)', 'CURRICULUM IMPLEMENTATION DIVISION (ALTERNATIVE LEARNING SYSTEM)', 'CURRICULUM IMPLEMENTATION DIVISION (DISTRICT INSTRUCTIONAL SUPERVISION)'];
 
 // Handle Log Filtering
+$search_term = isset($_GET['search']) ? trim($_GET['search']) : '';
 $filter_user_id = isset($_GET['user_id']) ? (int) $_GET['user_id'] : 0;
 $filter_action = isset($_GET['action_type']) ? $_GET['action_type'] : '';
 $start_date = isset($_GET['start_date']) ? $_GET['start_date'] : '';
@@ -23,6 +25,27 @@ $log_sql = "SELECT l.*, u.full_name as user_name
             JOIN users u ON l.user_id = u.id 
             WHERE 1=1";
 $log_params = [];
+
+if ($search_term) {
+    if (strtoupper($search_term) === 'OSDS') {
+        $placeholders = implode(',', array_fill(0, count($osdsOffices), '?'));
+        $log_sql .= " AND u.office_station IN ($placeholders)";
+        $log_params = array_merge($log_params, $osdsOffices);
+    } elseif (strtoupper($search_term) === 'CID') {
+        $placeholders = implode(',', array_fill(0, count($cidOffices), '?'));
+        $log_sql .= " AND u.office_station IN ($placeholders)";
+        $log_params = array_merge($log_params, $cidOffices);
+    } elseif (strtoupper($search_term) === 'SGOD') {
+        $placeholders = implode(',', array_fill(0, count($sgodOffices), '?'));
+        $log_sql .= " AND u.office_station IN ($placeholders)";
+        $log_params = array_merge($log_params, $sgodOffices);
+    } else {
+        $log_sql .= " AND (u.full_name LIKE ? OR u.office_station LIKE ? OR u.position LIKE ?)";
+        $log_params[] = "%$search_term%";
+        $log_params[] = "%$search_term%";
+        $log_params[] = "%$search_term%";
+    }
+}
 
 if ($filter_user_id > 0) {
     $log_sql .= " AND l.user_id = ?";
@@ -427,32 +450,15 @@ $logs = $logStmt->fetchAll(PDO::FETCH_ASSOC);
                 <div class="premium-filter-container">
                     <form method="GET" class="filter-form" id="logFilterForm">
                         <div class="filter-grid">
-                            <!-- User Custom Select -->
-                            <div class="custom-select-wrapper" id="userSelect">
-                                <input type="hidden" name="user_id" value="<?php echo $filter_user_id; ?>">
-                                <div class="custom-select-trigger">
-                                    <span class="custom-select-text">
-                                        <?php
-                                        $uText = 'All System Users';
-                                        foreach ($all_users as $u) {
-                                            if ($u['id'] == $filter_user_id)
-                                                $uText = $u['full_name'];
-                                        }
-                                        echo htmlspecialchars($uText);
-                                        ?>
-                                    </span>
-                                    <i class="bi bi-chevron-down"></i>
-                                </div>
-                                <div class="custom-select-options">
-                                    <div class="custom-option <?php echo $filter_user_id == 0 ? 'selected' : ''; ?>"
-                                        data-value="0">All System Users</div>
-                                    <?php foreach ($all_users as $u): ?>
-                                        <div class="custom-option <?php echo $filter_user_id == $u['id'] ? 'selected' : ''; ?>"
-                                            data-value="<?php echo $u['id']; ?>">
-                                            <?php echo htmlspecialchars($u['full_name']); ?>
-                                        </div>
-                                    <?php endforeach; ?>
-                                </div>
+                            <!-- Unified search input -->
+                            <div class="search-input-wrapper-mini"
+                                style="flex: 1; min-width: 250px; position: relative;">
+                                <i class="bi bi-search"
+                                    style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 0.9rem; z-index: 2;"></i>
+                                <input type="text" name="search" value="<?php echo htmlspecialchars($search_term); ?>"
+                                    class="form-control"
+                                    placeholder="Search name, office or category (OSDS, CID, SGOD)..."
+                                    style="padding-left: 38px; height: 40px; border-radius: 8px; border: 1.5px solid var(--border-color); font-size: 0.82rem; font-weight: 500;">
                             </div>
 
                             <!-- Log Type Custom Select -->
@@ -627,7 +633,6 @@ $logs = $logStmt->fetchAll(PDO::FETCH_ASSOC);
                 });
             };
 
-            setupCustomSelect('userSelect');
             setupCustomSelect('actionSelect');
 
             // Global Click to close dropdowns

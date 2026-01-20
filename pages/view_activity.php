@@ -422,7 +422,50 @@ function isChecked($value, $arrayString)
             display: none;
         }
 
+        /* --- New Print Header --- */
+        .print-only-header {
+            display: none;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 3px solid var(--primary);
+        }
+
+        .print-logo {
+            width: 80px;
+            height: auto;
+        }
+
+        .print-title-group h1 {
+            font-size: 2.2rem;
+            color: #1a1a1b; /* Darker, more professional color */
+            margin: 0;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        .print-title-group p {
+            font-size: 1rem;
+            color: #5b9bd5; /* Professional light blue for the subtitle */
+            margin: 2px 0 0;
+            font-weight: 600;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            letter-spacing: 0.2px;
+        }
+
         @media print {
+            .print-only-header {
+                display: flex !important;
+                border-bottom-color: black !important;
+            }
+
+            .print-title-group h1 {
+                color: black !important;
+            }
+
             .print-status-header {
                 display: block;
                 font-size: 1.2rem;
@@ -498,6 +541,15 @@ function isChecked($value, $arrayString)
             </header>
 
             <main class="content-wrapper">
+                <!-- Branded Header for Print -->
+                <div class="print-only-header">
+                    <img src="../assets/LogoLDP.png" alt="LDP Logo" class="print-logo">
+                    <div class="print-title-group">
+                        <h1>Learning & Development Passbook</h1>
+                        <p>Schools Division Office</p>
+                    </div>
+                </div>
+
                 <div class="view-layout-container">
 
                     <!-- Progress Timeline -->

@@ -12,6 +12,11 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] !== 'admin' && $_SESSION[
 $usersStmt = $pdo->query("SELECT id, full_name FROM users WHERE role != 'admin' ORDER BY full_name ASC");
 $all_users = $usersStmt->fetchAll(PDO::FETCH_ASSOC);
 
+// 1. Define Office Categories for Search & Highlighting
+$osdsOffices = ['ADMINISTRATIVE (PERSONEL)', 'ADMINISTRATIVE (PROPERTY AND SUPPLY)', 'ADMINISTRATIVE (RECORDS)', 'ADMINISTRATIVE (CASH)', 'ADMINISTRATIVE (GENERAL SERVICES)', 'FINANCE (ACCOUNTING)', 'FINANCE (BUDGET)', 'LEGAL', 'ICT'];
+$sgodOffices = ['SCHOOL MANAGEMENT MONITORING & EVALUATION', 'HUMAN RESOURCES DEVELOPMENT', 'DISASTER RISK REDUCTION AND MANAGEMENT', 'EDUCATION FACILITIES', 'SCHOOL HEALTH AND NUTRITION', 'SCHOOL HEALTH AND NUTRITION (DENTAL)', 'SCHOOL HEALTH AND NUTRITION (MEDICAL)'];
+$cidOffices = ['CURRICULUM IMPLEMENTATION DIVISION (INSTRUCTIONAL MANAGEMENT)', 'CURRICULUM IMPLEMENTATION DIVISION (LEARNING RESOURCES MANAGEMENT)', 'CURRICULUM IMPLEMENTATION DIVISION (ALTERNATIVE LEARNING SYSTEM)', 'CURRICULUM IMPLEMENTATION DIVISION (DISTRICT INSTRUCTIONAL SUPERVISION)'];
+
 // Handle Filtering
 $filter_user_id = isset($_GET['user_id']) ? (int) $_GET['user_id'] : 0;
 $filter_status = isset($_GET['status']) ? $_GET['status'] : '';
@@ -43,9 +48,25 @@ if ($filter_status) {
 }
 
 if ($filter_search) {
-    $sql .= " AND (ld.title LIKE ? OR ld.competency LIKE ?)";
-    $params[] = "%$filter_search%";
-    $params[] = "%$filter_search%";
+    if (strtoupper($filter_search) === 'OSDS') {
+        $placeholders = implode(',', array_fill(0, count($osdsOffices), '?'));
+        $sql .= " AND u.office_station IN ($placeholders)";
+        $params = array_merge($params, $osdsOffices);
+    } elseif (strtoupper($filter_search) === 'CID') {
+        $placeholders = implode(',', array_fill(0, count($cidOffices), '?'));
+        $sql .= " AND u.office_station IN ($placeholders)";
+        $params = array_merge($params, $cidOffices);
+    } elseif (strtoupper($filter_search) === 'SGOD') {
+        $placeholders = implode(',', array_fill(0, count($sgodOffices), '?'));
+        $sql .= " AND u.office_station IN ($placeholders)";
+        $params = array_merge($params, $sgodOffices);
+    } else {
+        $sql .= " AND (ld.title LIKE ? OR ld.competency LIKE ? OR u.full_name LIKE ? OR u.office_station LIKE ?)";
+        $params[] = "%$filter_search%";
+        $params[] = "%$filter_search%";
+        $params[] = "%$filter_search%";
+        $params[] = "%$filter_search%";
+    }
 }
 
 if ($start_date) {
@@ -63,10 +84,6 @@ $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
 $activities = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Define Office Lists for Highlighting
-$osdsOffices = ['ADMINISTRATIVE (PERSONEL)', 'ADMINISTRATIVE (PROPERTY AND SUPPLY)', 'ADMINISTRATIVE (RECORDS)', 'ADMINISTRATIVE (CASH)', 'ADMINISTRATIVE (GENERAL SERVICES)', 'FINANCE (ACCOUNTING)', 'FINANCE (BUDGET)', 'LEGAL', 'ICT'];
-$sgodOffices = ['SCHOOL MANAGEMENT MONITORING & EVALUATION', 'HUMAN RESOURCES DEVELOPMENT', 'DISASTER RISK REDUCTION AND MANAGEMENT', 'EDUCATION FACILITIES', 'SCHOOL HEALTH AND NUTRITION', 'SCHOOL HEALTH AND NUTRITION (DENTAL)', 'SCHOOL HEALTH AND NUTRITION (MEDICAL)'];
-$cidOffices = ['CURRICULUM IMPLEMENTATION DIVISION (INSTRUCTIONAL MANAGEMENT)', 'CURRICULUM IMPLEMENTATION DIVISION (LEARNING RESOURCES MANAGEMENT)', 'CURRICULUM IMPLEMENTATION DIVISION (ALTERNATIVE LEARNING SYSTEM)', 'CURRICULUM IMPLEMENTATION DIVISION (DISTRICT INSTRUCTIONAL SUPERVISION)'];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -410,11 +427,11 @@ $cidOffices = ['CURRICULUM IMPLEMENTATION DIVISION (INSTRUCTIONAL MANAGEMENT)', 
                 <div class="premium-filter-container">
                     <form method="GET" class="filter-form" id="mainFilterForm">
                         <div class="filter-grid">
-                            <!-- Search Field -->
                             <div class="search-wrapper">
                                 <i class="bi bi-search"></i>
                                 <input type="text" name="search" value="<?php echo htmlspecialchars($filter_search); ?>"
-                                    placeholder="Search entries..." class="search-control">
+                                    placeholder="Search entries, names, offices or categories (OSDS, CID, SGOD)..."
+                                    class="search-control">
                             </div>
 
                             <!-- Personnel Custom Select -->

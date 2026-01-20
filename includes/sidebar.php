@@ -11,7 +11,31 @@ $to_root = ($is_admin_dir || $is_hr_dir || $is_pages_dir) ? '../' : '';
 // Define prefixes
 $admin_prefix = $is_admin_dir ? '' : $to_root . 'admin/';
 $pages_prefix = $is_pages_dir ? '' : $to_root . 'pages/';
+
+// Fallback: If $user is not set (e.g. on admin pages), fetch it
+if (!isset($user) && isset($_SESSION['user_id'])) {
+    if (isset($pdo)) {
+        $stmt_sidebar_user = $pdo->prepare("SELECT full_name, office_station, position, profile_picture FROM users WHERE id = ?");
+        $stmt_sidebar_user->execute([$_SESSION['user_id']]);
+        $fetched_user = $stmt_sidebar_user->fetch(PDO::FETCH_ASSOC);
+        if ($fetched_user) {
+            $user = $fetched_user;
+        }
+    }
+}
 ?>
+<script>
+    // Immediate execution to prevent FOUC (Flash of Unstyled Content)
+    (function () {
+        try {
+            if (window.innerWidth > 992 && localStorage.getItem('sidebarCollapsed') === 'true') {
+                document.documentElement.classList.add('sidebar-initial-collapsed');
+            }
+        } catch (e) {
+            console.error('Sidebar preference error', e);
+        }
+    })();
+</script>
 <?php // Sidebar no longer manages its own CSS/JS links; they are handled in head/admin_head PHP includes ?>
 
 <div id="toast-container"></div>
@@ -187,16 +211,22 @@ $pages_prefix = $is_pages_dir ? '' : $to_root . 'pages/';
 
     <div class="sidebar-footer">
         <div class="user-info">
-            <?php if (!empty($_SESSION['profile_picture'])): ?>
-                <img src="../<?php echo htmlspecialchars($_SESSION['profile_picture']); ?>" alt="User" class="user-avatar">
+            <?php
+            // Use $user if available (from parent script), otherwise use session
+            $display_pic = isset($user['profile_picture']) ? $user['profile_picture'] : (isset($_SESSION['profile_picture']) ? $_SESSION['profile_picture'] : '');
+            $display_name = isset($user['full_name']) ? $user['full_name'] : (isset($_SESSION['full_name']) ? $_SESSION['full_name'] : '');
+            $display_role = isset($user['position']) ? $user['position'] : (isset($_SESSION['position']) ? $_SESSION['position'] : 'Employee');
+            ?>
+            <?php if (!empty($display_pic)): ?>
+                <img src="<?php echo $to_root . htmlspecialchars($display_pic); ?>" alt="User" class="user-avatar">
             <?php else: ?>
                 <div class="user-avatar-placeholder">
-                    <?php echo strtoupper(substr($_SESSION['full_name'] ?: $_SESSION['username'], 0, 1)); ?>
+                    <?php echo strtoupper(substr($display_name ?: $_SESSION['username'], 0, 1)); ?>
                 </div>
             <?php endif; ?>
             <div class="user-details">
-                <span class="user-name"><?php echo htmlspecialchars($_SESSION['full_name']); ?></span>
-                <span class="user-role"><?php echo htmlspecialchars($_SESSION['position'] ?: 'Employee'); ?></span>
+                <span class="user-name"><?php echo htmlspecialchars($display_name); ?></span>
+                <span class="user-role"><?php echo htmlspecialchars($display_role); ?></span>
             </div>
         </div>
         <a href="<?php echo $pages_prefix; ?>logout.php" class="logout-btn-new" title="Log out">

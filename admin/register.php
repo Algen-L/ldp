@@ -297,7 +297,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                                             onclick="document.getElementById('profile_picture').click()">
                                             <i class="bi bi-camera-fill" style="font-size: 1.2rem;"></i>
                                         </div>
-                                        <img src="../assets/default_avatar.png" id="preview-image" class="shadow-lg"
+                                        <img src="../assets/human_avatar.png" id="preview-image" class="shadow-lg"
                                             style="width: 100px; height: 100px; border-radius: 50%; object-fit:cover; border: 3px solid rgba(255,255,255,0.2); display: block; background: #f1f5f9;">
                                     </div>
                                     <input type="file" name="profile_picture" id="profile_picture" class="d-none"
@@ -479,7 +479,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             if (file) {
                 reader.readAsDataURL(file);
             } else {
-                preview.src = "../assets/default_avatar.png";
+                preview.src = "../assets/human_avatar.png";
             }
         }
     </script>

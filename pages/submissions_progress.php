@@ -22,6 +22,8 @@ if (!$user) {
 // Get filter parameters
 $search = isset($_GET['search']) ? trim($_GET['search']) : '';
 $status_filter = isset($_GET['status']) ? $_GET['status'] : '';
+$start_date = isset($_GET['start_date']) ? $_GET['start_date'] : '';
+$end_date = isset($_GET['end_date']) ? $_GET['end_date'] : '';
 
 // Build query
 $where_clauses = ["user_id = ?"];
@@ -41,10 +43,20 @@ if ($status_filter === 'Approved') {
     $where_clauses[] = "reviewed_by_supervisor = 0";
 }
 
+if ($start_date) {
+    $where_clauses[] = "DATE(date_attended) >= ?";
+    $params[] = $start_date;
+}
+
+if ($end_date) {
+    $where_clauses[] = "DATE(date_attended) <= ?";
+    $params[] = $end_date;
+}
+
 $where_sql = implode(" AND ", $where_clauses);
 
 // Fetch all filtered L&D activities
-$sql = "SELECT * FROM ld_activities WHERE $where_sql ORDER BY date_attended DESC, created_at DESC";
+$sql = "SELECT * FROM ld_activities WHERE $where_sql ORDER BY created_at DESC";
 $stmt_ld = $pdo->prepare($sql);
 $stmt_ld->execute($params);
 $activities = $stmt_ld->fetchAll(PDO::FETCH_ASSOC);
@@ -177,8 +189,33 @@ function getProgressInfo($act)
             display: flex;
             gap: 12px;
             align-items: center;
-            flex-wrap: wrap;
             box-shadow: var(--shadow-sm);
+        }
+
+        .filter-date-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #f8fafc;
+            padding: 0 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            height: 38px;
+        }
+
+        .filter-date-group i {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        .filter-date-input {
+            border: none;
+            background: transparent;
+            font-size: 0.75rem;
+            color: var(--text-primary);
+            font-weight: 600;
+            outline: none;
+            width: 100px;
         }
     </style>
 </head>
@@ -218,7 +255,7 @@ function getProgressInfo($act)
                             value="<?php echo htmlspecialchars($search); ?>"
                             style="padding-left: 42px; padding-top: 6px; padding-bottom: 6px; height: 38px; font-size: 0.85rem;">
                     </div>
-                    <div style="width: 180px;">
+                    <div style="width: 160px;">
                         <select name="status" class="form-control"
                             style="height: 38px; font-size: 0.85rem; padding-top: 6px; padding-bottom: 6px;">
                             <option value="">All Statuses</option>
@@ -230,11 +267,23 @@ function getProgressInfo($act)
                                 Approved</option>
                         </select>
                     </div>
+
+                    <!-- Date Filter -->
+                    <div class="filter-date-group">
+                        <i class="bi bi-calendar-range"></i>
+                        <input type="date" name="start_date" value="<?php echo $start_date; ?>"
+                            class="filter-date-input" title="Start Date">
+                        <span style="font-size: 0.65rem; color: var(--text-muted); font-weight: 700;">TO</span>
+                        <input type="date" name="end_date" value="<?php echo $end_date; ?>" class="filter-date-input"
+                            title="End Date">
+                    </div>
+
                     <button type="submit" class="btn btn-primary" style="height: 38px; font-size: 0.85rem;">
-                        <i class="bi bi-funnel"></i> Apply Filter
+                        <i class="bi bi-funnel"></i> Apply
                     </button>
-                    <?php if ($search || $status_filter): ?>
-                        <a href="submissions_progress.php" class="btn btn-secondary">Reset</a>
+                    <?php if ($search || $status_filter || $start_date || $end_date): ?>
+                        <a href="submissions_progress.php" class="btn btn-secondary"
+                            style="height: 38px; display: flex; align-items: center; justify-content: center; font-size: 0.85rem;">Reset</a>
                     <?php endif; ?>
                 </form>
 

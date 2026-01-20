@@ -334,15 +334,16 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                                 Data Privacy Notice</h4>
                             <p
                                 style="margin: 0; font-size: 0.9rem; line-height: 1.6; color: #475569; text-align: justify; font-weight: 400;">
-                                We collect the following personal information from you when you manually or
-                                electronically submit to us your inquiry/ies: Name, Address, E-mail address, Contact
-                                Number, ID information. The collected personal information will be utilized solely for
-                                documentation and processing of your request within DepEd and, when appropriate,
-                                endorsement to other government agency/ies that has/have jurisdiction over the subject
-                                of your inquiry. Only authorized DepEd personnel have access to this personal
-                                information, the exchange of which will be facilitated through email and/or hard copy.
-                                DepEd will only retain personal data as long as necessary for the fulfillment of the
-                                purpose.
+                                We collect the following personal and activity-related information when you manually
+                                or electronically submit your Activity Record: Name, Office/Station, Position,
+                                Activity Title, Date(s) Attended, Venue, Competency/ies, Modalities,
+                                Evidence/Attachments,
+                                and Professional Reflections. The collected information will be utilized solely for
+                                documentation and processing of your record within DepEd and, when appropriate,
+                                for professional development monitoring and reporting. Only authorized DepEd personnel
+                                have access to this information, which is stored securely on a local server within
+                                the organization. DepEd will only retain data as long as necessary for the
+                                fulfillment of the purpose.
                             </p>
                         </div>
                     </div>
@@ -425,8 +426,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                                                             class="bi bi-upload"></i>
                                                         Upload</button>
                                                 </div>
-                                                <input type="file" id="org-sig-file" accept="image/*"
-                                                    style="display: none;">
+                                                <input type="file" name="organizer_signature_file" id="org-sig-file"
+                                                    accept="image/*" style="display: none;">
                                                 <input type="hidden" name="organizer_signature_data"
                                                     id="organizer_signature_data">
                                             </div>
@@ -625,6 +626,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             document.getElementById('org-sig-preview-container').style.display = 'block';
             document.getElementById('org-sig-box').classList.add('has-content');
 
+            // Clear any selected file when drawing is saved
+            document.getElementById('org-sig-file').value = "";
+
             closeSignatureModal();
         }
 
@@ -638,6 +642,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                         document.getElementById('org-sig-preview').src = e.target.result;
                         document.getElementById('org-sig-preview-container').style.display = 'block';
                         document.getElementById('org-sig-box').classList.add('has-content');
+                        // Clear base64 data when a file is selected
                         document.getElementById('organizer_signature_data').value = "";
                     };
                     reader.readAsDataURL(this.files[0]);

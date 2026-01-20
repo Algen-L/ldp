@@ -58,6 +58,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 </head>
 
 <body class="auth-page">
+    <!-- Animated Grid Background -->
+    <div class="grid-background" id="gridBackground"></div>
 
     <div class="login-container">
         <div class="header">
@@ -65,7 +67,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 <img src="assets/logo.png" alt="SDO Logo">
             </div>
             <h1>SDO L&D Passbook System</h1>
-            <p>San Pedro Division Office - Learning & Development</p>
+            <p>San Pedro Division Office</p>
         </div>
 
         <?php if ($message): ?>
@@ -93,6 +95,68 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         </div>
     </div>
 
+    <script>
+        // Create animated grid background
+        const gridBg = document.getElementById('gridBackground');
+        const tileSize = 100;
+        const gap = 2;
+        const cols = Math.ceil(window.innerWidth / (tileSize + gap)) + 1;
+        const rows = Math.ceil(window.innerHeight / (tileSize + gap)) + 1;
+        const totalTiles = cols * rows;
+
+        // Set grid template
+        gridBg.style.gridTemplateColumns = `repeat(${cols}, ${tileSize}px)`;
+        gridBg.style.gridTemplateRows = `repeat(${rows}, ${tileSize}px)`;
+
+        // Create grid tiles
+        for (let i = 0; i < totalTiles; i++) {
+            const tile = document.createElement('div');
+            tile.className = 'grid-tile';
+            gridBg.appendChild(tile);
+        }
+
+        const tiles = document.querySelectorAll('.grid-tile');
+
+        // Random animation
+        function randomGlow() {
+            const randomTile = tiles[Math.floor(Math.random() * tiles.length)];
+            randomTile.classList.add('glow');
+            setTimeout(() => {
+                randomTile.classList.remove('glow');
+            }, 2000);
+        }
+
+        // Continuous random glowing (slower)
+        setInterval(randomGlow, 400);
+
+        // Mouse interaction
+        gridBg.addEventListener('mousemove', (e) => {
+            const rect = gridBg.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            tiles.forEach(tile => {
+                const tileRect = tile.getBoundingClientRect();
+                const tileCenterX = tileRect.left + tileRect.width / 2 - rect.left;
+                const tileCenterY = tileRect.top + tileRect.height / 2 - rect.top;
+
+                const distance = Math.sqrt(
+                    Math.pow(x - tileCenterX, 2) + Math.pow(y - tileCenterY, 2)
+                );
+
+                if (distance < 150) {
+                    tile.classList.add('active');
+                } else {
+                    tile.classList.remove('active');
+                }
+            });
+        });
+
+        // Remove active state when mouse leaves
+        gridBg.addEventListener('mouseleave', () => {
+            tiles.forEach(tile => tile.classList.remove('active'));
+        });
+    </script>
 </body>
 
 </html>

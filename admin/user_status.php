@@ -35,6 +35,24 @@ while ($row = $stmt_stats->fetch(PDO::FETCH_ASSOC)) {
     $stats[$row['user_id']] = $row;
 }
 
+// Define Office Categories
+$osdsOffices = ['ADMINISTRATIVE (PERSONEL)', 'ADMINISTRATIVE (PROPERTY AND SUPPLY)', 'ADMINISTRATIVE (RECORDS)', 'ADMINISTRATIVE (CASH)', 'ADMINISTRATIVE (GENERAL SERVICES)', 'FINANCE (ACCOUNTING)', 'FINANCE (BUDGET)', 'LEGAL', 'ICT'];
+$sgodOffices = ['SCHOOL MANAGEMENT MONITORING & EVALUATION', 'HUMAN RESOURCES DEVELOPMENT', 'DISASTER RISK REDUCTION AND MANAGEMENT', 'EDUCATION FACILITIES', 'SCHOOL HEALTH AND NUTRITION', 'SCHOOL HEALTH AND NUTRITION (DENTAL)', 'SCHOOL HEALTH AND NUTRITION (MEDICAL)'];
+$cidOffices = ['CURRICULUM IMPLEMENTATION DIVISION (INSTRUCTIONAL MANAGEMENT)', 'CURRICULUM IMPLEMENTATION DIVISION (LEARNING RESOURCES MANAGEMENT)', 'CURRICULUM IMPLEMENTATION DIVISION (ALTERNATIVE LEARNING SYSTEM)', 'CURRICULUM IMPLEMENTATION DIVISION (DISTRICT INSTRUCTIONAL SUPERVISION)'];
+
+// Helper to get office category
+function getOfficeCategory($office, $osdsOffices, $cidOffices, $sgodOffices)
+{
+    $office_upper = strtoupper($office);
+    if (in_array($office_upper, $osdsOffices))
+        return 'OSDS';
+    if (in_array($office_upper, $cidOffices))
+        return 'CID';
+    if (in_array($office_upper, $sgodOffices))
+        return 'SGOD';
+    return 'OTHER';
+}
+
 // Helper to format relative time
 function time_elapsed_string($datetime, $full = false)
 {
@@ -214,6 +232,14 @@ function getStatusColor($last_action)
             display: flex;
             flex-direction: column;
             border: 1px solid rgba(255, 255, 255, 0.6);
+            margin-left: 120px;
+        }
+
+        @media (max-width: 768px) {
+            .details-modal {
+                margin-left: 0;
+                width: 98%;
+            }
         }
 
         .details-modal-overlay.active .details-modal {
@@ -741,6 +767,24 @@ function getStatusColor($last_action)
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
             gap: 10px;
+            max-height: 420px;
+            overflow-y: auto;
+            padding-right: 8px;
+            padding-bottom: 4px;
+        }
+
+        .user-grid::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .user-grid::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        .user-grid::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.05);
+            border-radius: 10px;
         }
 
         .user-card {
@@ -837,10 +881,11 @@ function getStatusColor($last_action)
                     <span class="search-label-premium">Live Personnel Search</span>
                     <div class="search-input-wrapper">
                         <input type="text" id="userSearch" class="search-input-premium"
-                            placeholder="Type to filter by name, office, or position...">
+                            placeholder="Type name, office, category (OSDS, CID, SGOD) or position...">
                         <i class="bi bi-search search-icon-premium"></i>
                     </div>
                 </div>
+
 
                 <div class="user-grid">
                     <?php foreach ($users as $u): ?>
@@ -854,7 +899,8 @@ function getStatusColor($last_action)
                             onclick="showUserDetails(<?php echo $u['id']; ?>)"
                             data-name="<?php echo strtolower($u['full_name']); ?>"
                             data-office="<?php echo strtolower($u['office_station']); ?>"
-                            data-position="<?php echo strtolower($u['position']); ?>">
+                            data-position="<?php echo strtolower($u['position']); ?>"
+                            data-office-category="<?php echo getOfficeCategory($u['office_station'], $osdsOffices, $cidOffices, $sgodOffices); ?>">
 
                             <div class="card-header">
                                 <?php if ($u['profile_picture']): ?>
@@ -1280,15 +1326,24 @@ function getStatusColor($last_action)
             const searchInput = document.getElementById('userSearch');
             const userCards = document.querySelectorAll('.user-card');
 
+            // Search Input Logic
             if (searchInput) {
                 searchInput.addEventListener('input', function () {
-                    const term = this.value.toLowerCase();
+                    const searchTerm = this.value.toLowerCase();
+
                     userCards.forEach(card => {
                         const name = card.dataset.name;
                         const office = card.dataset.office;
                         const position = card.dataset.position;
+                        const officeCategory = card.dataset.officeCategory.toLowerCase();
 
-                        if (name.includes(term) || office.includes(term) || position.includes(term)) {
+                        const matchesSearch = !searchTerm ||
+                            name.includes(searchTerm) ||
+                            office.includes(searchTerm) ||
+                            position.includes(searchTerm) ||
+                            officeCategory.includes(searchTerm);
+
+                        if (matchesSearch) {
                             card.style.display = 'block';
                             card.style.opacity = '1';
                         } else {

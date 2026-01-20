@@ -20,7 +20,7 @@ if (!$user) {
 }
 
 // Fetch L&D activities (Recent 10)
-$stmt_ld = $pdo->prepare("SELECT * FROM ld_activities WHERE user_id = ? ORDER BY date_attended DESC, created_at DESC LIMIT 10");
+$stmt_ld = $pdo->prepare("SELECT * FROM ld_activities WHERE user_id = ? ORDER BY created_at DESC LIMIT 10");
 $stmt_ld->execute([$_SESSION['user_id']]);
 $activities = $stmt_ld->fetchAll(PDO::FETCH_ASSOC);
 
@@ -164,10 +164,11 @@ $progress_pct = $total_count > 0 ? round(($approved_count / $total_count) * 100)
                                 </div>
                                 <div class="hero-action">
                                     <a href="add_activity.php" class="hero-action-btn">
-                                        <i class="bi bi-plus-lg"></i>
+                                        <i class="bi bi-plus"></i>
                                         <span>ADD ACTIVITY</span>
                                     </a>
                                 </div>
+                                <img src="../assets/logologo.png" alt="Decorative" class="hero-decorative-img">
                             </div>
                         </div>
 
