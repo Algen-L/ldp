@@ -22,7 +22,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $date_attended = isset($_POST['date_attended']) ? trim($_POST['date_attended']) : '';
     $venue = trim($_POST['venue']);
     $modality = isset($_POST['modality']) ? implode(', ', $_POST['modality']) : '';
-    $competency = trim($_POST['competency']);
+    // Handle multiple competencies from Tom Select
+    $competency = isset($_POST['competency']) ? (is_array($_POST['competency']) ? implode(', ', $_POST['competency']) : trim($_POST['competency'])) : '';
     $type_ld = isset($_POST['type_ld']) ? implode(', ', $_POST['type_ld']) : '';
     $type_ld_others = isset($_POST['type_ld_others']) ? trim($_POST['type_ld_others']) : '';
     $conducted_by = trim($_POST['conducted_by']);
@@ -149,6 +150,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <!-- Flatpickr CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/material_blue.css">
+    <!-- Tom Select CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.css" rel="stylesheet">
     <style>
         .form-section {
             margin-bottom: 40px;
@@ -283,6 +286,24 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             background: var(--primary);
             border-color: var(--primary);
         }
+
+        /* Tom Select Custom Styling */
+        .ts-control {
+            border-radius: var(--radius-md);
+            padding: 10px 14px;
+            border-color: var(--border-color);
+            transition: all var(--transition-fast);
+        }
+
+        .ts-wrapper.focus .ts-control {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(15, 76, 117, 0.1);
+        }
+
+        .ts-dropdown .active {
+            background-color: var(--primary);
+            color: white;
+        }
     </style>
 </head>
 
@@ -398,8 +419,20 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                                     <div class="form-group">
                                         <label class="form-label">Addressed Competency/ies <span
                                                 style="color: var(--danger);">*</span></label>
-                                        <input type="text" name="competency" class="form-control"
-                                            placeholder="e.g. Communication, Technical Skills">
+                                        <?php
+                                        // Fetch user's ILDNs for the dropdown
+                                        $stmt = $pdo->prepare("SELECT * FROM user_ildn WHERE user_id = ? ORDER BY need_text ASC");
+                                        $stmt->execute([$_SESSION['user_id']]);
+                                        $user_ildns = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                                        ?>
+                                        <select id="competency-select" name="competency" class="form-control"
+                                            placeholder="Select or type competency..." required>
+                                            <option value="">Select or type...</option>
+                                            <?php foreach ($user_ildns as $ildn): ?>
+                                                <option value="<?php echo htmlspecialchars($ildn['need_text']); ?>">
+                                                    <?php echo htmlspecialchars($ildn['need_text']); ?></option>
+                                            <?php endforeach; ?>
+                                        </select>
                                     </div>
                                     <div class="form-group">
                                         <label class="form-label">Conducted By <span
@@ -553,6 +586,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         </div>
     </div>
 
+    <!-- Tom Select JS -->
+    <script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
     <!-- Flatpickr JS -->
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script>
@@ -564,6 +599,17 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 altInput: true,
                 altFormat: "M j, Y",
                 allowInput: false
+            });
+
+            // Initialize Tom Select for Competencies
+            new TomSelect("#competency-select", {
+                create: true,
+                sortField: {
+                    field: "text",
+                    direction: "asc"
+                },
+                maxItems: 5, // Allow selecting multiple
+                placeholder: "Select or type competency..."
             });
         });
 

@@ -217,6 +217,32 @@ function getProgressInfo($act)
             outline: none;
             width: 100px;
         }
+
+        .submissions-list-scroll {
+            max-height: 850px;
+            /* Adjusted for taller cards */
+            overflow-y: auto;
+            padding-right: 12px;
+            margin-right: -12px;
+        }
+
+        .submissions-list-scroll::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .submissions-list-scroll::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        .submissions-list-scroll::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        .submissions-list-scroll::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
     </style>
 </head>
 
@@ -287,118 +313,122 @@ function getProgressInfo($act)
                     <?php endif; ?>
                 </form>
 
-                <div class="submissions-list">
-                    <?php if (count($activities) > 0): ?>
-                        <?php foreach ($activities as $act):
-                            $prog = getProgressInfo($act);
-                            $fill_pct = 0;
-                            if ($prog['percentage'] > 0)
-                                $fill_pct = ($prog['percentage'] - 25) / (100 - 25) * 100; // Adjustment for visual line
-                            // Simpler logic for the fill line:
-                            $active_count = 0;
-                            foreach ($prog['stages'] as $s)
-                                if ($s['completed'])
-                                    $active_count++;
-                            $line_pct = ($active_count - 1) / (count($prog['stages']) - 1) * 100;
-                            if ($line_pct < 0)
-                                $line_pct = 0;
-                            ?>
-                            <div class="dashboard-card submission-card">
-                                <div class="card-body">
-                                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                                        <div>
-                                            <h3
-                                                style="font-size: 1.15rem; font-weight: 800; color: var(--text-primary); margin-bottom: 4px;">
-                                                <?php echo htmlspecialchars($act['title']); ?>
-                                            </h3>
-                                            <div
-                                                style="display: flex; gap: 12px; font-size: 0.75rem; color: var(--text-muted); font-weight: 500;">
-                                                <span><i class="bi bi-geo-alt"></i>
-                                                    <?php echo htmlspecialchars($act['venue'] ?: 'N/A'); ?></span>
-                                                <span><i class="bi bi-layers"></i>
-                                                    <?php echo htmlspecialchars($act['modality'] ?: 'N/A'); ?></span>
-                                                <span><i class="bi bi-calendar-check"></i> Attended:
-                                                    <?php
-                                                    $dates = explode(', ', $act['date_attended']);
-                                                    echo date('M d, Y', strtotime($dates[0]));
-                                                    if (count($dates) > 1)
-                                                        echo ' (+' . (count($dates) - 1) . ' more)';
-                                                    ?></span>
+                <div class="submissions-list-scroll">
+                    <div class="submissions-list">
+                        <?php if (count($activities) > 0): ?>
+                            <?php foreach ($activities as $act):
+                                $prog = getProgressInfo($act);
+                                $fill_pct = 0;
+                                if ($prog['percentage'] > 0)
+                                    $fill_pct = ($prog['percentage'] - 25) / (100 - 25) * 100; // Adjustment for visual line
+                                // Simpler logic for the fill line:
+                                $active_count = 0;
+                                foreach ($prog['stages'] as $s)
+                                    if ($s['completed'])
+                                        $active_count++;
+                                $line_pct = ($active_count - 1) / (count($prog['stages']) - 1) * 100;
+                                if ($line_pct < 0)
+                                    $line_pct = 0;
+                                ?>
+                                <div class="dashboard-card submission-card">
+                                    <div class="card-body">
+                                        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                                            <div>
+                                                <h3
+                                                    style="font-size: 1.15rem; font-weight: 800; color: var(--text-primary); margin-bottom: 4px;">
+                                                    <?php echo htmlspecialchars($act['title']); ?>
+                                                </h3>
+                                                <div
+                                                    style="display: flex; gap: 12px; font-size: 0.75rem; color: var(--text-muted); font-weight: 500;">
+                                                    <span><i class="bi bi-geo-alt"></i>
+                                                        <?php echo htmlspecialchars($act['venue'] ?: 'N/A'); ?></span>
+                                                    <span><i class="bi bi-layers"></i>
+                                                        <?php echo htmlspecialchars($act['modality'] ?: 'N/A'); ?></span>
+                                                    <span><i class="bi bi-calendar-check"></i> Attended:
+                                                        <?php
+                                                        $dates = explode(', ', $act['date_attended']);
+                                                        echo date('M d, Y', strtotime($dates[0]));
+                                                        if (count($dates) > 1)
+                                                            echo ' (+' . (count($dates) - 1) . ' more)';
+                                                        ?></span>
+                                                </div>
+                                            </div>
+                                            <div style="text-align: right;">
+                                                <?php
+                                                $statusLabel = 'Pending';
+                                                $statusClass = 'status-pending';
+                                                if ($act['approved_sds']) {
+                                                    $statusLabel = 'Approved';
+                                                    $statusClass = 'status-approved';
+                                                } elseif ($act['recommending_asds']) {
+                                                    $statusLabel = 'Recommending';
+                                                    $statusClass = 'status-recommending';
+                                                } elseif ($act['reviewed_by_supervisor']) {
+                                                    $statusLabel = 'Reviewed';
+                                                    $statusClass = 'status-reviewed';
+                                                }
+                                                ?>
+                                                <span class="activity-status-badge <?php echo $statusClass; ?>"
+                                                    style="padding: 4px 12px; font-size: 0.75rem;">
+                                                    <?php echo $statusLabel; ?>
+                                                </span>
+                                                <span
+                                                    style="display: block; font-size: 0.7rem; color: var(--text-muted); margin-top: 8px;">
+                                                    Submitted <?php echo date('M d, Y', strtotime($act['created_at'])); ?>
+                                                </span>
                                             </div>
                                         </div>
-                                        <div style="text-align: right;">
-                                            <?php
-                                            $statusLabel = 'Pending';
-                                            $statusClass = 'status-pending';
-                                            if ($act['approved_sds']) {
-                                                $statusLabel = 'Approved';
-                                                $statusClass = 'status-approved';
-                                            } elseif ($act['recommending_asds']) {
-                                                $statusLabel = 'Recommending';
-                                                $statusClass = 'status-recommending';
-                                            } elseif ($act['reviewed_by_supervisor']) {
-                                                $statusLabel = 'Reviewed';
-                                                $statusClass = 'status-reviewed';
-                                            }
-                                            ?>
-                                            <span class="activity-status-badge <?php echo $statusClass; ?>"
-                                                style="padding: 4px 12px; font-size: 0.75rem;">
-                                                <?php echo $statusLabel; ?>
-                                            </span>
-                                            <span
-                                                style="display: block; font-size: 0.7rem; color: var(--text-muted); margin-top: 8px;">
-                                                Submitted <?php echo date('M d, Y', strtotime($act['created_at'])); ?>
-                                            </span>
-                                        </div>
-                                    </div>
 
-                                    <div class="prog-track-wrapper">
-                                        <div class="prog-track-line"></div>
-                                        <div class="prog-track-fill" style="width: <?php echo $line_pct; ?>%;"></div>
-                                        <div class="prog-steps">
-                                            <?php foreach ($prog['stages'] as $index => $stage): ?>
-                                                <div class="prog-step <?php echo $stage['completed'] ? 'active' : ''; ?>">
-                                                    <div class="prog-icon">
-                                                        <i class="bi <?php echo $stage['icon']; ?>"></i>
+                                        <div class="prog-track-wrapper">
+                                            <div class="prog-track-line"></div>
+                                            <div class="prog-track-fill" style="width: <?php echo $line_pct; ?>%;"></div>
+                                            <div class="prog-steps">
+                                                <?php foreach ($prog['stages'] as $index => $stage): ?>
+                                                    <div class="prog-step <?php echo $stage['completed'] ? 'active' : ''; ?>">
+                                                        <div class="prog-icon">
+                                                            <i class="bi <?php echo $stage['icon']; ?>"></i>
+                                                        </div>
+                                                        <span class="prog-label"><?php echo $stage['label']; ?></span>
+                                                        <?php if ($stage['completed'] && $stage['date']): ?>
+                                                            <span
+                                                                class="prog-date"><?php echo date('M d', strtotime($stage['date'])); ?></span>
+                                                        <?php endif; ?>
                                                     </div>
-                                                    <span class="prog-label"><?php echo $stage['label']; ?></span>
-                                                    <?php if ($stage['completed'] && $stage['date']): ?>
-                                                        <span
-                                                            class="prog-date"><?php echo date('M d', strtotime($stage['date'])); ?></span>
-                                                    <?php endif; ?>
-                                                </div>
-                                            <?php endforeach; ?>
+                                                <?php endforeach; ?>
+                                            </div>
                                         </div>
-                                    </div>
 
-                                    <div
-                                        style="margin-top: 20px; padding-top: 16px; border-top: 1.5px solid var(--border-light); display: flex; justify-content: flex-end; gap: 10px;">
-                                        <a href="view_activity.php?id=<?php echo $act['id']; ?>"
-                                            class="btn btn-secondary btn-sm" style="font-size: 0.8rem;">
-                                            <i class="bi bi-eye"></i> View Details
-                                        </a>
-                                        <?php if (!$act['reviewed_by_supervisor']): ?>
-                                            <a href="edit_activity.php?id=<?php echo $act['id']; ?>" class="btn btn-primary btn-sm"
-                                                style="font-size: 0.8rem;">
-                                                <i class="bi bi-pencil"></i> Edit Record
+                                        <div
+                                            style="margin-top: 20px; padding-top: 16px; border-top: 1.5px solid var(--border-light); display: flex; justify-content: flex-end; gap: 10px;">
+                                            <a href="view_activity.php?id=<?php echo $act['id']; ?>"
+                                                class="btn btn-secondary btn-sm" style="font-size: 0.8rem;">
+                                                <i class="bi bi-eye"></i> View Details
                                             </a>
-                                        <?php endif; ?>
+                                            <?php if (!$act['reviewed_by_supervisor']): ?>
+                                                <a href="edit_activity.php?id=<?php echo $act['id']; ?>"
+                                                    class="btn btn-primary btn-sm" style="font-size: 0.8rem;">
+                                                    <i class="bi bi-pencil"></i> Edit Record
+                                                </a>
+                                            <?php endif; ?>
+                                        </div>
                                     </div>
                                 </div>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <div class="dashboard-card" style="padding: 100px 40px; text-align: center;">
+                                <i class="bi bi-clipboard-x"
+                                    style="font-size: 4rem; color: var(--text-muted); opacity: 0.3;"></i>
+                                <h2 style="margin-top: 24px; font-weight: 800; color: var(--text-primary);">No records found
+                                </h2>
+                                <p style="color: var(--text-secondary); margin-bottom: 32px;">We couldn't find any
+                                    activities
+                                    matching your filters.</p>
+                                <a href="add_activity.php" class="btn btn-primary btn-lg"><i class="bi bi-plus-lg"></i>
+                                    Record
+                                    New Activity</a>
                             </div>
-                        <?php endforeach; ?>
-                    <?php else: ?>
-                        <div class="dashboard-card" style="padding: 100px 40px; text-align: center;">
-                            <i class="bi bi-clipboard-x"
-                                style="font-size: 4rem; color: var(--text-muted); opacity: 0.3;"></i>
-                            <h2 style="margin-top: 24px; font-weight: 800; color: var(--text-primary);">No records found
-                            </h2>
-                            <p style="color: var(--text-secondary); margin-bottom: 32px;">We couldn't find any activities
-                                matching your filters.</p>
-                            <a href="add_activity.php" class="btn btn-primary btn-lg"><i class="bi bi-plus-lg"></i> Record
-                                New Activity</a>
-                        </div>
-                    <?php endif; ?>
+                        <?php endif; ?>
+                    </div>
                 </div>
             </main>
 

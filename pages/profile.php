@@ -62,6 +62,38 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['upload_certificate']))
 $stmt = $pdo->prepare("SELECT * FROM ld_activities WHERE user_id = ? ORDER BY date_attended DESC");
 $stmt->execute([$_SESSION['user_id']]);
 $activities = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Handle ILDN Management
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    if (isset($_POST['add_ildn'])) {
+        $need_text = trim($_POST['need_text']);
+        if (!empty($need_text)) {
+            $stmt = $pdo->prepare("INSERT INTO user_ildn (user_id, need_text) VALUES (?, ?)");
+            $stmt->execute([$_SESSION['user_id'], $need_text]);
+            $message = "Development need added successfully!";
+            $messageType = "success";
+        }
+    } elseif (isset($_POST['delete_ildn'])) {
+        $ildn_id = (int) $_POST['ildn_id'];
+        $stmt = $pdo->prepare("DELETE FROM user_ildn WHERE id = ? AND user_id = ?");
+        $stmt->execute([$ildn_id, $_SESSION['user_id']]);
+        $message = "Development need removed.";
+        $messageType = "success";
+    }
+}
+
+// Fetch user's ILDNs with usage count
+$stmt = $pdo->prepare("
+    SELECT ui.*, 
+    (SELECT COUNT(*) FROM ld_activities la 
+     WHERE la.user_id = ui.user_id 
+     AND FIND_IN_SET(ui.need_text, REPLACE(la.competency, ', ', ','))) as usage_count
+    FROM user_ildn ui 
+    WHERE ui.user_id = ? 
+    ORDER BY ui.created_at DESC
+");
+$stmt->execute([$_SESSION['user_id']]);
+$user_ildns = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -145,20 +177,96 @@ $activities = $stmt->fetchAll(PDO::FETCH_ASSOC);
         }
 
         .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            display: flex;
+            flex-direction: column;
             gap: 16px;
-            margin-bottom: 24px;
+        }
+
+        .profile-main-grid {
+            display: grid;
+            grid-template-columns: 1fr 340px;
+            gap: 24px;
+            align-items: stretch;
+            margin-bottom: 40px;
+        }
+
+        .ildn-column,
+        .stats-column {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .ildn-column .dashboard-card,
+        .stats-column .stats-grid-container {
+            flex-grow: 1;
+        }
+
+        .ildn-list-scroll {
+            max-height: 320px;
+            overflow-y: auto;
+            padding-right: 10px;
+            margin-right: -10px;
+        }
+
+        .ildn-list-scroll::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .ildn-list-scroll::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        .ildn-list-scroll::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        .ildn-list-scroll::-webkit-scrollbar-thumb:hover,
+        .submissions-list-scroll::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        .submissions-list-scroll {
+            max-height: 520px;
+            overflow-y: auto;
+            padding-right: 12px;
+            margin-right: -12px;
+        }
+
+        .submissions-list-scroll::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .submissions-list-scroll::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        .submissions-list-scroll::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        @media (max-width: 992px) {
+            .profile-main-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .stats-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            }
         }
 
         .stat-card {
             background: #ffffff;
-            padding: 12px 14px;
-            border-radius: 12px;
+            padding: 20px;
+            border-radius: 16px;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 16px;
             border: 1px solid #eef2f6;
             transition: all 0.2s ease;
         }
@@ -169,20 +277,123 @@ $activities = $stmt->fetchAll(PDO::FETCH_ASSOC);
             border-color: var(--primary-light);
         }
 
+        /* Custom Modal Styles */
+        .custom-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(4px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            animation: fadeIn 0.2s ease;
+        }
+
+        .custom-modal {
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            transform: translateY(20px);
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .custom-modal.show {
+            transform: translateY(0);
+        }
+
+        .modal-icon-container {
+            width: 60px;
+            height: 60px;
+            background: #fee2e2;
+            color: #dc2626;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.75rem;
+            margin: 0 auto 20px;
+        }
+
+        .modal-title {
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: #0f172a;
+            margin-bottom: 10px;
+        }
+
+        .modal-text {
+            color: #64748b;
+            font-size: 0.95rem;
+            margin-bottom: 25px;
+            line-height: 1.5;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .modal-btn {
+            flex: 1;
+            padding: 12px;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 0.9rem;
+            border: none;
+            transition: all 0.2s ease;
+        }
+
+        .modal-btn-cancel {
+            background: #f1f5f9;
+            color: #64748b;
+        }
+
+        .modal-btn-cancel:hover {
+            background: #e2e8f0;
+        }
+
+        .modal-btn-delete {
+            background: #dc2626;
+            color: white;
+        }
+
+        .modal-btn-delete:hover {
+            background: #b91c1c;
+            box-shadow: 0 4px 6px -1px rgba(220, 38, 38, 0.2);
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
         .stat-icon {
-            width: 38px;
-            height: 38px;
-            border-radius: 8px;
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.25rem;
+            font-size: 1.5rem;
             flex-shrink: 0;
             opacity: 0.9;
         }
 
         .stat-value {
-            font-size: 1rem;
+            font-size: 1.4rem;
             font-weight: 800;
             color: #0f172a;
             display: block;
@@ -190,7 +401,7 @@ $activities = $stmt->fetchAll(PDO::FETCH_ASSOC);
         }
 
         .stat-label {
-            font-size: 0.6rem;
+            font-size: 0.75rem;
             color: #94a3b8;
             text-transform: uppercase;
             font-weight: 700;
@@ -564,37 +775,131 @@ $activities = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         </div>
                     </div>
 
-                    <!-- Stats Row -->
                     <?php
                     $total_activities = count($activities);
                     $with_certs = 0;
                     foreach ($activities as $act)
                         if ($act['certificate_path'])
                             $with_certs++;
+
+                    $unaddressed_ildns_count = 0;
+                    foreach ($user_ildns as $ildn)
+                        if ($ildn['usage_count'] == 0)
+                            $unaddressed_ildns_count++;
                     ?>
-                    <div class="stats-grid">
-                        <div class="stat-card">
-                            <div class="stat-icon" style="background: #e0f2fe; color: #0284c7;"><i
-                                    class="bi bi-journal-bookmark"></i></div>
-                            <div>
-                                <span class="stat-value"><?php echo $total_activities; ?></span>
-                                <span class="stat-label">Total Activities</span>
+
+                    <div class="profile-main-grid">
+                        <div class="ildn-column">
+                            <!-- Individual Learning and Development Needs -->
+                            <div class="section-header">
+                                <h2 class="section-title"><i class="bi bi-lightbulb" style="color: #F57C00;"></i>
+                                    Individual Learning and Development Needs</h2>
+                            </div>
+                            <div class="dashboard-card" style="margin-bottom: 0;">
+                                <div class="card-body" style="padding: 25px;">
+                                    <form method="POST" class="form-group"
+                                        style="display: flex; gap: 12px; margin-bottom: 24px;">
+                                        <input type="text" name="need_text" class="form-control"
+                                            placeholder="Enter a learning need..." required>
+                                        <button type="submit" name="add_ildn" class="btn btn-primary"
+                                            style="white-space: nowrap;">
+                                            <i class="bi bi-plus-lg"></i> Add
+                                        </button>
+                                    </form>
+
+                                    <?php if (empty($user_ildns)): ?>
+                                        <div
+                                            style="text-align: center; padding: 20px; color: #64748b; background: #f8fafc; border-radius: 12px; border: 1px dashed #cbd5e1;">
+                                            <i class="bi bi-info-circle"
+                                                style="font-size: 1.2rem; display: block; margin-bottom: 8px;"></i>
+                                            You haven't set any individual learning and development needs yet.
+                                        </div>
+                                    <?php else: ?>
+                                        <div class="ildn-list-scroll">
+                                            <div style="display: grid; grid-template-columns: 1fr; gap: 12px;">
+                                                <?php foreach ($user_ildns as $ildn):
+                                                    $is_addressed = $ildn['usage_count'] > 0;
+                                                    $card_style = $is_addressed
+                                                        ? "background: #f0fdf4; border: 1px solid #bbf7d0; box-shadow: 0 4px 12px rgba(22, 163, 74, 0.08);"
+                                                        : "background: white; border: 1px solid #eef2f6; box-shadow: 0 1px 3px rgba(0,0,0,0.05);";
+                                                    ?>
+                                                    <div
+                                                        style="<?php echo $card_style; ?> border-radius: 12px; padding: 16px; display: flex; justify-content: space-between; align-items: center; transition: all 0.2s ease;">
+                                                        <div style="display: flex; flex-direction: column; gap: 4px;">
+                                                            <div
+                                                                style="font-weight: 700; color: <?php echo $is_addressed ? '#15803d' : 'var(--primary)'; ?>; font-size: 0.95rem;">
+                                                                <?php echo htmlspecialchars($ildn['need_text']); ?>
+                                                            </div>
+                                                            <div style="display: flex; align-items: center; gap: 6px;">
+                                                                <?php if ($is_addressed): ?>
+                                                                    <span
+                                                                        style="background: #16a34a; color: white; font-size: 0.65rem; font-weight: 800; padding: 2px 8px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.5px;">
+                                                                        <i class="bi bi-check-circle-fill"></i> Addressed
+                                                                        <?php echo $ildn['usage_count']; ?>x
+                                                                    </span>
+                                                                <?php else: ?>
+                                                                    <span
+                                                                        style="color: #94a3b8; font-size: 0.7rem; font-weight: 600;">
+                                                                        <i class="bi bi-clock"></i> Not yet addressed
+                                                                    </span>
+                                                                <?php endif; ?>
+                                                            </div>
+                                                        </div>
+                                                        <button type="button" class="btn btn-sm"
+                                                            onclick="confirmDeleteILDN(<?php echo $ildn['id']; ?>)"
+                                                            style="padding: 6px; color: #dc2626; background: <?php echo $is_addressed ? '#fecaca' : '#fef2f2'; ?>; border: none; border-radius: 8px; width: 32px; height: 32px;">
+                                                            <i class="bi bi-trash"></i>
+                                                        </button>
+                                                    </div>
+                                                <?php endforeach; ?>
+                                            </div>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
                             </div>
                         </div>
-                        <div class="stat-card">
-                            <div class="stat-icon" style="background: #f0fdf4; color: #16a34a;"><i
-                                    class="bi bi-patch-check"></i></div>
-                            <div>
-                                <span class="stat-value"><?php echo $with_certs; ?></span>
-                                <span class="stat-label">Certificates Uploaded</span>
+
+                        <div class="stats-column">
+                            <div class="section-header">
+                                <h2 class="section-title"><i class="bi bi-graph-up-arrow" style="color: #F57C00;"></i>
+                                    Stats</h2>
                             </div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-icon" style="background: #fef2f2; color: #dc2626;"><i
-                                    class="bi bi-clock-history"></i></div>
-                            <div>
-                                <span class="stat-value"><?php echo $total_activities - $with_certs; ?></span>
-                                <span class="stat-label">Pending Certificates</span>
+                            <div class="stats-grid">
+                                <div class="stat-card">
+                                    <div class="stat-icon" style="background: #e0f2fe; color: #0284c7;"><i
+                                            class="bi bi-journal-bookmark"></i></div>
+                                    <div>
+                                        <span class="stat-value"><?php echo $total_activities; ?></span>
+                                        <span class="stat-label">Total Activities</span>
+                                    </div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-icon" style="background: #f0fdf4; color: #16a34a;"><i
+                                            class="bi bi-patch-check"></i></div>
+                                    <div>
+                                        <span class="stat-value"><?php echo $with_certs; ?></span>
+                                        <span class="stat-label">With Certificates</span>
+                                    </div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-icon"
+                                        style="<?php echo $unaddressed_ildns_count > 0 ? 'background: #fef2f2; color: #dc2626;' : 'background: #f0fdf4; color: #16a34a;'; ?>">
+                                        <i
+                                            class="bi <?php echo $unaddressed_ildns_count > 0 ? 'bi-exclamation-octagon-fill' : 'bi-check-all'; ?>"></i>
+                                    </div>
+                                    <div>
+                                        <span class="stat-value"><?php echo $unaddressed_ildns_count; ?></span>
+                                        <span class="stat-label">Unaddressed Needs</span>
+                                    </div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-icon" style="background: #fef2f2; color: #dc2626;"><i
+                                            class="bi bi-clock-history"></i></div>
+                                    <div>
+                                        <span class="stat-value"><?php echo $total_activities - $with_certs; ?></span>
+                                        <span class="stat-label">Pending Certs</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -604,10 +909,10 @@ $activities = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         <h2 class="section-title"><i class="bi bi-trophy"></i> Activity Certificates</h2>
                     </div>
 
-                    <div class="scrollable-cert-container">
-                        <div class="certificate-grid">
+                    <div class="submissions-list-scroll">
+                        <div class="certificate-grid" style="grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));">
                             <?php if (empty($activities)): ?>
-                                <div class="empty-state">
+                                <div class="empty-state" style="grid-column: 1 / -1;">
                                     <div style="font-size: 3rem; color: #e2e8f0; margin-bottom: 20px;"><i
                                             class="bi bi-file-earmark-x"></i></div>
                                     <h3 style="color: #64748b; font-weight: 700;">No activities found</h3>
@@ -690,7 +995,51 @@ $activities = $stmt->fetchAll(PDO::FETCH_ASSOC);
         </div>
     </div>
 
+    <!-- Custom Delete Confirmation Modal -->
+    <div id="deleteModalOverlay" class="custom-modal-overlay">
+        <div class="custom-modal">
+            <div class="modal-icon-container">
+                <i class="bi bi-trash3-fill"></i>
+            </div>
+            <h3 class="modal-title">Delete Learning Need?</h3>
+            <p class="modal-text">Are you sure you want to remove this learning need? this action cannot be undone.</p>
+            <div class="modal-actions">
+                <button type="button" class="modal-btn modal-btn-cancel" onclick="closeDeleteModal()">Cancel</button>
+                <form id="deleteILDNForm" method="POST" style="flex: 1; margin: 0;">
+                    <input type="hidden" name="ildn_id" id="modal_ildn_id">
+                    <input type="hidden" name="delete_ildn" value="1">
+                    <button type="submit" class="modal-btn modal-btn-delete">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <script>
+        function confirmDeleteILDN(id) {
+            document.getElementById('modal_ildn_id').value = id;
+            const overlay = document.getElementById('deleteModalOverlay');
+            const modal = overlay.querySelector('.custom-modal');
+
+            overlay.style.display = 'flex';
+            setTimeout(() => modal.classList.add('show'), 10);
+        }
+
+        function closeDeleteModal() {
+            const overlay = document.getElementById('deleteModalOverlay');
+            const modal = overlay.querySelector('.custom-modal');
+
+            modal.classList.remove('show');
+            setTimeout(() => overlay.style.display = 'none', 300);
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function (event) {
+            const overlay = document.getElementById('deleteModalOverlay');
+            if (event.target == overlay) {
+                closeDeleteModal();
+            }
+        }
+
         document.getElementById('toggleSettings').addEventListener('click', function () {
             const settings = document.getElementById('accountSettings');
             const btn = this;

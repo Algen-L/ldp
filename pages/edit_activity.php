@@ -35,7 +35,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $date_attended = isset($_POST['date_attended']) ? trim($_POST['date_attended']) : '';
     $venue = trim($_POST['venue']);
     $modality = isset($_POST['modality']) ? implode(', ', $_POST['modality']) : '';
-    $competency = trim($_POST['competency']);
+    // Handle multiple competencies
+    $competency = isset($_POST['competency']) ? (is_array($_POST['competency']) ? implode(', ', $_POST['competency']) : trim($_POST['competency'])) : '';
     $type_ld = isset($_POST['type_ld']) ? implode(', ', $_POST['type_ld']) : '';
     $type_ld_others = isset($_POST['type_ld_others']) ? trim($_POST['type_ld_others']) : '';
     $conducted_by = trim($_POST['conducted_by']);
@@ -138,6 +139,8 @@ function isChecked($value, $storedValue)
     <!-- Flatpickr CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/material_blue.css">
+    <!-- Tom Select CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.css" rel="stylesheet">
     <style>
         .form-section {
             margin-bottom: 40px;
@@ -292,6 +295,24 @@ function isChecked($value, $storedValue)
             background: var(--primary);
             border-color: var(--primary);
         }
+
+        /* Tom Select Custom Styling */
+        .ts-control {
+            border-radius: var(--radius-md);
+            padding: 10px 14px;
+            border-color: var(--border-color);
+            transition: all var(--transition-fast);
+        }
+
+        .ts-wrapper.focus .ts-control {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(15, 76, 117, 0.1);
+        }
+
+        .ts-dropdown .active {
+            background-color: var(--primary);
+            color: white;
+        }
     </style>
 </head>
 
@@ -430,8 +451,33 @@ function isChecked($value, $storedValue)
                                     <div class="form-group">
                                         <label class="form-label">Addressed Competency/ies <span
                                                 style="color: var(--danger);">*</span></label>
-                                        <input type="text" name="competency" class="form-control"
-                                            value="<?php echo htmlspecialchars($activity['competency']); ?>">
+                                        <?php
+                                        // Fetch user's ILDNs for the dropdown
+                                        $stmt_ildn = $pdo->prepare("SELECT * FROM user_ildn WHERE user_id = ? ORDER BY need_text ASC");
+                                        $stmt_ildn->execute([$_SESSION['user_id']]);
+                                        $user_ildns = $stmt_ildn->fetchAll(PDO::FETCH_ASSOC);
+
+                                        // Current competencies
+                                        $current_competencies = explode(', ', $activity['competency']);
+                                        ?>
+                                        <select id="competency-select" name="competency[]" class="form-control"
+                                            placeholder="Select or type competency..." required multiple>
+                                            <?php
+                                            // Ensure current competencies that aren't in ILDNs are still options
+                                            $ildn_texts = array_column($user_ildns, 'need_text');
+                                            foreach ($current_competencies as $comp):
+                                                if (!empty($comp) && !in_array($comp, $ildn_texts)): ?>
+                                                    <option value="<?php echo htmlspecialchars($comp); ?>" selected>
+                                                        <?php echo htmlspecialchars($comp); ?></option>
+                                                <?php endif;
+                                            endforeach; ?>
+
+                                            <?php foreach ($user_ildns as $ildn): ?>
+                                                <option value="<?php echo htmlspecialchars($ildn['need_text']); ?>" <?php echo in_array($ildn['need_text'], $current_competencies) ? 'selected' : ''; ?>>
+                                                    <?php echo htmlspecialchars($ildn['need_text']); ?>
+                                                </option>
+                                            <?php endforeach; ?>
+                                        </select>
                                     </div>
                                     <div class="form-group">
                                         <label class="form-label">Conducted By <span
@@ -532,6 +578,22 @@ function isChecked($value, $storedValue)
         </div>
     </div>
 
+    <!-- Tom Select JS -->
+    <script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Initialize Tom Select for Competencies
+            new TomSelect("#competency-select", {
+                create: true,
+                sortField: {
+                    field: "text",
+                    direction: "asc"
+                },
+                maxItems: 5,
+                placeholder: "Select or type competency..."
+            });
+        });
+    </script>
 </body>
 
 </html>
