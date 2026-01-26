@@ -1,6 +1,6 @@
 <?php
 session_start();
-require '../includes/db.php';
+require '../includes/init_repos.php';
 
 // Check if user is logged in and is admin
 if (!isset($_SESSION['user_id']) || ($_SESSION['role'] !== 'admin' && $_SESSION['role'] !== 'super_admin' && $_SESSION['role'] !== 'immediate_head')) {
@@ -14,70 +14,31 @@ $sgodOffices = ['SCHOOL MANAGEMENT MONITORING & EVALUATION', 'HUMAN RESOURCES DE
 $cidOffices = ['CURRICULUM IMPLEMENTATION DIVISION (INSTRUCTIONAL MANAGEMENT)', 'CURRICULUM IMPLEMENTATION DIVISION (LEARNING RESOURCES MANAGEMENT)', 'CURRICULUM IMPLEMENTATION DIVISION (ALTERNATIVE LEARNING SYSTEM)', 'CURRICULUM IMPLEMENTATION DIVISION (DISTRICT INSTRUCTIONAL SUPERVISION)'];
 
 // Handle Log Filtering
-$search_term = isset($_GET['search']) ? trim($_GET['search']) : '';
-$filter_user_id = isset($_GET['user_id']) ? (int) $_GET['user_id'] : 0;
-$filter_action = isset($_GET['action_type']) ? $_GET['action_type'] : '';
-$start_date = isset($_GET['start_date']) ? $_GET['start_date'] : '';
-$end_date = isset($_GET['end_date']) ? $_GET['end_date'] : '';
+$filters = [
+    'search' => isset($_GET['search']) ? trim($_GET['search']) : '',
+    'user_id' => isset($_GET['user_id']) ? (int) $_GET['user_id'] : 0,
+    'action_type' => isset($_GET['action_type']) ? $_GET['action_type'] : '',
+    'start_date' => isset($_GET['start_date']) ? $_GET['start_date'] : '',
+    'end_date' => isset($_GET['end_date']) ? $_GET['end_date'] : '',
+    'limit' => 100
+];
 
-$log_sql = "SELECT l.*, u.full_name as user_name 
-            FROM activity_logs l 
-            JOIN users u ON l.user_id = u.id 
-            WHERE 1=1";
-$log_params = [];
-
-if ($search_term) {
-    if (strtoupper($search_term) === 'OSDS') {
-        $placeholders = implode(',', array_fill(0, count($osdsOffices), '?'));
-        $log_sql .= " AND u.office_station IN ($placeholders)";
-        $log_params = array_merge($log_params, $osdsOffices);
-    } elseif (strtoupper($search_term) === 'CID') {
-        $placeholders = implode(',', array_fill(0, count($cidOffices), '?'));
-        $log_sql .= " AND u.office_station IN ($placeholders)";
-        $log_params = array_merge($log_params, $cidOffices);
-    } elseif (strtoupper($search_term) === 'SGOD') {
-        $placeholders = implode(',', array_fill(0, count($sgodOffices), '?'));
-        $log_sql .= " AND u.office_station IN ($placeholders)";
-        $log_params = array_merge($log_params, $sgodOffices);
-    } else {
-        $log_sql .= " AND (u.full_name LIKE ? OR u.office_station LIKE ? OR u.position LIKE ?)";
-        $log_params[] = "%$search_term%";
-        $log_params[] = "%$search_term%";
-        $log_params[] = "%$search_term%";
+// Special categorization handling
+if ($filters['search']) {
+    $search_upper = strtoupper($filters['search']);
+    if ($search_upper === 'OSDS') {
+        $filters['offices'] = $osdsOffices;
+        $filters['search'] = '';
+    } elseif ($search_upper === 'CID') {
+        $filters['offices'] = $cidOffices;
+        $filters['search'] = '';
+    } elseif ($search_upper === 'SGOD') {
+        $filters['offices'] = $sgodOffices;
+        $filters['search'] = '';
     }
 }
 
-if ($filter_user_id > 0) {
-    $log_sql .= " AND l.user_id = ?";
-    $log_params[] = $filter_user_id;
-}
-
-if ($filter_action) {
-    if ($filter_action === 'Viewed Specific') {
-        $log_sql .= " AND l.action LIKE 'Viewed Activity Details%'";
-    } elseif ($filter_action === 'Viewed') {
-        $log_sql .= " AND (l.action LIKE 'Viewed%' AND l.action NOT LIKE 'Viewed Activity Details%')";
-    } else {
-        $log_sql .= " AND l.action LIKE ?";
-        $log_params[] = "%$filter_action%";
-    }
-}
-
-if ($start_date) {
-    $log_sql .= " AND DATE(l.created_at) >= ?";
-    $log_params[] = $start_date;
-}
-
-if ($end_date) {
-    $log_sql .= " AND DATE(l.created_at) <= ?";
-    $log_params[] = $end_date;
-}
-
-$log_sql .= " ORDER BY l.created_at DESC LIMIT 100";
-$logStmt = $pdo->prepare($log_sql);
-$logStmt->execute($log_params);
-$logs = $logStmt->fetchAll(PDO::FETCH_ASSOC);
-
+$logs = $logRepo->getAllLogs($filters);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -455,8 +416,8 @@ $logs = $logStmt->fetchAll(PDO::FETCH_ASSOC);
                                 style="flex: 1; min-width: 250px; position: relative;">
                                 <i class="bi bi-search"
                                     style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 0.9rem; z-index: 2;"></i>
-                                <input type="text" name="search" value="<?php echo htmlspecialchars($search_term); ?>"
-                                    class="form-control"
+                                <input type="text" name="search"
+                                    value="<?php echo htmlspecialchars($filters['search']); ?>" class="form-control"
                                     placeholder="Search name, office or category (OSDS, CID, SGOD)..."
                                     style="padding-left: 38px; height: 40px; border-radius: 8px; border: 1.5px solid var(--border-color); font-size: 0.82rem; font-weight: 500;">
                             </div>
@@ -464,7 +425,7 @@ $logs = $logStmt->fetchAll(PDO::FETCH_ASSOC);
                             <!-- Log Type Custom Select -->
                             <div class="custom-select-wrapper" id="actionSelect">
                                 <input type="hidden" name="action_type"
-                                    value="<?php echo htmlspecialchars($filter_action); ?>">
+                                    value="<?php echo htmlspecialchars($filters['action_type']); ?>">
                                 <div class="custom-select-trigger">
                                     <span class="custom-select-text">
                                         <?php
@@ -482,18 +443,18 @@ $logs = $logStmt->fetchAll(PDO::FETCH_ASSOC);
                                             'Viewed' => 'List Views',
                                             'Profile' => 'Profile Changes'
                                         ];
-                                        if (isset($actions[$filter_action]))
-                                            $aText = $actions[$filter_action];
+                                        if (isset($actions[$filters['action_type']]))
+                                            $aText = $actions[$filters['action_type']];
                                         echo htmlspecialchars($aText);
                                         ?>
                                     </span>
                                     <i class="bi bi-chevron-down"></i>
                                 </div>
                                 <div class="custom-select-options">
-                                    <div class="custom-option <?php echo $filter_action == '' ? 'selected' : ''; ?>"
+                                    <div class="custom-option <?php echo $filters['action_type'] == '' ? 'selected' : ''; ?>"
                                         data-value="">Every Action</div>
                                     <?php foreach ($actions as $val => $label): ?>
-                                        <div class="custom-option <?php echo $filter_action == $val ? 'selected' : ''; ?>"
+                                        <div class="custom-option <?php echo $filters['action_type'] == $val ? 'selected' : ''; ?>"
                                             data-value="<?php echo $val; ?>">
                                             <?php echo $label; ?>
                                         </div>
@@ -504,10 +465,10 @@ $logs = $logStmt->fetchAll(PDO::FETCH_ASSOC);
                             <!-- Date Range -->
                             <div class="date-range-pills">
                                 <i class="bi bi-calendar-range"></i>
-                                <input type="date" name="start_date" value="<?php echo $start_date; ?>"
+                                <input type="date" name="start_date" value="<?php echo $filters['start_date']; ?>"
                                     class="date-pill-input" title="From Date">
                                 <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 700;">TO</span>
-                                <input type="date" name="end_date" value="<?php echo $end_date; ?>"
+                                <input type="date" name="end_date" value="<?php echo $filters['end_date']; ?>"
                                     class="date-pill-input" title="To Date">
                             </div>
 
@@ -516,7 +477,7 @@ $logs = $logStmt->fetchAll(PDO::FETCH_ASSOC);
                                 <button type="submit" class="apply-btn">
                                     <i class="bi bi-funnel-fill"></i> Apply
                                 </button>
-                                <?php if ($filter_user_id > 0 || $filter_action || $start_date || $end_date): ?>
+                                <?php if ($filters['user_id'] > 0 || $filters['action_type'] || $filters['start_date'] || $filters['end_date']): ?>
                                     <a href="users.php" class="reset-btn" title="Reset all filters">
                                         <i class="bi bi-arrow-counterclockwise"></i>
                                     </a>

@@ -18,11 +18,11 @@ body.auth-page {
     min-height: 100vh;
     display: flex;
     justify-content: center;
-    align-items: center;
+    align-items: flex-start; /* Change from center to handle long forms */
     margin: 0;
-    padding: 20px;
+    padding: 40px 20px; /* Increase vertical padding */
     position: relative;
-    overflow: hidden;
+    overflow-y: auto; /* Ensure scrollability */
 }
 
 /* Animated Grid Background */
@@ -60,14 +60,15 @@ body.auth-page {
 
 .login-container {
     background-color: var(--card-bg);
-    width: 380px;
+    width: 450px; /* Match the larger default I set */
     max-width: 100%;
-    padding: 28px 32px 24px;
-    border-radius: 16px;
+    padding: 40px; /* More consistent padding */
+    border-radius: 24px; /* More modern radius */
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
     border: 1px solid rgba(255, 255, 255, 0.05);
     position: relative;
     z-index: 10;
+    margin: auto 0; /* Keeps it centered vertically when it fits */
 }
 
 /* Header */

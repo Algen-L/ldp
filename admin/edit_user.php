@@ -1,6 +1,6 @@
 <?php
 session_start();
-require '../includes/db.php';
+require '../includes/init_repos.php';
 
 // Check if user is logged in and is Super Admin or HR
 if (!isset($_SESSION['user_id']) || ($_SESSION['role'] !== 'super_admin' && $_SESSION['role'] !== 'hr')) {
@@ -18,9 +18,7 @@ if (!isset($_GET['id'])) {
 }
 
 $id = (int) $_GET['id'];
-$stmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
-$stmt->execute([$id]);
-$user_to_edit = $stmt->fetch();
+$user_to_edit = $userRepo->getUserById($id);
 
 if (!$user_to_edit) {
     header("Location: manage_users.php");
@@ -55,19 +53,27 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         }
     }
 
-    // Update query
-    $sql = "UPDATE users SET full_name = ?, username = ?, office_station = ?, position = ?, rating_period = ?, area_of_specialization = ?, age = ?, sex = ?, role = ?, profile_picture = ?" . ($password ? ", password = ?" : "") . " WHERE id = ?";
-    $stmt = $pdo->prepare($sql);
+    // Update Data
+    $updateData = [
+        'full_name' => $full_name,
+        'username' => $username,
+        'office_station' => $office_station,
+        'position' => $position,
+        'rating_period' => $rating_period,
+        'area_of_specialization' => $area_of_specialization,
+        'age' => $age,
+        'sex' => $sex,
+        'role' => $role,
+        'profile_picture' => $dbPath
+    ];
 
-    $params = [$full_name, $username, $office_station, $position, $rating_period, $area_of_specialization, $age, $sex, $role, $dbPath];
-    if ($password)
-        $params[] = password_hash($password, PASSWORD_DEFAULT);
-    $params[] = $id;
+    if ($password) {
+        $updateData['password'] = password_hash($password, PASSWORD_DEFAULT);
+    }
 
-    if ($stmt->execute($params)) {
+    if ($userRepo->updateUserProfile($id, $updateData)) {
         // Log the action
-        $logStmt = $pdo->prepare("INSERT INTO activity_logs (user_id, action, details, ip_address) VALUES (?, ?, ?, ?)");
-        $logStmt->execute([$_SESSION['user_id'], 'Edited User Profile', "Target User: $full_name (ID: $id)", $_SERVER['REMOTE_ADDR']]);
+        $logRepo->logAction($_SESSION['user_id'], 'Edited User Profile', "Target User: $full_name (ID: $id)");
 
         $_SESSION['toast'] = ['title' => 'User Updated', 'message' => 'The user record has been updated successfully.', 'type' => 'success'];
         header("Location: manage_users.php");

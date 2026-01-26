@@ -1,6 +1,6 @@
 <?php
 session_start();
-require '../includes/db.php';
+require '../includes/init_repos.php';
 
 // Check if user is logged in and is Super Admin
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'super_admin') {
@@ -29,9 +29,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $messageType = "error";
     } else {
         // Check if username exists
-        $stmt = $pdo->prepare("SELECT id FROM users WHERE username = ?");
-        $stmt->execute([$username]);
-        if ($stmt->fetch()) {
+        if ($userRepo->getUserByUsername($username)) {
             $message = "Username already exists.";
             $messageType = "error";
         } else {
@@ -52,15 +50,27 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             }
 
             // Insert user
-            $sql = "INSERT INTO users (username, password, full_name, office_station, position, rating_period, area_of_specialization, age, sex, profile_picture, role, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-            $stmt = $pdo->prepare($sql);
-            if ($stmt->execute([$username, $hashed_password, $full_name, $office_station, $position, $rating_period, $area_of_specialization, $age, $sex, $dbPath, $role, $_SESSION['user_id']])) {
+            $userData = [
+                'username' => $username,
+                'password' => $hashed_password,
+                'full_name' => $full_name,
+                'office_station' => $office_station,
+                'position' => $position,
+                'rating_period' => $rating_period,
+                'area_of_specialization' => $area_of_specialization,
+                'age' => $age,
+                'sex' => $sex,
+                'profile_picture' => $dbPath,
+                'role' => $role,
+                'created_by' => $_SESSION['user_id']
+            ];
+
+            if ($userRepo->createUser($userData)) {
                 $message = "Account created successfully!";
                 $messageType = "success";
 
                 // Log activity
-                $logStmt = $pdo->prepare("INSERT INTO activity_logs (user_id, action, details, ip_address) VALUES (?, ?, ?, ?)");
-                $logStmt->execute([$_SESSION['user_id'], 'Created User (Super Admin)', "Created new $role: $username", $_SERVER['REMOTE_ADDR']]);
+                $logRepo->logAction($_SESSION['user_id'], 'Created User (Super Admin)', "Created new $role: $username");
             } else {
                 $message = "Something went wrong. Please try again.";
                 $messageType = "error";

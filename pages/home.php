@@ -1,6 +1,6 @@
 <?php
 session_start();
-require '../includes/db.php';
+require '../includes/init_repos.php';
 
 // Check if user is logged in
 if (!isset($_SESSION['user_id'])) {
@@ -9,9 +9,7 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 // Fetch user data from DB to get the latest info
-$stmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
-$stmt->execute([$_SESSION['user_id']]);
-$user = $stmt->fetch(PDO::FETCH_ASSOC);
+$user = $userRepo->getUserById($_SESSION['user_id']);
 
 if (!$user) {
     session_destroy();
@@ -20,17 +18,14 @@ if (!$user) {
 }
 
 // Fetch L&D activities (Recent 10)
-$stmt_ld = $pdo->prepare("SELECT * FROM ld_activities WHERE user_id = ? ORDER BY created_at DESC LIMIT 10");
-$stmt_ld->execute([$_SESSION['user_id']]);
-$activities = $stmt_ld->fetchAll(PDO::FETCH_ASSOC);
+$activities = $activityRepo->getActivitiesByUser($_SESSION['user_id'], ['limit' => 10]);
 
 // Fetch Stats for Progress Bar
-$stmt_stats = $pdo->prepare("SELECT COUNT(*) as total, SUM(CASE WHEN approved_sds = 1 THEN 1 ELSE 0 END) as approved FROM ld_activities WHERE user_id = ?");
-$stmt_stats->execute([$_SESSION['user_id']]);
-$stats = $stmt_stats->fetch(PDO::FETCH_ASSOC);
+$stats = $activityRepo->getUserStats($_SESSION['user_id']);
 $total_count = $stats['total'];
 $approved_count = $stats['approved'] ?: 0;
 $progress_pct = $total_count > 0 ? round(($approved_count / $total_count) * 100) : 0;
+?>
 ?>
 <!DOCTYPE html>
 <html lang="en">

@@ -1,6 +1,6 @@
 <?php
 session_start();
-require '../includes/db.php';
+require '../includes/init_repos.php';
 
 // Check if user is logged in
 if (!isset($_SESSION['user_id'])) {
@@ -9,9 +9,7 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 // Fetch user data
-$stmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
-$stmt->execute([$_SESSION['user_id']]);
-$user = $stmt->fetch(PDO::FETCH_ASSOC);
+$user = $userRepo->getUserById($_SESSION['user_id']);
 
 if (!$user) {
     session_destroy();
@@ -20,72 +18,17 @@ if (!$user) {
 }
 
 // Get filter parameters
-$search = isset($_GET['search']) ? trim($_GET['search']) : '';
-$status_filter = isset($_GET['status']) ? $_GET['status'] : '';
-$start_date = isset($_GET['start_date']) ? $_GET['start_date'] : '';
-$end_date = isset($_GET['end_date']) ? $_GET['end_date'] : '';
-
-// Build query
-$where_clauses = ["user_id = ?"];
-$params = [$_SESSION['user_id']];
-
-if ($search !== '') {
-    $where_clauses[] = "title LIKE ?";
-    $params[] = "%$search%";
-}
-
-// Modified status filtering to match current logic
-if ($status_filter === 'Approved') {
-    $where_clauses[] = "approved_sds = 1";
-} elseif ($status_filter === 'Reviewed') {
-    $where_clauses[] = "reviewed_by_supervisor = 1 AND approved_sds = 0";
-} elseif ($status_filter === 'Pending') {
-    $where_clauses[] = "reviewed_by_supervisor = 0";
-}
-
-if ($start_date) {
-    $where_clauses[] = "DATE(date_attended) >= ?";
-    $params[] = $start_date;
-}
-
-if ($end_date) {
-    $where_clauses[] = "DATE(date_attended) <= ?";
-    $params[] = $end_date;
-}
-
-$where_sql = implode(" AND ", $where_clauses);
+$filters = [
+    'search' => isset($_GET['search']) ? trim($_GET['search']) : '',
+    'status' => isset($_GET['status']) ? $_GET['status'] : '',
+    'start_date' => isset($_GET['start_date']) ? $_GET['start_date'] : '',
+    'end_date' => isset($_GET['end_date']) ? $_GET['end_date'] : ''
+];
 
 // Fetch all filtered L&D activities
-$sql = "SELECT * FROM ld_activities WHERE $where_sql ORDER BY created_at DESC";
-$stmt_ld = $pdo->prepare($sql);
-$stmt_ld->execute($params);
-$activities = $stmt_ld->fetchAll(PDO::FETCH_ASSOC);
+$activities = $activityRepo->getActivitiesByUser($_SESSION['user_id'], $filters);
 
-/**
- * Helper to determine current stage and progress percentage
- */
-function getProgressInfo($act)
-{
-    $stages = [
-        ['label' => 'Submitted', 'completed' => true, 'date' => $act['created_at'], 'icon' => 'bi-send'],
-        ['label' => 'Reviewed', 'completed' => (bool) $act['reviewed_by_supervisor'], 'date' => $act['reviewed_at'], 'icon' => 'bi-eye'],
-        ['label' => 'Recommended', 'completed' => (bool) $act['recommending_asds'], 'date' => $act['recommended_at'], 'icon' => 'bi-check2-circle'],
-        ['label' => 'Approved', 'completed' => (bool) $act['approved_sds'], 'date' => $act['approved_at'], 'icon' => 'bi-trophy']
-    ];
-
-    $completedCount = 0;
-    foreach ($stages as $stage) {
-        if ($stage['completed'])
-            $completedCount++;
-    }
-
-    $percentage = ($completedCount / count($stages)) * 100;
-
-    return [
-        'stages' => $stages,
-        'percentage' => $percentage
-    ];
-}
+require '../includes/functions/activity-functions.php';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -278,18 +221,21 @@ function getProgressInfo($act)
                         <i class="bi bi-search"
                             style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted);"></i>
                         <input type="text" name="search" class="form-control" placeholder="Search activities..."
-                            value="<?php echo htmlspecialchars($search); ?>"
+                            value="<?php echo htmlspecialchars($filters['search']); ?>"
                             style="padding-left: 42px; padding-top: 6px; padding-bottom: 6px; height: 38px; font-size: 0.85rem;">
                     </div>
                     <div style="width: 160px;">
                         <select name="status" class="form-control"
                             style="height: 38px; font-size: 0.85rem; padding-top: 6px; padding-bottom: 6px;">
                             <option value="">All Statuses</option>
-                            <option value="Pending" <?php echo $status_filter == 'Pending' ? 'selected' : ''; ?>>Pending
+                            <option value="Pending" <?php echo $filters['status'] == 'Pending' ? 'selected' : ''; ?>>
+                                Pending
                             </option>
-                            <option value="Reviewed" <?php echo $status_filter == 'Reviewed' ? 'selected' : ''; ?>>
+                            <option value="Reviewed" <?php echo $filters['status'] == 'Reviewed' ? 'selected' : ''; ?>>
                                 Reviewed</option>
-                            <option value="Approved" <?php echo $status_filter == 'Approved' ? 'selected' : ''; ?>>
+                            <option value="Recommending" <?php echo $filters['status'] == 'Recommending' ? 'selected' : ''; ?>>
+                                Recommending</option>
+                            <option value="Approved" <?php echo $filters['status'] == 'Approved' ? 'selected' : ''; ?>>
                                 Approved</option>
                         </select>
                     </div>
@@ -297,17 +243,17 @@ function getProgressInfo($act)
                     <!-- Date Filter -->
                     <div class="filter-date-group">
                         <i class="bi bi-calendar-range"></i>
-                        <input type="date" name="start_date" value="<?php echo $start_date; ?>"
+                        <input type="date" name="start_date" value="<?php echo $filters['start_date']; ?>"
                             class="filter-date-input" title="Start Date">
                         <span style="font-size: 0.65rem; color: var(--text-muted); font-weight: 700;">TO</span>
-                        <input type="date" name="end_date" value="<?php echo $end_date; ?>" class="filter-date-input"
-                            title="End Date">
+                        <input type="date" name="end_date" value="<?php echo $filters['end_date']; ?>"
+                            class="filter-date-input" title="End Date">
                     </div>
 
                     <button type="submit" class="btn btn-primary" style="height: 38px; font-size: 0.85rem;">
                         <i class="bi bi-funnel"></i> Apply
                     </button>
-                    <?php if ($search || $status_filter || $start_date || $end_date): ?>
+                    <?php if ($filters['search'] || $filters['status'] || $filters['start_date'] || $filters['end_date']): ?>
                         <a href="submissions_progress.php" class="btn btn-secondary"
                             style="height: 38px; display: flex; align-items: center; justify-content: center; font-size: 0.85rem;">Reset</a>
                     <?php endif; ?>

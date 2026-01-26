@@ -1,6 +1,6 @@
 <?php
 session_start();
-require '../includes/db.php';
+require '../includes/init_repos.php';
 
 // Check if user is logged in and is admin
 if (!isset($_SESSION['user_id']) || ($_SESSION['role'] !== 'admin' && $_SESSION['role'] !== 'super_admin' && $_SESSION['role'] !== 'immediate_head')) {
@@ -9,8 +9,7 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] !== 'admin' && $_SESSION[
 }
 
 // Fetch all users for filtering
-$usersStmt = $pdo->query("SELECT id, full_name FROM users WHERE role != 'admin' ORDER BY full_name ASC");
-$all_users = $usersStmt->fetchAll(PDO::FETCH_ASSOC);
+$all_users = $userRepo->getAllUsers(['admin']);
 
 // 1. Define Office Categories for Search & Highlighting
 $osdsOffices = ['ADMINISTRATIVE (PERSONEL)', 'ADMINISTRATIVE (PROPERTY AND SUPPLY)', 'ADMINISTRATIVE (RECORDS)', 'ADMINISTRATIVE (CASH)', 'ADMINISTRATIVE (GENERAL SERVICES)', 'FINANCE (ACCOUNTING)', 'FINANCE (BUDGET)', 'LEGAL', 'ICT'];
@@ -18,72 +17,38 @@ $sgodOffices = ['SCHOOL MANAGEMENT MONITORING & EVALUATION', 'HUMAN RESOURCES DE
 $cidOffices = ['CURRICULUM IMPLEMENTATION DIVISION (INSTRUCTIONAL MANAGEMENT)', 'CURRICULUM IMPLEMENTATION DIVISION (LEARNING RESOURCES MANAGEMENT)', 'CURRICULUM IMPLEMENTATION DIVISION (ALTERNATIVE LEARNING SYSTEM)', 'CURRICULUM IMPLEMENTATION DIVISION (DISTRICT INSTRUCTIONAL SUPERVISION)'];
 
 // Handle Filtering
-$filter_user_id = isset($_GET['user_id']) ? (int) $_GET['user_id'] : 0;
-$filter_status = isset($_GET['status']) ? $_GET['status'] : '';
-$filter_search = isset($_GET['search']) ? $_GET['search'] : '';
-$start_date = isset($_GET['start_date']) ? $_GET['start_date'] : '';
-$end_date = isset($_GET['end_date']) ? $_GET['end_date'] : '';
+$filters = [
+    'user_id' => isset($_GET['user_id']) ? (int) $_GET['user_id'] : 0,
+    'status_filter' => isset($_GET['status']) ? $_GET['status'] : '',
+    'search' => isset($_GET['search']) ? $_GET['search'] : '',
+    'start_date' => isset($_GET['start_date']) ? $_GET['start_date'] : '',
+    'end_date' => isset($_GET['end_date']) ? $_GET['end_date'] : ''
+];
 
-$sql = "SELECT ld.*, u.full_name, u.office_station 
-        FROM ld_activities ld 
-        JOIN users u ON ld.user_id = u.id 
-        WHERE 1=1";
-$params = [];
-
-if ($filter_user_id > 0) {
-    $sql .= " AND ld.user_id = ?";
-    $params[] = $filter_user_id;
-}
-
-if ($filter_status) {
-    if ($filter_status === 'Reviewed') {
-        $sql .= " AND ld.reviewed_by_supervisor = 1 AND ld.recommending_asds = 0";
-    } elseif ($filter_status === 'Recommending') {
-        $sql .= " AND ld.recommending_asds = 1 AND ld.approved_sds = 0";
-    } elseif ($filter_status === 'Approved') {
-        $sql .= " AND ld.approved_sds = 1";
-    } elseif ($filter_status === 'Pending') {
-        $sql .= " AND ld.reviewed_by_supervisor = 0";
+// Special categorization handling
+if ($filters['search']) {
+    $search_upper = strtoupper($filters['search']);
+    if ($search_upper === 'OSDS') {
+        $filters['offices'] = $osdsOffices;
+        $filters['search'] = '';
+    } elseif ($search_upper === 'CID') {
+        $filters['offices'] = $cidOffices;
+        $filters['search'] = '';
+    } elseif ($search_upper === 'SGOD') {
+        $filters['offices'] = $sgodOffices;
+        $filters['search'] = '';
     }
 }
 
-if ($filter_search) {
-    if (strtoupper($filter_search) === 'OSDS') {
-        $placeholders = implode(',', array_fill(0, count($osdsOffices), '?'));
-        $sql .= " AND u.office_station IN ($placeholders)";
-        $params = array_merge($params, $osdsOffices);
-    } elseif (strtoupper($filter_search) === 'CID') {
-        $placeholders = implode(',', array_fill(0, count($cidOffices), '?'));
-        $sql .= " AND u.office_station IN ($placeholders)";
-        $params = array_merge($params, $cidOffices);
-    } elseif (strtoupper($filter_search) === 'SGOD') {
-        $placeholders = implode(',', array_fill(0, count($sgodOffices), '?'));
-        $sql .= " AND u.office_station IN ($placeholders)";
-        $params = array_merge($params, $sgodOffices);
-    } else {
-        $sql .= " AND (ld.title LIKE ? OR ld.competency LIKE ? OR u.full_name LIKE ? OR u.office_station LIKE ?)";
-        $params[] = "%$filter_search%";
-        $params[] = "%$filter_search%";
-        $params[] = "%$filter_search%";
-        $params[] = "%$filter_search%";
-    }
-}
+$activities = $activityRepo->getAllActivities($filters);
 
-if ($start_date) {
-    $sql .= " AND ld.date_attended >= ?";
-    $params[] = $start_date;
-}
-
-if ($end_date) {
-    $sql .= " AND ld.date_attended <= ?";
-    $params[] = $end_date;
-}
-
-$sql .= " ORDER BY ld.created_at DESC";
-$stmt = $pdo->prepare($sql);
-$stmt->execute($params);
-$activities = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
+// Status labels for display
+$statuses = [
+    'Pending' => 'Pending Approval',
+    'Reviewed' => 'Reviewed',
+    'Recommending' => 'Recommending',
+    'Approved' => 'Approved'
+];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -429,20 +394,20 @@ $activities = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         <div class="filter-grid">
                             <div class="search-wrapper">
                                 <i class="bi bi-search"></i>
-                                <input type="text" name="search" value="<?php echo htmlspecialchars($filter_search); ?>"
+                                <input type="text" name="search" value="<?php echo htmlspecialchars($filters['search']); ?>"
                                     placeholder="Search entries, names, offices or categories (OSDS, CID, SGOD)..."
                                     class="search-control">
                             </div>
 
                             <!-- Personnel Custom Select -->
                             <div class="custom-select-wrapper" id="personnelSelect">
-                                <input type="hidden" name="user_id" value="<?php echo $filter_user_id; ?>">
+                                <input type="hidden" name="user_id" value="<?php echo $filters['user_id']; ?>">
                                 <div class="custom-select-trigger">
                                     <span class="custom-select-text">
                                         <?php
                                         $pText = 'All Personnel';
                                         foreach ($all_users as $u) {
-                                            if ($u['id'] == $filter_user_id)
+                                            if ($u['id'] == $filters['user_id'])
                                                 $pText = $u['full_name'];
                                         }
                                         echo htmlspecialchars($pText);
@@ -451,10 +416,10 @@ $activities = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                     <i class="bi bi-chevron-down"></i>
                                 </div>
                                 <div class="custom-select-options">
-                                    <div class="custom-option <?php echo $filter_user_id == 0 ? 'selected' : ''; ?>"
+                                    <div class="custom-option <?php echo $filters['user_id'] == 0 ? 'selected' : ''; ?>"
                                         data-value="0">All Personnel</div>
                                     <?php foreach ($all_users as $u): ?>
-                                        <div class="custom-option <?php echo $filter_user_id == $u['id'] ? 'selected' : ''; ?>"
+                                        <div class="custom-option <?php echo $filters['user_id'] == $u['id'] ? 'selected' : ''; ?>"
                                             data-value="<?php echo $u['id']; ?>">
                                             <?php echo htmlspecialchars($u['full_name']); ?>
                                         </div>
@@ -465,7 +430,7 @@ $activities = $stmt->fetchAll(PDO::FETCH_ASSOC);
                             <!-- Status Custom Select -->
                             <div class="custom-select-wrapper" id="statusSelect">
                                 <input type="hidden" name="status"
-                                    value="<?php echo htmlspecialchars($filter_status); ?>">
+                                    value="<?php echo htmlspecialchars($filters['status_filter']); ?>">
                                 <div class="custom-select-trigger">
                                     <span class="custom-select-text">
                                         <?php
@@ -476,18 +441,18 @@ $activities = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                             'Recommending' => 'Recommending',
                                             'Approved' => 'Approved'
                                         ];
-                                        if (isset($statuses[$filter_status]))
-                                            $sText = $statuses[$filter_status];
+                                        if (isset($statuses[$filters['status_filter']]))
+                                            $sText = $statuses[$filters['status_filter']];
                                         echo htmlspecialchars($sText);
                                         ?>
                                     </span>
                                     <i class="bi bi-chevron-down"></i>
                                 </div>
                                 <div class="custom-select-options">
-                                    <div class="custom-option <?php echo $filter_status == '' ? 'selected' : ''; ?>"
+                                    <div class="custom-option <?php echo $filters['status_filter'] == '' ? 'selected' : ''; ?>"
                                         data-value="">All Statuses</div>
                                     <?php foreach ($statuses as $val => $label): ?>
-                                        <div class="custom-option <?php echo $filter_status == $val ? 'selected' : ''; ?>"
+                                        <div class="custom-option <?php echo $filters['status_filter'] == $val ? 'selected' : ''; ?>"
                                             data-value="<?php echo $val; ?>">
                                             <?php echo $label; ?>
                                         </div>
@@ -498,10 +463,10 @@ $activities = $stmt->fetchAll(PDO::FETCH_ASSOC);
                             <!-- Date Range -->
                             <div class="date-range-pills">
                                 <i class="bi bi-calendar-range"></i>
-                                <input type="date" name="start_date" value="<?php echo $start_date; ?>"
+                                <input type="date" name="start_date" value="<?php echo $filters['start_date']; ?>"
                                     class="date-pill-input" title="From Date">
                                 <span style="font-size: 0.7rem; color: var(--text-muted); font-weight: 700;">TO</span>
-                                <input type="date" name="end_date" value="<?php echo $end_date; ?>"
+                                <input type="date" name="end_date" value="<?php echo $filters['end_date']; ?>"
                                     class="date-pill-input" title="To Date">
                             </div>
 
@@ -510,7 +475,7 @@ $activities = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                 <button type="submit" class="apply-btn">
                                     <i class="bi bi-funnel-fill"></i> Apply
                                 </button>
-                                <?php if ($filter_user_id > 0 || $filter_status || $filter_search || $start_date || $end_date): ?>
+                                <?php if ($filters['user_id'] > 0 || $filters['status_filter'] || $filters['search'] || $filters['start_date'] || $filters['end_date']): ?>
                                     <a href="submissions.php" class="reset-btn" title="Reset all filters">
                                         <i class="bi bi-arrow-counterclockwise"></i>
                                     </a>

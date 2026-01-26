@@ -1,6 +1,6 @@
 <?php
 session_start();
-require '../includes/db.php';
+require '../includes/init_repos.php';
 
 // Check if user is logged in and is admin
 if (!isset($_SESSION['user_id']) || ($_SESSION['role'] !== 'admin' && $_SESSION['role'] !== 'super_admin' && $_SESSION['role'] !== 'immediate_head')) {
@@ -8,91 +8,59 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] !== 'admin' && $_SESSION[
     exit;
 }
 
-// Helper to format relative time
-function time_elapsed_string($datetime, $full = false)
-{
-    if (!$datetime)
-        return 'Never';
-    $now = new DateTime;
-    $ago = new DateTime($datetime);
-    $diff = $now->diff($ago);
-
-    $string = array(
-        'y' => 'year',
-        'm' => 'month',
-        'd' => 'day',
-        'h' => 'hour',
-        'i' => 'min',
-        's' => 'sec',
-    );
-    foreach ($string as $k => &$v) {
-        if ($diff->$k) {
-            $v = $diff->$k . ' ' . $v . ($diff->$k > 1 ? 's' : '');
-        } else {
-            unset($string[$k]);
-        }
-    }
-
-    if (!$full)
-        $string = array_slice($string, 0, 1);
-    return $string ? implode(', ', $string) . ' ago' : 'Just now';
-}
-
 // Filter Logic
 $filter = $_GET['filter'] ?? 'month'; // Default to month
-$dateFrom = $_GET['date_from'] ?? '';
-$dateTo = $_GET['date_to'] ?? '';
+$date_from = $_GET['date_from'] ?? '';
+$date_to = $_GET['date_to'] ?? '';
 
-// If dates are provided, force filter to 'custom'
-if (!empty($dateFrom) || !empty($dateTo)) {
-    $filter = 'custom';
-}
+$filters = [
+    'filter_type' => $filter,
+    'start_date' => $date_from,
+    'end_date' => $date_to
+];
 
-$whereClause = "";
-$params = [];
+// If dates are provided, force filter to 'custom' (implicit in getAllActivities filter logic if I update it)
+// Let's refine getAllActivities logic to handle these shortcuts or just implement the logic here.
+// Actually, I'll update ActivityRepository->getAllActivities to handle common filters.
 
-if ($filter === 'custom') {
-    if (!empty($dateFrom) && !empty($dateTo)) {
-        $whereClause = "WHERE DATE(ld.created_at) BETWEEN :date_from AND :date_to";
-        $params['date_from'] = $dateFrom;
-        $params['date_to'] = $dateTo;
-    } elseif (!empty($dateFrom)) {
-        $whereClause = "WHERE DATE(ld.created_at) >= :date_from";
-        $params['date_from'] = $dateFrom;
-    } elseif (!empty($dateTo)) {
-        $whereClause = "WHERE DATE(ld.created_at) <= :date_to";
-        $params['date_to'] = $dateTo;
-    }
-} elseif ($filter === 'today') {
-    $whereClause = "WHERE DATE(ld.created_at) = CURDATE()";
-} elseif ($filter === 'week') {
-    $whereClause = "WHERE YEARWEEK(ld.created_at, 1) = YEARWEEK(CURDATE(), 1)";
-} elseif ($filter === 'month') {
-    $whereClause = "WHERE MONTH(ld.created_at) = MONTH(CURDATE()) AND YEAR(ld.created_at) = YEAR(CURDATE())";
-}
-
-// Fetch all activities
-$stmt = $pdo->prepare("
-    SELECT ld.*, u.full_name, u.office_station, u.profile_picture 
-    FROM ld_activities ld 
-    JOIN users u ON ld.user_id = u.id 
-    $whereClause
-    ORDER BY ld.created_at DESC
-");
-$stmt->execute($params);
-$activities = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$activities = $activityRepo->getAllActivities($filters);
 
 // Calculate Statistics
 $totalSubmissions = count($activities);
 
 // Define Office Lists
-$osdsOffices = ['ADMINISTRATIVE (PERSONEL)', 'ADMINISTRATIVE (PROPERTY AND SUPPLY)', 'ADMINISTRATIVE (RECORDS)', 'ADMINISTRATIVE (CASH)', 'ADMINISTRATIVE (GENERAL SERVICES)', 'FINANCE (ACCOUNTING)', 'FINANCE (BUDGET)', 'LEGAL', 'ICT'];
-$sgodOffices = ['SCHOOL MANAGEMENT MONITORING & EVALUATION', 'HUMAN RESOURCES DEVELOPMENT', 'DISASTER RISK REDUCTION AND MANAGEMENT', 'EDUCATION FACILITIES', 'SCHOOL HEALTH AND NUTRITION', 'SCHOOL HEALTH AND NUTRITION (DENTAL)', 'SCHOOL HEALTH AND NUTRITION (MEDICAL)'];
-$cidOffices = ['CURRICULUM IMPLEMENTATION DIVISION (INSTRUCTIONAL MANAGEMENT)', 'CURRICULUM IMPLEMENTATION DIVISION (LEARNING RESOURCES MANAGEMENT)', 'CURRICULUM IMPLEMENTATION DIVISION (ALTERNATIVE LEARNING SYSTEM)', 'CURRICULUM IMPLEMENTATION DIVISION (DISTRICT INSTRUCTIONAL SUPERVISION)'];
+$osdsOffices = [
+    'ADMINISTRATIVE (PERSONEL)',
+    'ADMINISTRATIVE (PROPERTY AND SUPPLY)',
+    'ADMINISTRATIVE (RECORDS)',
+    'ADMINISTRATIVE (CASH)',
+    'ADMINISTRATIVE (GENERAL SERVICES)',
+    'FINANCE (ACCOUNTING)',
+    'FINANCE (BUDGET)',
+    'LEGAL',
+    'ICT'
+];
+$sgodOffices = [
+    'SCHOOL MANAGEMENT MONITORING & EVALUATION',
+    'HUMAN RESOURCES DEVELOPMENT',
+    'DISASTER RISK REDUCTION
+AND MANAGEMENT',
+    'EDUCATION FACILITIES',
+    'SCHOOL HEALTH AND NUTRITION',
+    'SCHOOL HEALTH AND NUTRITION (DENTAL)',
+    'SCHOOL HEALTH AND NUTRITION (MEDICAL)'
+];
+$cidOffices = [
+    'CURRICULUM IMPLEMENTATION DIVISION (INSTRUCTIONAL MANAGEMENT)',
+    'CURRICULUM IMPLEMENTATION DIVISION
+(LEARNING RESOURCES MANAGEMENT)',
+    'CURRICULUM IMPLEMENTATION DIVISION (ALTERNATIVE LEARNING SYSTEM)',
+    'CURRICULUM
+IMPLEMENTATION DIVISION (DISTRICT INSTRUCTIONAL SUPERVISION)'
+];
 
 // Fetch Users Count
-$stmt = $pdo->query("SELECT COUNT(*) FROM users WHERE role != 'admin'");
-$totalUsers = $stmt->fetchColumn();
+$totalUsers = $userRepo->getTotalUserCount();
 
 // Count per status
 $pendingCount = 0;
@@ -121,8 +89,9 @@ foreach ($activities as $act) {
     }
 
     // Group for frequency chart
-    if (isset($act['created_at'])) {
-        $dateKey = date('Y-m-d', strtotime($act['created_at']));
+    $actDate = $act['activity_created_at'] ?? $act['created_at'];
+    if (isset($actDate)) {
+        $dateKey = date('Y-m-d', strtotime($actDate));
         $frequencyData[$dateKey] = ($frequencyData[$dateKey] ?? 0) + 1;
     }
 }
@@ -629,7 +598,8 @@ $freqValues = array_values($frequencyData);
                 <div class="dashboard-row-bottom">
                     <div class="dashboard-card hover-elevate">
                         <div class="card-header" style="padding: 12px 20px;">
-                            <h2 style="font-size: 0.9rem;"><i class="bi bi-megaphone text-gradient"></i> Recent Activity
+                            <h2 style="font-size: 0.9rem;"><i class="bi bi-megaphone text-gradient"></i> Recent
+                                Activity
                                 Submitted</h2>
                         </div>
                         <div class="card-body" style="padding: 0; max-height: 350px; overflow-y: auto;">
@@ -671,8 +641,8 @@ $freqValues = array_values($frequencyData);
                                                     <span class="pulse-indicator"></span>
                                                 <?php endif; ?>
                                                 <span class="feed-time"
-                                                    title="<?php echo date('M d, Y h:i A', strtotime($act['created_at'])); ?>">
-                                                    <?php echo time_elapsed_string($act['created_at']); ?>
+                                                    title="<?php echo date('M d, Y h:i A', strtotime($act['activity_created_at'] ?? $act['created_at'])); ?>">
+                                                    <?php echo time_elapsed_string($act['activity_created_at'] ?? $act['created_at']); ?>
                                                 </span>
                                             </div>
                                         </a>
@@ -729,9 +699,9 @@ $freqValues = array_values($frequencyData);
                                                 <tr class="<?php echo $row_class; ?>">
                                                     <td>
                                                         <span
-                                                            class="cell-primary"><?php echo date('M d, Y', strtotime($act['created_at'])); ?></span>
+                                                            class="cell-primary"><?php echo date('M d, Y', strtotime($act['activity_created_at'] ?? $act['created_at'])); ?></span>
                                                         <span
-                                                            class="cell-secondary"><?php echo date('h:i A', strtotime($act['created_at'])); ?></span>
+                                                            class="cell-secondary"><?php echo date('h:i A', strtotime($act['activity_created_at'] ?? $act['created_at'])); ?></span>
                                                     </td>
                                                     <td>
                                                         <div class="cell-primary">
@@ -782,7 +752,8 @@ $freqValues = array_values($frequencyData);
             </main>
 
             <footer class="admin-footer">
-                <p>&copy; <?php echo date('Y'); ?> SDO L&D Passbook System. <span class="text-muted">Developed by Algen
+                <p>&copy; <?php echo date('Y'); ?> SDO L&D Passbook System. <span class="text-muted">Developed by
+                        Algen
                         D. Loveres and Cedrick V. Bacaresas</span></p>
             </footer>
         </div>

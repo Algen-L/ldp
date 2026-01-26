@@ -29,6 +29,8 @@ $path_to_root = ($current_page_dir === 'pages') ? '../' : '';
 
 <!-- Global Notification JS -->
 <script src="<?php echo $path_to_root; ?>js/notifications.js"></script>
+<!-- Global UI Core JS -->
+<script src="<?php echo $path_to_root; ?>js/ui-core.js"></script>
 
 <?php if (isset($_SESSION['toast'])): ?>
     <script>
@@ -43,7 +45,7 @@ $path_to_root = ($current_page_dir === 'pages') ? '../' : '';
     <?php unset($_SESSION['toast']); ?>
 <?php endif; ?>
 
-<!-- Prevent Sidebar Flash/Animation -->
+<!-- Prevent Sidebar Flash/Animation (Must be in head) -->
 <script>
     (function () {
         const collapsed = localStorage.getItem('sidebarCollapsed') === 'true';
@@ -51,24 +53,4 @@ $path_to_root = ($current_page_dir === 'pages') ? '../' : '';
             document.documentElement.classList.add('sidebar-initial-collapsed');
         }
     })();
-
-    // Real-time Clock Functionality
-    function updateClock() {
-        const clockElement = document.getElementById('real-time-clock');
-        if (!clockElement) return;
-
-        const now = new Date();
-        const options = {
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: true
-        };
-        clockElement.textContent = now.toLocaleTimeString('en-US', options);
-    }
-
-    // Update every second
-    setInterval(updateClock, 1000);
-    // Initial call
-    document.addEventListener('DOMContentLoaded', updateClock);
 </script>

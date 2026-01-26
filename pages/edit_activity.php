@@ -1,6 +1,8 @@
 ﻿<?php
 session_start();
-require '../includes/db.php';
+require '../includes/init_repos.php';
+require '../includes/functions/file-functions.php';
+require '../includes/functions/activity-functions.php';
 
 if (!isset($_SESSION['user_id'])) {
     header("Location: ../index.php");
@@ -13,9 +15,7 @@ if (!$activity_id) {
 }
 
 // Fetch Activity Data
-$stmt = $pdo->prepare("SELECT * FROM ld_activities WHERE id = ?");
-$stmt->execute([$activity_id]);
-$activity = $stmt->fetch(PDO::FETCH_ASSOC);
+$activity = $activityRepo->getActivityById($activity_id);
 
 if (!$activity) {
     die("Activity not found.");
@@ -42,90 +42,35 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $conducted_by = trim($_POST['conducted_by']);
     $reflection = trim($_POST['reflection']);
 
-    // Function to handle file saving
-    function saveUpload($fileKey, $prefix, $subDir = 'signatures')
-    {
-        if (!isset($_FILES[$fileKey]) || empty($_FILES[$fileKey]['name'][0]))
-            return null;
-
-        $files = $_FILES[$fileKey];
-        $isMultiple = is_array($files['name']);
-        $count = $isMultiple ? count($files['name']) : 1;
-        $paths = [];
-
-        $uploadDir = '../uploads/' . $subDir . '/';
-        if (!is_dir($uploadDir))
-            mkdir($uploadDir, 0777, true);
-
-        for ($i = 0; $i < $count; $i++) {
-            $error = $isMultiple ? $files['error'][$i] : $files['error'];
-            if ($error === UPLOAD_ERR_OK) {
-                $tmpName = $isMultiple ? $files['tmp_name'][$i] : $files['tmp_name'];
-                $originalName = $isMultiple ? $files['name'][$i] : $files['name'];
-                $fileName = uniqid() . '_' . $prefix . '_' . preg_replace('/[^a-zA-Z0-9\._-]/', '', $originalName);
-                $targetPath = $uploadDir . $fileName;
-
-                if (move_uploaded_file($tmpName, $targetPath)) {
-                    $paths[] = 'uploads/' . $subDir . '/' . $fileName;
-                }
-            }
-        }
-        if (empty($paths))
-            return null;
-        return $isMultiple ? json_encode($paths) : $paths[0];
-    }
-
     $new_work_images = saveUpload('workplace_image', 'work', 'workplace');
-
     $work_image_path = $new_work_images ?: $activity['workplace_image_path'];
 
-    $sql = "UPDATE ld_activities SET 
-            title = ?, date_attended = ?, venue = ?, modality = ?, competency = ?, 
-            type_ld = ?, type_ld_others = ?, conducted_by = ?, 
-            workplace_image_path = ?, 
-            reflection = ?, rating_period = ?
-            WHERE id = ? AND user_id = ?";
-    $stmt = $pdo->prepare($sql);
-    if (
-        $stmt->execute([
-            $title,
-            $date_attended,
-            $venue,
-            $modality,
-            $competency,
-            $type_ld,
-            $type_ld_others,
-            $conducted_by,
-            $work_image_path,
-            $reflection,
-            $activity['rating_period'],
-            $activity_id,
-            $_SESSION['user_id']
-        ])
-    ) {
-        $logStmt = $pdo->prepare("INSERT INTO activity_logs (user_id, action, details, ip_address) VALUES (?, ?, ?, ?)");
-        $logStmt->execute([$_SESSION['user_id'], 'Updated Activity', "Activity ID: $activity_id, Title: $title", $_SERVER['REMOTE_ADDR']]);
+    $updateData = [
+        'title' => $title,
+        'date_attended' => $date_attended,
+        'venue' => $venue,
+        'modality' => $modality,
+        'competency' => $competency,
+        'type_ld' => $type_ld,
+        'type_ld_others' => $type_ld_others,
+        'conducted_by' => $conducted_by,
+        'workplace_image_path' => $work_image_path,
+        'reflection' => $reflection,
+        'rating_period' => $activity['rating_period']
+    ];
+
+    if ($activityRepo->updateActivity($activity_id, $_SESSION['user_id'], $updateData)) {
+        $logRepo->logAction($_SESSION['user_id'], 'Updated Activity', "Activity ID: $activity_id, Title: $title");
 
         $message = "Activity updated successfully!";
         $messageType = "success";
 
         // Refresh data
-        $stmt = $pdo->prepare("SELECT * FROM ld_activities WHERE id = ?");
-        $stmt->execute([$activity_id]);
-        $activity = $stmt->fetch(PDO::FETCH_ASSOC);
+        $activity = $activityRepo->getActivityById($activity_id);
     } else {
         $message = "Error updating activity.";
         $messageType = "error";
     }
-}
-
-// Helper for checkboxes
-function isChecked($value, $storedValue)
-{
-    if (empty($storedValue))
-        return '';
-    $arr = explode(', ', $storedValue);
-    return in_array($value, $arr) ? 'checked' : '';
 }
 ?>
 <!DOCTYPE html>
@@ -452,12 +397,8 @@ function isChecked($value, $storedValue)
                                         <label class="form-label">Addressed Competency/ies <span
                                                 style="color: var(--danger);">*</span></label>
                                         <?php
-                                        // Fetch user's ILDNs for the dropdown
-                                        $stmt_ildn = $pdo->prepare("SELECT * FROM user_ildn WHERE user_id = ? ORDER BY need_text ASC");
-                                        $stmt_ildn->execute([$_SESSION['user_id']]);
-                                        $user_ildns = $stmt_ildn->fetchAll(PDO::FETCH_ASSOC);
-
-                                        // Current competencies
+                                        $user_ildns = $ildnRepo->getILDNList($_SESSION['user_id']);
+                                        ?>
                                         $current_competencies = explode(', ', $activity['competency']);
                                         ?>
                                         <select id="competency-select" name="competency[]" class="form-control"
@@ -468,7 +409,8 @@ function isChecked($value, $storedValue)
                                             foreach ($current_competencies as $comp):
                                                 if (!empty($comp) && !in_array($comp, $ildn_texts)): ?>
                                                     <option value="<?php echo htmlspecialchars($comp); ?>" selected>
-                                                        <?php echo htmlspecialchars($comp); ?></option>
+                                                        <?php echo htmlspecialchars($comp); ?>
+                                                    </option>
                                                 <?php endif;
                                             endforeach; ?>
 
@@ -496,13 +438,16 @@ function isChecked($value, $storedValue)
                                             <i class="bi bi-diagram-3"></i>
                                             <h3>Modality</h3>
                                         </div>
-                                        <div class="checkbox-grid" style="grid-template-columns: 1fr;">
+                                        <div class="checkbox-grid" style="grid-template-columns: 1fr; gap: 8px;">
                                             <?php
                                             $modalities = ["Formal Training", "Job-Embedded Learning", "Relationship Discussion Learning", "Learning Action Cell"];
                                             foreach ($modalities as $m): ?>
-                                                <label class="checkbox-item">
-                                                    <input type="checkbox" name="modality[]" value="<?php echo $m; ?>" <?php echo isChecked($m, $activity['modality']); ?>>
-                                                    <span><?php echo $m; ?></span>
+                                                <label class="checkbox-item"
+                                                    style="display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px;">
+                                                    <input type="checkbox" name="modality[]" value="<?php echo $m; ?>" <?php echo isChecked($m, $activity['modality']); ?>
+                                                        style="margin-top: 4px;">
+                                                    <span
+                                                        style="font-size: 0.85rem; line-height: 1.4;"><?php echo $m; ?></span>
                                                 </label>
                                             <?php endforeach; ?>
                                         </div>
@@ -512,13 +457,16 @@ function isChecked($value, $storedValue)
                                             <i class="bi bi-tags"></i>
                                             <h3>Type of L&D</h3>
                                         </div>
-                                        <div class="checkbox-grid" style="grid-template-columns: 1fr;">
+                                        <div class="checkbox-grid" style="grid-template-columns: 1fr; gap: 8px;">
                                             <?php
                                             $types = ["Supervisory", "Managerial", "Technical", "Others"];
                                             foreach ($types as $t): ?>
-                                                <label class="checkbox-item">
-                                                    <input type="checkbox" name="type_ld[]" value="<?php echo $t; ?>" <?php echo isChecked($t, $activity['type_ld']); ?>>
-                                                    <span><?php echo $t; ?></span>
+                                                <label class="checkbox-item"
+                                                    style="display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px;">
+                                                    <input type="checkbox" name="type_ld[]" value="<?php echo $t; ?>" <?php echo isChecked($t, $activity['type_ld']); ?>
+                                                        style="margin-top: 4px;">
+                                                    <span
+                                                        style="font-size: 0.85rem; line-height: 1.4;"><?php echo $t; ?></span>
                                                 </label>
                                             <?php endforeach; ?>
                                         </div>
@@ -555,7 +503,6 @@ function isChecked($value, $storedValue)
                             <div class="form-section"
                                 style="border-top: 1px solid var(--border-light); padding-top: 32px; background: var(--bg-secondary); margin: 0 -40px -40px -40px; padding: 40px;">
                                 <div style="max-width: 400px; margin: 0 auto;">
-                                    <!-- Field approved_by removed -->
                                     <div style="margin-top: 20px; display: flex; gap: 16px;">
                                         <button type="submit" class="btn btn-primary btn-lg" style="flex: 2;">
                                             <i class="bi bi-save"></i> UPDATE RECORD
@@ -580,6 +527,7 @@ function isChecked($value, $storedValue)
 
     <!-- Tom Select JS -->
     <script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
+    <script src="../js/active-forms.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             // Initialize Tom Select for Competencies

@@ -1,6 +1,6 @@
 <?php
 session_start();
-require '../includes/db.php';
+require '../includes/init_repos.php';
 
 // Check if user is logged in
 if (!isset($_SESSION['user_id'])) {
@@ -12,9 +12,7 @@ $message = '';
 $messageType = '';
 
 // Fetch current user data
-$stmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
-$stmt->execute([$_SESSION['user_id']]);
-$user = $stmt->fetch(PDO::FETCH_ASSOC);
+$user = $userRepo->getUserById($_SESSION['user_id']);
 
 if (!$user) {
     session_destroy();
@@ -40,10 +38,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['upload_certificate']))
 
             if (move_uploaded_file($_FILES['certificate']['tmp_name'], $targetPath)) {
                 $dbPath = 'uploads/certificates/' . $fileName;
-                $stmt = $pdo->prepare("UPDATE ld_activities SET certificate_path = ? WHERE id = ? AND user_id = ?");
-                if ($stmt->execute([$dbPath, $activity_id, $_SESSION['user_id']])) {
-                    $logStmt = $pdo->prepare("INSERT INTO activity_logs (user_id, action, details, ip_address) VALUES (?, ?, ?, ?)");
-                    $logStmt->execute([$_SESSION['user_id'], 'Updated Certificate', "Activity ID: $activity_id", $_SERVER['REMOTE_ADDR']]);
+                if ($activityRepo->updateActivity($activity_id, $_SESSION['user_id'], ['certificate_path' => $dbPath])) {
+                    $logRepo->logAction($_SESSION['user_id'], 'Updated Certificate', "Activity ID: $activity_id");
 
                     $message = "Certificate uploaded successfully!";
                     $messageType = "success";
@@ -56,44 +52,42 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['upload_certificate']))
     }
 }
 
-
-
 // Fetch activities for certificate hub
-$stmt = $pdo->prepare("SELECT * FROM ld_activities WHERE user_id = ? ORDER BY date_attended DESC");
-$stmt->execute([$_SESSION['user_id']]);
-$activities = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$activities = $activityRepo->getActivitiesByUser($_SESSION['user_id']);
 
 // Handle ILDN Management
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     if (isset($_POST['add_ildn'])) {
         $need_text = trim($_POST['need_text']);
+        $description = trim($_POST['description'] ?? '');
         if (!empty($need_text)) {
-            $stmt = $pdo->prepare("INSERT INTO user_ildn (user_id, need_text) VALUES (?, ?)");
-            $stmt->execute([$_SESSION['user_id'], $need_text]);
+            $ildnRepo->createILDN($_SESSION['user_id'], $need_text, $description);
             $message = "Development need added successfully!";
             $messageType = "success";
         }
     } elseif (isset($_POST['delete_ildn'])) {
         $ildn_id = (int) $_POST['ildn_id'];
-        $stmt = $pdo->prepare("DELETE FROM user_ildn WHERE id = ? AND user_id = ?");
-        $stmt->execute([$ildn_id, $_SESSION['user_id']]);
+        $ildnRepo->deleteILDN($ildn_id, $_SESSION['user_id']);
         $message = "Development need removed.";
         $messageType = "success";
+    } elseif (isset($_POST['edit_ildn'])) {
+        $ildn_id = (int) $_POST['ildn_id'];
+        $need_text = trim($_POST['need_text']);
+        $description = trim($_POST['description'] ?? '');
+        if (!empty($need_text)) {
+            $ildnRepo->updateILDN($ildn_id, $_SESSION['user_id'], [
+                'need_text' => $need_text,
+                'description' => $description
+            ]);
+            $message = "Development need updated successfully!";
+            $messageType = "success";
+        }
     }
 }
 
 // Fetch user's ILDNs with usage count
-$stmt = $pdo->prepare("
-    SELECT ui.*, 
-    (SELECT COUNT(*) FROM ld_activities la 
-     WHERE la.user_id = ui.user_id 
-     AND FIND_IN_SET(ui.need_text, REPLACE(la.competency, ', ', ','))) as usage_count
-    FROM user_ildn ui 
-    WHERE ui.user_id = ? 
-    ORDER BY ui.created_at DESC
-");
-$stmt->execute([$_SESSION['user_id']]);
-$user_ildns = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$user_ildns = $ildnRepo->getILDNsByUser($_SESSION['user_id']);
+?>
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -798,11 +792,17 @@ $user_ildns = $stmt->fetchAll(PDO::FETCH_ASSOC);
                             <div class="dashboard-card" style="margin-bottom: 0;">
                                 <div class="card-body" style="padding: 25px;">
                                     <form method="POST" class="form-group"
-                                        style="display: flex; gap: 12px; margin-bottom: 24px;">
-                                        <input type="text" name="need_text" class="form-control"
-                                            placeholder="Enter a learning need..." required>
+                                        style="display: flex; flex-direction: column; gap: 16px; margin-bottom: 24px;">
+                                        <div style="display: flex; flex-direction: column; gap: 8px;">
+                                            <input type="text" name="need_text" class="form-control"
+                                                placeholder="Enter a learning need..." required
+                                                style="height: 50px; border-radius: 12px; background: #f8fafc; border: 1.5px solid #eef2f6;">
+                                            <textarea name="description" class="form-control"
+                                                placeholder="What is this all about? (Optional)"
+                                                style="height: 100px; border-radius: 12px; background: #f8fafc; border: 1.5px solid #eef2f6; resize: none; padding-top: 12px;"></textarea>
+                                        </div>
                                         <button type="submit" name="add_ildn" class="btn btn-primary"
-                                            style="white-space: nowrap;">
+                                            style="width: 100%; height: 48px; border-radius: 12px; font-weight: 700; font-size: 1rem; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 12px rgba(15, 76, 117, 0.15);">
                                             <i class="bi bi-plus-lg"></i> Add
                                         </button>
                                     </form>
@@ -823,8 +823,8 @@ $user_ildns = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                                         ? "background: #f0fdf4; border: 1px solid #bbf7d0; box-shadow: 0 4px 12px rgba(22, 163, 74, 0.08);"
                                                         : "background: white; border: 1px solid #eef2f6; box-shadow: 0 1px 3px rgba(0,0,0,0.05);";
                                                     ?>
-                                                    <div
-                                                        style="<?php echo $card_style; ?> border-radius: 12px; padding: 16px; display: flex; justify-content: space-between; align-items: center; transition: all 0.2s ease;">
+                                                    <div style="<?php echo $card_style; ?> border-radius: 12px; padding: 16px; display: flex; justify-content: space-between; align-items: center; transition: all 0.2s ease; cursor: pointer;"
+                                                        onclick="showILDNDescription(<?php echo $ildn['id']; ?>, '<?php echo addslashes(htmlspecialchars($ildn['need_text'])); ?>', '<?php echo addslashes(htmlspecialchars($ildn['description'] ?: 'No description provided.')); ?>')">
                                                         <div style="display: flex; flex-direction: column; gap: 4px;">
                                                             <div
                                                                 style="font-weight: 700; color: <?php echo $is_addressed ? '#15803d' : 'var(--primary)'; ?>; font-size: 0.95rem;">
@@ -846,7 +846,7 @@ $user_ildns = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                                             </div>
                                                         </div>
                                                         <button type="button" class="btn btn-sm"
-                                                            onclick="confirmDeleteILDN(<?php echo $ildn['id']; ?>)"
+                                                            onclick="event.stopPropagation(); confirmDeleteILDN(<?php echo $ildn['id']; ?>)"
                                                             style="padding: 6px; color: #dc2626; background: <?php echo $is_addressed ? '#fecaca' : '#fef2f2'; ?>; border: none; border-radius: 8px; width: 32px; height: 32px;">
                                                             <i class="bi bi-trash"></i>
                                                         </button>
@@ -910,7 +910,8 @@ $user_ildns = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     </div>
 
                     <div class="submissions-list-scroll">
-                        <div class="certificate-grid" style="grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));">
+                        <div class="certificate-grid"
+                            style="grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));">
                             <?php if (empty($activities)): ?>
                                 <div class="empty-state" style="grid-column: 1 / -1;">
                                     <div style="font-size: 3rem; color: #e2e8f0; margin-bottom: 20px;"><i
@@ -1014,46 +1015,91 @@ $user_ildns = $stmt->fetchAll(PDO::FETCH_ASSOC);
         </div>
     </div>
 
-    <script>
-        function confirmDeleteILDN(id) {
-            document.getElementById('modal_ildn_id').value = id;
-            const overlay = document.getElementById('deleteModalOverlay');
-            const modal = overlay.querySelector('.custom-modal');
+    <!-- Description Modal -->
+    <div id="descriptionModalOverlay" class="custom-modal-overlay">
+        <div class="custom-modal" style="max-width: 500px;">
+            <div class="modal-icon-container" style="background: #e0f2fe; color: #0284c7;">
+                <i class="bi bi-info-circle-fill"></i>
+            </div>
 
-            overlay.style.display = 'flex';
-            setTimeout(() => modal.classList.add('show'), 10);
+            <!-- View Mode -->
+            <div id="desc_view_mode">
+                <h3 class="modal-title" id="desc_modal_title">Learning Need</h3>
+                <p class="modal-text" id="desc_modal_text"
+                    style="text-align: left; white-space: pre-wrap; background: #f8fafc; padding: 15px; border-radius: 12px; border: 1px solid #eef2f6; max-height: 300px; overflow-y: auto;">
+                    Description goes here...
+                </p>
+                <div class="modal-actions" style="margin-top: 20px;">
+                    <button type="button" class="modal-btn modal-btn-cancel"
+                        onclick="closeDescriptionModal()">Close</button>
+                    <button type="button" class="modal-btn" style="background: var(--primary); color: white;"
+                        onclick="toggleEditMode(true)">Edit</button>
+                </div>
+            </div>
+
+            <!-- Edit Mode -->
+            <div id="desc_edit_mode" style="display: none;">
+                <h3 class="modal-title">Edit Learning Need</h3>
+                <form method="POST">
+                    <input type="hidden" name="edit_ildn" value="1">
+                    <input type="hidden" name="ildn_id" id="edit_ildn_id">
+                    <div class="form-group" style="text-align: left;">
+                        <label class="form-label">Learning Need</label>
+                        <input type="text" name="need_text" id="edit_need_text" class="form-control" required
+                            style="background: #f8fafc;">
+                    </div>
+                    <div class="form-group" style="text-align: left;">
+                        <label class="form-label">Description</label>
+                        <textarea name="description" id="edit_description" class="form-control"
+                            style="height: 150px; background: #f8fafc; resize: none;"></textarea>
+                    </div>
+                    <div class="modal-actions" style="margin-top: 20px;">
+                        <button type="button" class="modal-btn modal-btn-cancel"
+                            onclick="toggleEditMode(false)">Cancel</button>
+                        <button type="submit" class="modal-btn" style="background: #10b981; color: white;">Save
+                            Changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/profile-actions.js"></script>
+    <script>
+        function showILDNDescription(id, title, description) {
+            document.getElementById('desc_modal_title').innerText = title;
+            document.getElementById('desc_modal_text').innerText = description;
+
+            // Populate edit fields
+            document.getElementById('edit_ildn_id').value = id;
+            document.getElementById('edit_need_text').value = title;
+            document.getElementById('edit_description').value = description === 'No description provided.' ? '' : description;
+
+            toggleEditMode(false); // Ensure we start in view mode
+
+            const modal = document.getElementById('descriptionModalOverlay');
+            modal.style.display = 'flex';
+            setTimeout(() => modal.querySelector('.custom-modal').classList.add('show'), 10);
         }
 
-        function closeDeleteModal() {
-            const overlay = document.getElementById('deleteModalOverlay');
-            const modal = overlay.querySelector('.custom-modal');
+        function toggleEditMode(isEdit) {
+            document.getElementById('desc_view_mode').style.display = isEdit ? 'none' : 'block';
+            document.getElementById('desc_edit_mode').style.display = isEdit ? 'block' : 'none';
+        }
 
-            modal.classList.remove('show');
-            setTimeout(() => overlay.style.display = 'none', 300);
+        function closeDescriptionModal() {
+            const modal = document.getElementById('descriptionModalOverlay');
+            modal.querySelector('.custom-modal').classList.remove('show');
+            setTimeout(() => modal.style.display = 'none', 300);
         }
 
         // Close modal when clicking outside
         window.onclick = function (event) {
-            const overlay = document.getElementById('deleteModalOverlay');
-            if (event.target == overlay) {
-                closeDeleteModal();
-            }
+            const deleteModal = document.getElementById('deleteModalOverlay');
+            const descModal = document.getElementById('descriptionModalOverlay');
+            if (event.target == deleteModal) closeDeleteModal();
+            if (event.target == descModal) closeDescriptionModal();
         }
-
-        document.getElementById('toggleSettings').addEventListener('click', function () {
-            const settings = document.getElementById('accountSettings');
-            const btn = this;
-
-            if (settings.style.display === 'block') {
-                settings.style.display = 'none';
-                btn.classList.remove('active');
-            } else {
-                settings.style.display = 'block';
-                btn.classList.add('active');
-                settings.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
-        });
-
         <?php if ($message): ?>
             showToast("<?php echo ($messageType === 'success') ? 'Success' : 'Notice'; ?>", "<?php echo $message; ?>", "<?php echo $messageType; ?>");
         <?php endif; ?>

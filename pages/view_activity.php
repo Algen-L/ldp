@@ -1,6 +1,8 @@
 <?php
 session_start();
-require '../includes/db.php';
+require '../includes/init_repos.php';
+require '../includes/functions/file-functions.php';
+require '../includes/functions/activity-functions.php';
 
 // Check if user is logged in
 if (!isset($_SESSION['user_id'])) {
@@ -15,10 +17,7 @@ if (!$activity_id) {
 }
 
 // Fetch Activity Logic
-$sql = "SELECT ld.*, u.full_name, u.office_station, u.position as user_position, u.profile_picture, ld.certificate_path FROM ld_activities ld JOIN users u ON ld.user_id = u.id WHERE ld.id = ?";
-$stmt = $pdo->prepare($sql);
-$stmt->execute([$activity_id]);
-$activity = $stmt->fetch(PDO::FETCH_ASSOC);
+$activity = $activityRepo->getActivityById($activity_id);
 
 if (!$activity) {
     die("Activity not found.");
@@ -30,102 +29,56 @@ if (($_SESSION['role'] !== 'admin' && $_SESSION['role'] !== 'super_admin' && $_S
 }
 
 // Log View Activity
-$stmt_log = $pdo->prepare("INSERT INTO activity_logs (user_id, action, details, ip_address) VALUES (?, 'Viewed Specific Activity', ?, ?)");
-$stmt_log->execute([$_SESSION['user_id'], $activity['title'], $_SERVER['REMOTE_ADDR']]);
+$logRepo->logAction($_SESSION['user_id'], 'Viewed Specific Activity', $activity['title']);
 
 // Update Status to 'Viewed' if it is 'Pending' and user is Admin
 if (($_SESSION['role'] === 'admin' || $_SESSION['role'] === 'super_admin' || $_SESSION['role'] === 'immediate_head') && $activity['status'] === 'Pending') {
-    $stmt_update = $pdo->prepare("UPDATE ld_activities SET status = 'Viewed' WHERE id = ?");
-    $stmt_update->execute([$activity_id]);
+    $activityRepo->updateStatus($activity_id, 'Viewed');
     $activity['status'] = 'Viewed';
 }
 
-// Function to handle signature saving (copied for admin use)
-function saveAdminSignature($postDataKey, $prefix)
-{
-    if (!empty($_POST[$postDataKey])) {
-        $data = $_POST[$postDataKey];
-        $data = str_replace('data:image/png;base64,', '', $data);
-        $data = str_replace(' ', '+', $data);
-        $decodedData = base64_decode($data);
-        $fileName = uniqid() . '_' . $prefix . '_signature.png';
-        $filePath = '../uploads/signatures/' . $fileName;
-        if (!is_dir(dirname($filePath))) {
-            mkdir(dirname($filePath), 0777, true);
-        }
-        if (file_put_contents($filePath, $decodedData)) {
-            return 'uploads/signatures/' . $fileName;
-        }
-    }
-    return '';
-}
-
-// Handle Admin Approval Actions
-if (($_SESSION['role'] === 'admin' || $_SESSION['role'] === 'super_admin' || $_SESSION['role'] === 'immediate_head') && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_approval'])) {
+// Handle Approval Actions
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_approval'])) {
     $stage = $_POST['stage'];
-    $current_time = date('Y-m-d H:i:s');
+    $now = date('Y-m-d H:i:s');
+    $success = false;
 
     if ($stage === 'supervisor') {
-        $stmt = $pdo->prepare("UPDATE ld_activities SET reviewed_by_supervisor = 1, reviewed_at = ? WHERE id = ?");
-        if ($stmt->execute([$current_time, $activity_id])) {
-            $logStmt = $pdo->prepare("INSERT INTO activity_logs (user_id, action, details, ip_address) VALUES (?, ?, ?, ?)");
-            $logStmt->execute([$_SESSION['user_id'], 'Reviewed Activity', "Activity ID: $activity_id", $_SERVER['REMOTE_ADDR']]);
-        }
+        $success = $activityRepo->updateApprovalStatus($activity_id, 'supervisor', $now);
+        $actionDesc = "Reviewed Activity Submission";
     } elseif ($stage === 'asds') {
-        $stmt = $pdo->prepare("UPDATE ld_activities SET recommending_asds = 1, recommended_at = ? WHERE id = ?");
-        if ($stmt->execute([$current_time, $activity_id])) {
-            $logStmt = $pdo->prepare("INSERT INTO activity_logs (user_id, action, details, ip_address) VALUES (?, ?, ?, ?)");
-            $logStmt->execute([$_SESSION['user_id'], 'Recommended Activity', "Activity ID: $activity_id", $_SERVER['REMOTE_ADDR']]);
-        }
+        $success = $activityRepo->updateApprovalStatus($activity_id, 'asds', $now);
+        $actionDesc = "Recommended Activity Submission";
     } elseif ($stage === 'sds') {
-        if ($_SESSION['role'] !== 'immediate_head') {
-            die("Unauthorized final approval.");
-        }
-        $head_name = trim($_POST['approved_by'] ?? '');
-        $sig_data = $_POST['signature_data'] ?? '';
-
-        if (empty($head_name)) {
-            $_SESSION['toast'] = ['title' => 'Missing Information', 'message' => 'Immediate Head Name is required.', 'type' => 'error'];
-            header("Location: view_activity.php?id=" . $activity_id);
-            exit;
-        }
-
-        // Simple check if signature data is too short
-        if (empty($sig_data) || strlen($sig_data) < 100) {
-            $_SESSION['toast'] = ['title' => 'Missing Signature', 'message' => 'Please provide a valid signature.', 'type' => 'error'];
-            header("Location: view_activity.php?id=" . $activity_id);
-            exit;
-        }
-
-        $sig_path = saveAdminSignature('signature_data', 'head');
-        if (empty($sig_path)) {
-            $_SESSION['toast'] = ['title' => 'Upload Failed', 'message' => 'Could not save the signature.', 'type' => 'error'];
-            header("Location: view_activity.php?id=" . $activity_id);
-            exit;
-        }
-
-        if ($stmt->execute([$current_time, $head_name, $sig_path, $activity_id])) {
-            $logStmt = $pdo->prepare("INSERT INTO activity_logs (user_id, action, details, ip_address) VALUES (?, ?, ?, ?)");
-            $logStmt->execute([$_SESSION['user_id'], 'Approved Activity', "Activity ID: $activity_id, Approved By: $head_name", $_SERVER['REMOTE_ADDR']]);
-
-            $_SESSION['toast'] = ['title' => 'Success', 'message' => 'Activity successfully approved!', 'type' => 'success'];
+        $approvedBy = $_POST['approved_by'] ?? '';
+        $signaturePath = saveAdminSignature('signature_data', 'admin_sds');
+        if ($signaturePath) {
+            $success = $activityRepo->updateApprovalStatus($activity_id, 'sds', $now, [
+                'approved_by' => $approvedBy,
+                'signature_path' => $signaturePath
+            ]);
+            $actionDesc = "SDS Final Approval Given";
         }
     }
 
-    // Refresh activity data
-    $stmt = $pdo->prepare("SELECT ld.*, u.full_name, u.office_station, u.position as user_position, u.profile_picture, ld.certificate_path FROM ld_activities ld JOIN users u ON ld.user_id = u.id WHERE ld.id = ?");
-    $stmt->execute([$activity_id]);
-    $activity = $stmt->fetch(PDO::FETCH_ASSOC);
+    if ($success) {
+        $logRepo->logAction($_SESSION['user_id'], $actionDesc, $activity['title']);
+        $_SESSION['toast'] = [
+            'title' => 'Success',
+            'message' => 'Submission status updated successfully.',
+            'type' => 'success'
+        ];
+    } else {
+        $_SESSION['toast'] = [
+            'title' => 'Error',
+            'message' => 'Failed to update submission status.',
+            'type' => 'error'
+        ];
+    }
+    header("Location: view_activity.php?id=" . $activity_id);
+    exit;
 }
 
-// Helper for checkboxes
-function isChecked($value, $arrayString)
-{
-    if (!$arrayString)
-        return '';
-    $array = explode(', ', $arrayString);
-    return in_array($value, $array) ? 'checked' : '';
-}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -439,7 +392,8 @@ function isChecked($value, $arrayString)
 
         .print-title-group h1 {
             font-size: 2.2rem;
-            color: #1a1a1b; /* Darker, more professional color */
+            color: #1a1a1b;
+            /* Darker, more professional color */
             margin: 0;
             font-weight: 800;
             text-transform: uppercase;
@@ -449,7 +403,8 @@ function isChecked($value, $arrayString)
 
         .print-title-group p {
             font-size: 1rem;
-            color: #5b9bd5; /* Professional light blue for the subtitle */
+            color: #5b9bd5;
+            /* Professional light blue for the subtitle */
             margin: 2px 0 0;
             font-weight: 600;
             font-family: 'Plus Jakarta Sans', sans-serif;

@@ -1,6 +1,6 @@
 <?php
 session_start();
-require '../includes/db.php';
+require '../includes/init_repos.php';
 
 // Check if user is logged in
 if (!isset($_SESSION['user_id']) || ($_SESSION['role'] !== 'admin' && $_SESSION['role'] !== 'super_admin' && $_SESSION['role'] !== 'immediate_head')) {
@@ -31,8 +31,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['upload_certificate']))
 
             if (move_uploaded_file($_FILES['certificate']['tmp_name'], $targetPath)) {
                 $dbPath = 'uploads/certificates/' . $fileName;
-                $stmt = $pdo->prepare("UPDATE ld_activities SET certificate_path = ? WHERE id = ? AND user_id = ?");
-                if ($stmt->execute([$dbPath, $activity_id, $user_id])) {
+                if ($activityRepo->updateActivity($activity_id, $user_id, ['certificate_path' => $dbPath])) {
                     $message = "Certificate uploaded successfully!";
                     $messageType = "success";
                 }
@@ -51,71 +50,68 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['update_profile_admin']
     $position = trim($_POST['position']);
     $password = $_POST['password'];
 
+    $updateData = [
+        'full_name' => $full_name,
+        'office_station' => $office_station,
+        'position' => $position
+    ];
+
     if ($password) {
-        $hashed_password = password_hash($password, PASSWORD_DEFAULT);
-        $stmt = $pdo->prepare("UPDATE users SET full_name = ?, office_station = ?, position = ?, password = ? WHERE id = ?");
-        $success = $stmt->execute([$full_name, $office_station, $position, $hashed_password, $user_id]);
-    } else {
-        $stmt = $pdo->prepare("UPDATE users SET full_name = ?, office_station = ?, position = ? WHERE id = ?");
-        $success = $stmt->execute([$full_name, $office_station, $position, $user_id]);
+        $updateData['password'] = password_hash($password, PASSWORD_DEFAULT);
     }
 
-    if ($success) {
+    if ($userRepo->updateUserProfile($user_id, $updateData)) {
         $_SESSION['toast'] = ['title' => 'Profile Updated', 'message' => 'Your profile has been successfully updated.', 'type' => 'success'];
         $_SESSION['full_name'] = $full_name;
 
         // Log the action
-        $logStmt = $pdo->prepare("INSERT INTO activity_logs (user_id, action, details, ip_address) VALUES (?, ?, ?, ?)");
-        $logStmt->execute([$user_id, 'Updated Admin Profile', 'Profile details changed', $_SERVER['REMOTE_ADDR']]);
+        $logRepo->logAction($user_id, 'Updated Admin Profile', 'Profile details changed');
     } else {
         $_SESSION['toast'] = ['title' => 'Update Failed', 'message' => 'There was an error updating your profile.', 'type' => 'error'];
     }
 }
 
 // Fetch current user data
-$stmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
-$stmt->execute([$user_id]);
-$user = $stmt->fetch();
+$user = $userRepo->getUserById($user_id);
 
 // Fetch activities for certificate hub
 $activities = [];
 if (!$is_super_admin) {
-    $stmt = $pdo->prepare("SELECT * FROM ld_activities WHERE user_id = ? ORDER BY date_attended DESC");
-    $stmt->execute([$user_id]);
-    $activities = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $activities = $activityRepo->getActivitiesByUser($user_id);
 }
 
 // Handle ILDN Management
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     if (isset($_POST['add_ildn'])) {
         $need_text = trim($_POST['need_text']);
+        $description = trim($_POST['description'] ?? '');
         if (!empty($need_text)) {
-            $stmt = $pdo->prepare("INSERT INTO user_ildn (user_id, need_text) VALUES (?, ?)");
-            $stmt->execute([$_SESSION['user_id'], $need_text]);
+            $ildnRepo->createILDN($user_id, $need_text, $description);
             $message = "Development need added successfully!";
             $messageType = "success";
         }
     } elseif (isset($_POST['delete_ildn'])) {
         $ildn_id = (int) $_POST['ildn_id'];
-        $stmt = $pdo->prepare("DELETE FROM user_ildn WHERE id = ? AND user_id = ?");
-        $stmt->execute([$ildn_id, $_SESSION['user_id']]);
+        $ildnRepo->deleteILDN($ildn_id, $user_id);
         $message = "Development need removed.";
         $messageType = "success";
+    } elseif (isset($_POST['edit_ildn'])) {
+        $ildn_id = (int) $_POST['ildn_id'];
+        $need_text = trim($_POST['need_text']);
+        $description = trim($_POST['description'] ?? '');
+        if (!empty($need_text)) {
+            $ildnRepo->updateILDN($ildn_id, $user_id, [
+                'need_text' => $need_text,
+                'description' => $description
+            ]);
+            $message = "Development need updated successfully!";
+            $messageType = "success";
+        }
     }
 }
 
 // Fetch user's ILDNs with usage count
-$stmt = $pdo->prepare("
-    SELECT ui.*, 
-    (SELECT COUNT(*) FROM ld_activities la 
-     WHERE la.user_id = ui.user_id 
-     AND FIND_IN_SET(ui.need_text, REPLACE(la.competency, ', ', ','))) as usage_count
-    FROM user_ildn ui 
-    WHERE ui.user_id = ? 
-    ORDER BY ui.created_at DESC
-");
-$stmt->execute([$_SESSION['user_id']]);
-$user_ildns = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$user_ildns = $ildnRepo->getILDNsByUser($user_id);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -128,58 +124,6 @@ $user_ildns = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <!-- Tom Select CSS -->
     <link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.css" rel="stylesheet">
     <style>
-        /* Tom Select Custom Styling for Admin Panel */
-        .ts-control {
-            border: 1px solid var(--border-color) !important;
-            border-radius: var(--radius-md) !important;
-            padding: 12px 14px 12px 42px !important;
-            /* Extra padding-left for the icon */
-            background: white !important;
-            color: var(--text-primary) !important;
-            font-family: inherit !important;
-            font-size: 0.95rem !important;
-            height: 48px !important;
-            transition: all var(--transition-fast) !important;
-            box-shadow: none !important;
-        }
-
-        .ts-control:focus {
-            border-color: var(--primary) !important;
-            box-shadow: 0 0 0 4px var(--primary-light) !important;
-        }
-
-        .ts-dropdown {
-            border-radius: var(--radius-lg) !important;
-            border: 1px solid var(--border-light) !important;
-            box-shadow: var(--shadow-lg) !important;
-            margin-top: 8px !important;
-            padding: 8px !important;
-            z-index: 2000 !important;
-        }
-
-        .ts-dropdown .optgroup-header {
-            font-weight: 800 !important;
-            text-transform: uppercase !important;
-            font-size: 0.7rem !important;
-            color: var(--primary) !important;
-            letter-spacing: 0.05em !important;
-            padding: 12px 12px 6px !important;
-            background: var(--bg-secondary) !important;
-            border-radius: var(--radius-sm) !important;
-        }
-
-        .ts-dropdown .option {
-            padding: 10px 12px !important;
-            border-radius: var(--radius-sm) !important;
-            font-size: 0.9rem !important;
-            color: var(--text-secondary) !important;
-        }
-
-        .ts-dropdown .active {
-            background: var(--primary) !important;
-            color: white !important;
-        }
-
         /* Redesign Styles for Admin/Immediate Head */
         :root {
             --card-border: #f1f5f9;
@@ -193,58 +137,63 @@ $user_ildns = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         .profile-hero {
             background: var(--primary-gradient);
-            padding: 30px;
-            border-radius: 20px;
+            padding: 24px 30px;
+            border-radius: 16px;
             display: flex;
             gap: 24px;
             align-items: center;
             margin-bottom: 24px;
             color: white;
-            box-shadow: 0 10px 25px -5px rgba(50, 130, 184, 0.3);
+            box-shadow: 0 4px 12px -2px rgba(15, 76, 117, 0.2);
             position: relative;
             overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
         .profile-hero::before {
             content: '';
             position: absolute;
-            top: -50px;
-            right: -50px;
-            width: 200px;
-            height: 200px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 50%;
+            top: -40px;
+            right: -40px;
+            width: 180px;
+            height: 180px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 40px;
+            transform: rotate(15deg);
         }
 
         .hero-avatar {
-            width: 100px;
-            height: 100px;
-            border-radius: 50%;
-            border: 4px solid rgba(255, 255, 255, 0.3);
+            width: 90px;
+            height: 90px;
+            border-radius: 14px;
+            border: 3px solid rgba(255, 255, 255, 0.2);
             object-fit: cover;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
             flex-shrink: 0;
             background: rgba(255, 255, 255, 0.1);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 2.5rem;
+            font-size: 2.2rem;
             font-weight: 800;
         }
 
         .hero-info h2 {
-            font-size: 1.75rem;
+            font-size: 1.6rem;
             font-weight: 800;
-            margin: 0 0 4px 0;
-            letter-spacing: -0.02em;
+            margin: 0 0 2px 0;
+            letter-spacing: -0.5px;
             color: white !important;
         }
 
         .hero-info p {
-            opacity: 0.9;
-            font-weight: 500;
+            opacity: 0.85;
+            font-weight: 600;
             margin: 0;
-            font-size: 1rem;
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
             color: white !important;
         }
 
@@ -257,7 +206,7 @@ $user_ildns = $stmt->fetchAll(PDO::FETCH_ASSOC);
         .profile-main-grid {
             display: grid;
             grid-template-columns: 1fr 340px;
-            gap: 30px;
+            gap: 24px;
             align-items: stretch;
             margin-bottom: 40px;
         }
@@ -274,22 +223,25 @@ $user_ildns = $stmt->fetchAll(PDO::FETCH_ASSOC);
         }
 
         .ildn-list-scroll {
-            max-height: 340px;
+            max-height: 320px;
             overflow-y: auto;
-            padding-right: 12px;
-            margin-right: -12px;
+            padding-right: 10px;
+            margin-right: -10px;
         }
 
-        .ildn-list-scroll::-webkit-scrollbar {
+        .ildn-list-scroll::-webkit-scrollbar,
+        .submissions-list-scroll::-webkit-scrollbar {
             width: 6px;
         }
 
-        .ildn-list-scroll::-webkit-scrollbar-track {
+        .ildn-list-scroll::-webkit-scrollbar-track,
+        .submissions-list-scroll::-webkit-scrollbar-track {
             background: #f1f5f9;
             border-radius: 10px;
         }
 
-        .ildn-list-scroll::-webkit-scrollbar-thumb {
+        .ildn-list-scroll::-webkit-scrollbar-thumb,
+        .submissions-list-scroll::-webkit-scrollbar-thumb {
             background: #cbd5e1;
             border-radius: 10px;
         }
@@ -306,24 +258,220 @@ $user_ildns = $stmt->fetchAll(PDO::FETCH_ASSOC);
             margin-right: -12px;
         }
 
-        .submissions-list-scroll::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        .submissions-list-scroll::-webkit-scrollbar-track {
-            background: #f1f5f9;
-            border-radius: 10px;
-        }
-
-        .submissions-list-scroll::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
-            border-radius: 10px;
+        .stat-card {
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 16px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            border: 1px solid #eef2f6;
+            transition: all 0.2s ease;
         }
 
         .stat-card:hover {
             transform: translateY(-1px);
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08);
             border-color: var(--primary-light);
+        }
+
+        .stat-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            flex-shrink: 0;
+            opacity: 0.9;
+        }
+
+        .stat-value {
+            font-size: 1.4rem;
+            font-weight: 800;
+            color: #0f172a;
+            display: block;
+            line-height: 1.1;
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: #94a3b8;
+            text-transform: uppercase;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .section-header {
+            background: #ffffff;
+            padding: 12px 20px;
+            border-radius: 16px 16px 0 0;
+            border: 1px solid #eef2f6;
+            border-bottom: none;
+            margin-bottom: 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .section-title {
+            font-size: 1.1rem;
+            font-weight: 800;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 0;
+        }
+
+        .certificate-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 16px;
+            background: #f8fafc;
+            border: 1px solid #eef2f6;
+            border-radius: 0 0 16px 16px;
+            padding: 20px;
+        }
+
+        .activity-card {
+            background: #ffffff;
+            border-radius: 12px;
+            border: 1px solid #eef2f6;
+            padding: 14px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            box-shadow: 0 4px 12px -2px rgba(15, 76, 117, 0.08);
+            display: flex;
+            flex-direction: column;
+            cursor: pointer;
+        }
+
+        .activity-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 20px -5px rgba(15, 76, 117, 0.15);
+            border-color: #F57C00;
+        }
+
+        .activity-type {
+            font-size: 0.55rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            color: #ffffff;
+            background: var(--primary);
+            padding: 2px 10px;
+            border-radius: 4px;
+            display: inline-block;
+            margin-bottom: 8px;
+            letter-spacing: 0.8px;
+            width: fit-content;
+        }
+
+        .activity-title {
+            font-weight: 800;
+            color: var(--primary);
+            font-size: 0.85rem;
+            margin-bottom: 8px;
+            line-height: 1.3;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            height: 2.6em;
+        }
+
+        .activity-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            font-size: 0.72rem;
+            color: #64748b;
+            margin-bottom: 14px;
+            padding-bottom: 12px;
+            border-bottom: 1px dashed #f1f5f9;
+        }
+
+        .activity-meta span {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 600;
+        }
+
+        .cert-upload-zone {
+            border: 2px dashed #cbd5e1;
+            border-radius: 10px;
+            padding: 12px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            background: #f8fafc;
+            color: #64748b;
+        }
+
+        .cert-upload-zone:hover {
+            background: #fff7ed;
+            border-color: #F57C00;
+            color: #F57C00;
+        }
+
+        .has-cert {
+            background: #fff7ed;
+            border: 1px solid #ffedd5;
+            padding: 10px 14px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        /* Account Settings Toggle */
+        .account-settings-card {
+            display: none;
+            animation: slideDown 0.3s ease-out;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .toggle-settings-btn {
+            background: white;
+            color: #1e293b;
+            border: 1px solid #e2e8f0;
+            padding: 8px 16px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .toggle-settings-btn:hover,
+        .toggle-settings-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .form-grid-profile {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 24px;
         }
 
         /* Custom Modal Styles */
@@ -348,7 +496,7 @@ $user_ildns = $stmt->fetchAll(PDO::FETCH_ASSOC);
             border-radius: 20px;
             width: 90%;
             max-width: 400px;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
             text-align: center;
             transform: translateY(20px);
             transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -371,20 +519,6 @@ $user_ildns = $stmt->fetchAll(PDO::FETCH_ASSOC);
             margin: 0 auto 20px;
         }
 
-        .modal-title {
-            font-size: 1.25rem;
-            font-weight: 800;
-            color: #0f172a;
-            margin-bottom: 10px;
-        }
-
-        .modal-text {
-            color: #64748b;
-            font-size: 0.95rem;
-            margin-bottom: 25px;
-            line-height: 1.5;
-        }
-
         .modal-actions {
             display: flex;
             gap: 12px;
@@ -395,9 +529,7 @@ $user_ildns = $stmt->fetchAll(PDO::FETCH_ASSOC);
             padding: 12px;
             border-radius: 12px;
             font-weight: 700;
-            font-size: 0.9rem;
             border: none;
-            transition: all 0.2s ease;
         }
 
         .modal-btn-cancel {
@@ -405,226 +537,9 @@ $user_ildns = $stmt->fetchAll(PDO::FETCH_ASSOC);
             color: #64748b;
         }
 
-        .modal-btn-cancel:hover {
-            background: #e2e8f0;
-        }
-
         .modal-btn-delete {
             background: #dc2626;
             color: white;
-        }
-
-        .modal-btn-delete:hover {
-            background: #b91c1c;
-            box-shadow: 0 4px 6px -1px rgba(220, 38, 38, 0.2);
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-            }
-
-            to {
-                opacity: 1;
-            }
-        }
-
-        .profile-main-grid {
-            grid-template-columns: 1fr;
-        }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        }
-        }
-
-        .stat-card {
-            background: white;
-            padding: 20px;
-            border-radius: 16px;
-            box-shadow: var(--shadow-sm);
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            border: 1px solid var(--card-border);
-            flex-grow: 1;
-        }
-
-        .stat-icon {
-            width: 50px;
-            height: 50px;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.5rem;
-        }
-
-        .stat-value {
-            font-size: 1.4rem;
-            font-weight: 800;
-            color: #1e293b;
-            display: block;
-        }
-
-        .stat-label {
-            font-size: 0.75rem;
-            color: #64748b;
-            text-transform: uppercase;
-            font-weight: 600;
-            letter-spacing: 0.5px;
-        }
-
-        .section-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 16px;
-        }
-
-        .section-title {
-            font-size: 1.1rem;
-            font-weight: 800;
-            color: #1e293b;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin: 0;
-        }
-
-        .certificate-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-            gap: 20px;
-        }
-
-        .activity-card {
-            background: white;
-            border-radius: 16px;
-            border: 1px solid var(--card-border);
-            padding: 16px;
-            transition: all 0.2s ease;
-            position: relative;
-        }
-
-        .activity-card:hover {
-            transform: translateY(-4px);
-            box-shadow: var(--shadow-md);
-            border-color: var(--primary-light);
-        }
-
-        .activity-type {
-            font-size: 0.65rem;
-            font-weight: 800;
-            text-transform: uppercase;
-            color: var(--primary);
-            background: var(--primary-light);
-            padding: 4px 8px;
-            border-radius: 6px;
-            display: inline-block;
-            margin-bottom: 10px;
-        }
-
-        .activity-title {
-            font-weight: 700;
-            color: #1e293b;
-            font-size: 0.95rem;
-            margin-bottom: 8px;
-            line-height: 1.4;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-            height: 2.8em;
-        }
-
-        .activity-meta {
-            display: flex;
-            gap: 12px;
-            font-size: 0.8rem;
-            color: #64748b;
-            margin-bottom: 16px;
-        }
-
-        .activity-meta span {
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-
-        .cert-upload-zone {
-            border: 1.5px dashed #e2e8f0;
-            border-radius: 12px;
-            padding: 12px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.2s;
-            position: relative;
-        }
-
-        .cert-upload-zone:hover {
-            background: #f8fafc;
-            border-color: var(--primary);
-        }
-
-        .has-cert {
-            background: #f0fdf4;
-            border: 1px solid #bbf7d0;
-            padding: 12px;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .toggle-settings-btn {
-            background: white;
-            color: #1e293b;
-            border: 1px solid #e2e8f0;
-            padding: 8px 16px;
-            border-radius: 10px;
-            font-weight: 600;
-            font-size: 0.9rem;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .toggle-settings-btn:hover {
-            background: #f8fafc;
-            border-color: #cbd5e1;
-        }
-
-        .toggle-settings-btn.active {
-            background: var(--primary);
-            color: white;
-            border-color: var(--primary);
-        }
-
-        .account-settings-card {
-            display: none;
-            animation: slideDown 0.3s ease-out;
-        }
-
-        @keyframes slideDown {
-            from {
-                opacity: 0;
-                transform: translateY(-10px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .form-grid-profile {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 24px;
         }
 
         .form-group {
@@ -648,35 +563,70 @@ $user_ildns = $stmt->fetchAll(PDO::FETCH_ASSOC);
             width: 100%;
             padding: 12px 16px;
             background: #f8fafc;
-            border: 1.5px solid #e2e8f0;
+            border: 1.5px solid #eef2f6;
             border-radius: 12px;
             color: #1e293b;
+            font-family: inherit;
             font-size: 0.95rem;
             font-weight: 600;
-            transition: all 0.2s;
+            transition: all 0.2s ease;
             outline: none;
         }
 
         .form-control[readonly] {
             background: #f8fafc;
-            border-color: #e2e8f0;
-            color: #334155;
+            border-color: #eef2f6;
+            color: #475569;
             cursor: default;
         }
 
         .form-control:focus {
             border-color: var(--primary);
-            box-shadow: 0 0 0 4px rgba(15, 76, 117, 0.1);
             background: white;
+            box-shadow: 0 0 0 4px rgba(15, 76, 117, 0.1);
         }
 
-        .empty-state {
-            text-align: center;
-            padding: 60px 20px;
-            background: white;
-            border-radius: 20px;
-            border: 1px solid var(--card-border);
-            grid-column: 1 / -1;
+        .alert-info {
+            background: #eff6ff;
+            color: #1e40af;
+            border: 1px solid #dbeafe;
+            padding: 12px 16px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 500;
+        }
+
+        .alert-info i {
+            font-size: 1.1rem;
+            color: #3b82f6;
+        }
+
+        @media (max-width: 768px) {
+            .form-grid-profile {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        /* Super Admin Specifics - Keep Integrated */
+        .ts-control {
+            border: 1px solid var(--border-color) !important;
+            border-radius: var(--radius-md) !important;
+            padding: 12px 14px 12px 42px !important;
+            background: white !important;
+            color: var(--text-primary) !important;
+            height: 48px !important;
         }
     </style>
 </head>
@@ -856,6 +806,7 @@ $user_ildns = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 <?php else: ?>
                     <!-- Redesign for Admin/Immediate Head -->
                     <div class="profile-container">
+
                         <!-- Hero Section -->
                         <div class="profile-hero">
                             <?php if (!empty($user['profile_picture'])): ?>
@@ -867,11 +818,13 @@ $user_ildns = $stmt->fetchAll(PDO::FETCH_ASSOC);
                             <?php endif; ?>
                             <div class="hero-info">
                                 <h2><?php echo htmlspecialchars($user['full_name']); ?></h2>
-                                <p><?php echo htmlspecialchars($user['position'] ?: 'Administrative Professional'); ?></p>
-                                <div
-                                    style="margin-top: 10px; font-size: 0.85rem; background: rgba(255,255,255,0.15); padding: 4px 12px; border-radius: 99px; display: inline-flex; align-items: center; gap: 6px;">
-                                    <i class="bi bi-building"></i> <?php echo htmlspecialchars($user['office_station']); ?>
-                                </div>
+                                <p>
+                                    <i class="bi bi-person-badge"></i>
+                                    <?php echo htmlspecialchars($user['position'] ?: 'Administrative Professional'); ?>
+                                    <span style="opacity: 0.5; margin: 0 4px;">•</span>
+                                    <i class="bi bi-building"></i>
+                                    <?php echo htmlspecialchars($user['office_station']); ?>
+                                </p>
                             </div>
                         </div>
 
@@ -951,66 +904,69 @@ $user_ildns = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
                         <div class="profile-main-grid">
                             <div class="ildn-column">
-                                <!-- Individual Learning and Development Needs -->
                                 <div class="section-header">
-                                    <h2 class="section-title" style="color: var(--primary); font-weight: 800;">
-                                        <i class="bi bi-lightbulb"></i> Individual Learning and Development Needs
-                                    </h2>
+                                    <h2 class="section-title"><i class="bi bi-lightbulb" style="color: #F57C00;"></i>
+                                        Individual Learning Needs</h2>
                                 </div>
-                                <div class="dashboard-card"
-                                    style="border: 1px solid #e2e8f0; box-shadow: var(--shadow-sm); margin-bottom: 0;">
-                                    <div class="card-body" style="padding: 30px;">
+                                <div class="dashboard-card" style="margin-bottom: 0;">
+                                    <div class="card-body" style="padding: 25px;">
                                         <form method="POST" class="form-group"
-                                            style="display: flex; gap: 12px; margin-bottom: 24px;">
-                                            <input type="text" name="need_text" class="form-control"
-                                                placeholder="Enter a learning need..." required>
+                                            style="display: flex; flex-direction: column; gap: 16px; margin-bottom: 24px;">
+                                            <div style="display: flex; flex-direction: column; gap: 8px;">
+                                                <input type="text" name="need_text" class="form-control"
+                                                    placeholder="Enter a learning need..." required
+                                                    style="height: 50px; border-radius: 12px; background: #f8fafc; border: 1.5px solid #eef2f6;">
+                                                <textarea name="description" class="form-control"
+                                                    placeholder="What is this all about? (Optional)"
+                                                    style="height: 100px; border-radius: 12px; background: #f8fafc; border: 1.5px solid #eef2f6; resize: none; padding-top: 12px;"></textarea>
+                                            </div>
                                             <button type="submit" name="add_ildn" class="btn btn-primary"
-                                                style="white-space: nowrap; height: 44px; font-weight: 700;">
+                                                style="width: 100%; height: 48px; border-radius: 12px; font-weight: 700; font-size: 1rem; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 12px rgba(15, 76, 117, 0.15);">
                                                 <i class="bi bi-plus-lg"></i> Add
                                             </button>
                                         </form>
 
                                         <?php if (empty($user_ildns)): ?>
                                             <div
-                                                style="text-align: center; padding: 30px; color: #64748b; background: #f8fafc; border-radius: 12px; border: 1px dashed #cbd5e1;">
+                                                style="text-align: center; padding: 20px; color: #64748b; background: #f8fafc; border-radius: 12px; border: 1px dashed #cbd5e1;">
                                                 <i class="bi bi-info-circle"
-                                                    style="font-size: 1.5rem; display: block; margin-bottom: 10px; color: #cbd5e1;"></i>
-                                                You haven't set any individual learning and development needs yet.
+                                                    style="font-size: 1.2rem; display: block; margin-bottom: 8px; color: #cbd5e1;"></i>
+                                                You haven't set any development needs yet.
                                             </div>
                                         <?php else: ?>
                                             <div class="ildn-list-scroll">
-                                                <div style="display: grid; grid-template-columns: 1fr; gap: 16px;">
+                                                <div style="display: grid; grid-template-columns: 1fr; gap: 12px;">
                                                     <?php foreach ($user_ildns as $ildn):
                                                         $is_addressed = $ildn['usage_count'] > 0;
                                                         $card_style = $is_addressed
-                                                            ? "background: #f0fdf4; border: 1px solid #bbf7d0; border-left: 5px solid #16a34a; box-shadow: 0 4px 15px rgba(22, 163, 74, 0.08);"
-                                                            : "background: white; border: 1px solid #eef2f6; border-left: 4px solid var(--primary); box-shadow: 0 2px 4px rgba(0,0,0,0.02);";
+                                                            ? "background: #f0fdf4; border: 1px solid #bbf7d0; box-shadow: 0 4px 12px rgba(22, 163, 74, 0.08);"
+                                                            : "background: white; border: 1px solid #eef2f6; box-shadow: 0 1px 3px rgba(0,0,0,0.05);";
                                                         ?>
-                                                        <div
-                                                            style="<?php echo $card_style; ?> border-radius: 12px; padding: 16px; display: flex; justify-content: space-between; align-items: center; transition: all 0.2s ease;">
+                                                        <div style="<?php echo $card_style; ?> border-radius: 12px; padding: 16px; display: flex; justify-content: space-between; align-items: center; transition: all 0.2s ease; cursor: pointer;"
+                                                            onclick="showILDNDescription(<?php echo $ildn['id']; ?>, '<?php echo addslashes(htmlspecialchars($ildn['need_text'])); ?>', '<?php echo addslashes(htmlspecialchars($ildn['description'] ?: 'No description provided.')); ?>')">
                                                             <div style="display: flex; flex-direction: column; gap: 4px;">
                                                                 <div
-                                                                    style="font-weight: 800; color: <?php echo $is_addressed ? '#15803d' : '#1e293b'; ?>; font-size: 0.95rem;">
+                                                                    style="font-weight: 700; color: <?php echo $is_addressed ? '#15803d' : 'var(--primary)'; ?>; font-size: 0.95rem;">
                                                                     <?php echo htmlspecialchars($ildn['need_text']); ?>
                                                                 </div>
                                                                 <div style="display: flex; align-items: center; gap: 6px;">
                                                                     <?php if ($is_addressed): ?>
                                                                         <span
-                                                                            style="background: #16a34a; color: white; font-size: 0.6rem; font-weight: 800; padding: 2px 10px; border-radius: 20px; text-transform: uppercase;">
-                                                                            <i class="bi bi-lightning-charge-fill"></i> Addressed
+                                                                            style="background: #16a34a; color: white; font-size: 0.65rem; font-weight: 800; padding: 2px 8px; border-radius: 20px; text-transform: uppercase;">
+                                                                            <i class="bi bi-check-circle-fill"></i> Addressed
                                                                             <?php echo $ildn['usage_count']; ?>x
                                                                         </span>
                                                                     <?php else: ?>
                                                                         <span
                                                                             style="color: #94a3b8; font-size: 0.7rem; font-weight: 600;">
-                                                                            <i class="bi bi-hourglass-split"></i> Awaiting record
+                                                                            <i class="bi bi-clock"></i> Not yet addressed
                                                                         </span>
                                                                     <?php endif; ?>
                                                                 </div>
                                                             </div>
-                                                            <button type="button" class="btn btn-icon"
-                                                                onclick="confirmDeleteILDN(<?php echo $ildn['id']; ?>)"
-                                                                style="color: #ef4444; background: <?php echo $is_addressed ? '#fecaca' : '#fef2f2'; ?>; border: none; width: 32px; height: 32px; border-radius: 8px;">
+                                                            <button type="button" class="btn btn-sm"
+                                                                onclick="event.stopPropagation(); confirmDeleteILDN(<?php echo $ildn['id']; ?>)"
+                                                                style="padding: 6px; color: #dc2626; background: <?php echo $is_addressed ? '#fecaca' : '#fef2f2'; ?>; border: none; border-radius: 8px; width: 32px; height: 32px;">
                                                                 <i class="bi bi-trash"></i>
                                                             </button>
                                                         </div>
@@ -1024,7 +980,8 @@ $user_ildns = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
                             <div class="stats-column">
                                 <div class="section-header">
-                                    <h2 class="section-title"><i class="bi bi-graph-up-arrow"></i> Statistics</h2>
+                                    <h2 class="section-title"><i class="bi bi-graph-up-arrow" style="color: #F57C00;"></i>
+                                        Stats</h2>
                                 </div>
                                 <div class="stats-grid">
                                     <div class="stat-card">
@@ -1040,7 +997,7 @@ $user_ildns = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                                 class="bi bi-patch-check"></i></div>
                                         <div>
                                             <span class="stat-value"><?php echo $with_certs; ?></span>
-                                            <span class="stat-label">Certificates Uploaded</span>
+                                            <span class="stat-label">With Certificates</span>
                                         </div>
                                     </div>
                                     <div class="stat-card">
@@ -1059,7 +1016,7 @@ $user_ildns = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                                 class="bi bi-clock-history"></i></div>
                                         <div>
                                             <span class="stat-value"><?php echo $total_activities - $with_certs; ?></span>
-                                            <span class="stat-label">Pending Certificates</span>
+                                            <span class="stat-label">Pending Certs</span>
                                         </div>
                                     </div>
                                 </div>
@@ -1072,59 +1029,60 @@ $user_ildns = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         </div>
 
                         <div class="submissions-list-scroll">
-                            <div class="certificate-grid" style="margin-bottom: 20px;">
+                            <div class="certificate-grid">
                                 <?php if (empty($activities)): ?>
                                     <div class="empty-state" style="grid-column: 1 / -1;">
                                         <div style="font-size: 3rem; color: #e2e8f0; margin-bottom: 20px;"><i
                                                 class="bi bi-file-earmark-x"></i></div>
                                         <h3 style="color: #64748b; font-weight: 700;">No activities found</h3>
-                                        <p style="color: #94a3b8; max-width: 400px; margin: 0 auto;">Record your attended
-                                            activities first to start managing your certificates.</p>
-                                        <a href="../pages/add_activity.php" class="btn btn-primary" style="margin-top: 24px;">
-                                            <i class="bi bi-plus-lg"></i> Record Now
-                                        </a>
+                                        <p style="color: #94a3b8; max-width: 400px; margin: 0 auto;">No records yet to manage
+                                            certificates.</p>
                                     </div>
                                 <?php else: ?>
                                     <?php foreach ($activities as $act): ?>
                                         <div class="activity-card">
-                                            <span
-                                                class="activity-type"><?php echo htmlspecialchars($act['type_ld'] ?: 'Professional Development'); ?></span>
-                                            <h3 class="activity-title" title="<?php echo htmlspecialchars($act['title']); ?>">
-                                                <?php echo htmlspecialchars($act['title']); ?>
-                                            </h3>
-                                            <div class="activity-meta">
-                                                <span><i class="bi bi-calendar-event"></i>
-                                                    <?php echo date('M d, Y', strtotime($act['date_attended'])); ?></span>
-                                                <span><i class="bi bi-geo-alt"></i>
-                                                    <?php echo htmlspecialchars(substr($act['venue'], 0, 20)); ?>...</span>
+                                            <div onclick="location.href='view_activity.php?id=<?php echo $act['id']; ?>'"
+                                                style="cursor: pointer;">
+                                                <span
+                                                    class="activity-type"><?php echo htmlspecialchars($act['type_ld'] ?: 'Professional Development'); ?></span>
+                                                <h3 class="activity-title" title="<?php echo htmlspecialchars($act['title']); ?>">
+                                                    <?php echo htmlspecialchars($act['title']); ?>
+                                                </h3>
+                                                <div class="activity-meta">
+                                                    <span><i class="bi bi-calendar-event"></i>
+                                                        <?php echo date('M d, Y', strtotime($act['date_attended'])); ?></span>
+                                                    <span><i class="bi bi-geo-alt"></i>
+                                                        <?php echo htmlspecialchars(substr($act['venue'], 0, 20)); ?>...</span>
+                                                </div>
                                             </div>
 
                                             <?php if ($act['certificate_path']): ?>
                                                 <div class="has-cert">
                                                     <div style="display: flex; align-items: center; gap: 10px;">
-                                                        <i class="bi bi-file-earmark-pdf-fill"
-                                                            style="font-size: 1.5rem; color: #ef4444;"></i>
-                                                        <div style="font-size: 0.8rem; font-weight: 600; color: #16a34a;">Certificate
-                                                            Ready
+                                                        <i class="bi bi-patch-check-fill"
+                                                            style="font-size: 1.5rem; color: #F57C00;"></i>
+                                                        <div style="font-size: 0.8rem; font-weight: 800; color: var(--primary);">
+                                                            CERTIFICATE READY
                                                         </div>
                                                     </div>
                                                     <div style="display: flex; gap: 8px;">
                                                         <a href="../<?php echo $act['certificate_path']; ?>" target="_blank"
-                                                            class="btn btn-secondary btn-sm"
-                                                            style="padding: 4px 8px; font-size: 0.75rem;">View</a>
+                                                            class="btn btn-primary btn-sm"
+                                                            style="padding: 4px 10px; font-size: 0.7rem; font-weight: 700;">View</a>
                                                         <button
                                                             onclick="document.getElementById('file-input-<?php echo $act['id']; ?>').click()"
-                                                            class="btn btn-secondary btn-sm"
-                                                            style="padding: 4px 8px; font-size: 0.75rem;">Change</button>
+                                                            class="btn btn-outline-primary btn-sm"
+                                                            style="padding: 4px 10px; font-size: 0.7rem; font-weight: 700;">Change</button>
                                                     </div>
                                                 </div>
                                             <?php else: ?>
                                                 <div class="cert-upload-zone"
                                                     onclick="document.getElementById('file-input-<?php echo $act['id']; ?>').click()">
-                                                    <i class="bi bi-cloud-upload"
-                                                        style="font-size: 1.25rem; color: #94a3b8; display: block; margin-bottom: 4px;"></i>
-                                                    <span style="font-size: 0.8rem; font-weight: 600; color: #64748b;">Upload
-                                                        Certificate</span>
+                                                    <i class="bi bi-cloud-arrow-up-fill" style="color: #F57C00;"></i>
+                                                    <div
+                                                        style="font-size: 0.75rem; font-weight: 800; color: var(--primary); text-transform: uppercase;">
+                                                        Upload Certificate
+                                                    </div>
                                                 </div>
                                             <?php endif; ?>
 
@@ -1172,32 +1130,91 @@ $user_ildns = $stmt->fetchAll(PDO::FETCH_ASSOC);
         </div>
     </div>
 
-    <script>
-        function confirmDeleteILDN(id) {
-            document.getElementById('modal_ildn_id').value = id;
-            const overlay = document.getElementById('deleteModalOverlay');
-            const modal = overlay.querySelector('.custom-modal');
+    <!-- Description Modal -->
+    <div id="descriptionModalOverlay" class="custom-modal-overlay">
+        <div class="custom-modal" style="max-width: 500px;">
+            <div class="modal-icon-container" style="background: #e0f2fe; color: #0284c7;">
+                <i class="bi bi-info-circle-fill"></i>
+            </div>
 
-            overlay.style.display = 'flex';
-            setTimeout(() => modal.classList.add('show'), 10);
+            <!-- View Mode -->
+            <div id="desc_view_mode">
+                <h3 class="modal-title" id="desc_modal_title">Learning Need</h3>
+                <p class="modal-text" id="desc_modal_text"
+                    style="text-align: left; white-space: pre-wrap; background: #f8fafc; padding: 15px; border-radius: 12px; border: 1px solid #eef2f6; max-height: 300px; overflow-y: auto;">
+                    Description goes here...
+                </p>
+                <div class="modal-actions" style="margin-top: 20px;">
+                    <button type="button" class="modal-btn modal-btn-cancel"
+                        onclick="closeDescriptionModal()">Close</button>
+                    <button type="button" class="modal-btn" style="background: var(--primary); color: white;"
+                        onclick="toggleEditMode(true)">Edit</button>
+                </div>
+            </div>
+
+            <!-- Edit Mode -->
+            <div id="desc_edit_mode" style="display: none;">
+                <h3 class="modal-title">Edit Learning Need</h3>
+                <form method="POST">
+                    <input type="hidden" name="edit_ildn" value="1">
+                    <input type="hidden" name="ildn_id" id="edit_ildn_id">
+                    <div class="form-group" style="text-align: left;">
+                        <label class="form-label">Learning Need</label>
+                        <input type="text" name="need_text" id="edit_need_text" class="form-control" required
+                            style="background: #f8fafc;">
+                    </div>
+                    <div class="form-group" style="text-align: left;">
+                        <label class="form-label">Description</label>
+                        <textarea name="description" id="edit_description" class="form-control"
+                            style="height: 150px; background: #f8fafc; resize: none;"></textarea>
+                    </div>
+                    <div class="modal-actions" style="margin-top: 20px;">
+                        <button type="button" class="modal-btn modal-btn-cancel"
+                            onclick="toggleEditMode(false)">Cancel</button>
+                        <button type="submit" class="modal-btn" style="background: #10b981; color: white;">Save
+                            Changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/profile-actions.js"></script>
+    <script>
+        function showILDNDescription(id, title, description) {
+            document.getElementById('desc_modal_title').innerText = title;
+            document.getElementById('desc_modal_text').innerText = description;
+
+            // Populate edit fields
+            document.getElementById('edit_ildn_id').value = id;
+            document.getElementById('edit_need_text').value = title;
+            document.getElementById('edit_description').value = description === 'No description provided.' ? '' : description;
+
+            toggleEditMode(false); // Ensure we start in view mode
+
+            const modal = document.getElementById('descriptionModalOverlay');
+            modal.style.display = 'flex';
+            setTimeout(() => modal.querySelector('.custom-modal').classList.add('show'), 10);
         }
 
-        function closeDeleteModal() {
-            const overlay = document.getElementById('deleteModalOverlay');
-            const modal = overlay.querySelector('.custom-modal');
+        function toggleEditMode(isEdit) {
+            document.getElementById('desc_view_mode').style.display = isEdit ? 'none' : 'block';
+            document.getElementById('desc_edit_mode').style.display = isEdit ? 'block' : 'none';
+        }
 
-            modal.classList.remove('show');
-            setTimeout(() => overlay.style.display = 'none', 300);
+        function closeDescriptionModal() {
+            const modal = document.getElementById('descriptionModalOverlay');
+            modal.querySelector('.custom-modal').classList.remove('show');
+            setTimeout(() => modal.style.display = 'none', 300);
         }
 
         // Close modal when clicking outside
         window.onclick = function (event) {
-            const overlay = document.getElementById('deleteModalOverlay');
-            if (event.target == overlay) {
-                closeDeleteModal();
-            }
+            const deleteModal = document.getElementById('deleteModalOverlay');
+            const descModal = document.getElementById('descriptionModalOverlay');
+            if (event.target == deleteModal) closeDeleteModal();
+            if (event.target == descModal) closeDescriptionModal();
         }
-
         document.addEventListener('DOMContentLoaded', function () {
             <?php if ($is_super_admin): ?>
                 new TomSelect('#office_select', {
@@ -1209,21 +1226,6 @@ $user_ildns = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     placeholder: "Type to search office...",
                     maxOptions: 50
                 });
-            <?php else: ?>
-                const toggleBtn = document.getElementById('toggleSettings');
-                if (toggleBtn) {
-                    toggleBtn.addEventListener('click', function () {
-                        const settings = document.getElementById('accountSettings');
-                        if (settings.style.display === 'block') {
-                            settings.style.display = 'none';
-                            this.classList.remove('active');
-                        } else {
-                            settings.style.display = 'block';
-                            this.classList.add('active');
-                            settings.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                        }
-                    });
-                }
             <?php endif; ?>
         });
 

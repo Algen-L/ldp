@@ -4,7 +4,8 @@ ob_start();
 error_reporting(E_ERROR | E_PARSE); // Only show critical errors, suppress notices/warnings
 
 session_start();
-require '../../includes/db.php';
+// session_start already called on line 6
+// db.php/init_repos.php will be handled in block below
 
 // Set header for JSON response
 header('Content-Type: application/json');
@@ -21,23 +22,18 @@ try {
 
     $user_id = (int) $_GET['user_id'];
 
+    // Initialize repositories (adjust paths for ajax/ subdirectory)
+    require_once '../../includes/init_repos.php';
+
     // 1. Fetch Basic User Info
-    $stmt_user = $pdo->prepare("SELECT id, username, full_name, role, office_station, position, profile_picture, created_at FROM users WHERE id = ?");
-    $stmt_user->execute([$user_id]);
-    $user = $stmt_user->fetch(PDO::FETCH_ASSOC);
+    $user = $userRepo->getUserById($user_id);
 
     if (!$user) {
         throw new Exception('User not found');
     }
 
     // 2. Fetch Submission Stats
-    $stmt_stats = $pdo->prepare("SELECT 
-                                    COUNT(*) as total,
-                                    SUM(CASE WHEN approved_sds = 1 THEN 1 ELSE 0 END) as approved,
-                                    SUM(CASE WHEN reviewed_by_supervisor = 0 THEN 1 ELSE 0 END) as pending
-                                 FROM ld_activities WHERE user_id = ?");
-    $stmt_stats->execute([$user_id]);
-    $stats = $stmt_stats->fetch(PDO::FETCH_ASSOC);
+    $stats = $activityRepo->getUserStats($user_id);
 
     // Helper to generate date range
     function getDateRange($type)
@@ -77,44 +73,13 @@ try {
         return $dates;
     }
 
-    // Assuming $timeline is passed via GET or defined elsewhere, e.g., $_GET['timeline']
-    $timeline = $_GET['timeline'] ?? 'week'; // Default to week if not specified
-
+    // Timeline analysis
+    $timeline = $_GET['timeline'] ?? 'week';
     $rangeData = getDateRange($timeline);
-
-    if ($timeline === 'week') {
-        // Last 7 Days (Daily)
-        $stmt_activity = $pdo->prepare("SELECT 
-                                        DATE_FORMAT(created_at, '%Y-%m-%d') as time_key,
-                                        COUNT(*) as count
-                                       FROM ld_activities 
-                                       WHERE user_id = ? AND created_at >= DATE((NOW() - INTERVAL 6 DAY))
-                                       GROUP BY DATE_FORMAT(created_at, '%Y-%m-%d')");
-    } elseif ($timeline === 'month') {
-        // Last 4 Weeks (Weekly)
-        $stmt_activity = $pdo->prepare("SELECT 
-                                        YEARWEEK(created_at, 1) as time_key,
-                                        COUNT(*) as count
-                                       FROM ld_activities 
-                                       WHERE user_id = ? AND created_at >= DATE_SUB(NOW(), INTERVAL 4 WEEK)
-                                       GROUP BY YEARWEEK(created_at, 1)");
-    } else {
-        // Last 12 Months (Monthly)
-        $stmt_activity = $pdo->prepare("SELECT 
-                                        DATE_FORMAT(created_at, '%Y-%m') as time_key,
-                                        COUNT(*) as count
-                                       FROM ld_activities 
-                                       WHERE user_id = ? AND created_at >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
-                                       GROUP BY DATE_FORMAT(created_at, '%Y-%m')");
-    }
-
-    if (!$stmt_activity->execute([$user_id])) {
-        // Log error internally if possible, or just return basic error
-        throw new Exception("Error executing activity query");
-    }
+    $timelineResults = $activityRepo->getTimelineData($user_id, $timeline);
 
     // Merge DB results into the empty range
-    while ($row = $stmt_activity->fetch(PDO::FETCH_ASSOC)) {
+    foreach ($timelineResults as $row) {
         $k = $row['time_key'];
         if (isset($rangeData[$k])) {
             $rangeData[$k]['count'] = (int) $row['count'];
@@ -124,29 +89,18 @@ try {
     // Re-index to array for JSON
     $activity_data = array_values($rangeData);
 
-    // 4. Fetch Certificates
-    $stmt_certs = $pdo->prepare("SELECT id, title, date_attended, certificate_path 
-                                 FROM ld_activities 
-                                 WHERE user_id = ? AND certificate_path IS NOT NULL 
-                                 ORDER BY date_attended DESC");
-    $stmt_certs->execute([$user_id]);
-    $certificates = $stmt_certs->fetchAll(PDO::FETCH_ASSOC);
+    // 4. Fetch Certificates (use status filter Approved as per logic or limit to ones with certificate_path)
+    $certificates = $activityRepo->getActivitiesByUser($user_id);
+    $certificates = array_filter($certificates, function ($a) {
+        return !empty($a['certificate_path']);
+    });
 
     // 5. Fetch Recent Logs
-    $stmt_logs = $pdo->prepare("SELECT action, created_at 
-                                FROM activity_logs 
-                                WHERE user_id = ? 
-                                ORDER BY created_at DESC LIMIT 5");
-    $stmt_logs->execute([$user_id]);
-    $logs = $stmt_logs->fetchAll(PDO::FETCH_ASSOC);
+    $logs = $logRepo->getLogsByUser($user_id, 5);
 
     // 6. Fetch Submissions
-    $stmt_submissions = $pdo->prepare("SELECT id, title, type_ld, created_at, reviewed_by_supervisor, recommending_asds, approved_sds 
-                                       FROM ld_activities 
-                                       WHERE user_id = ? 
-                                       ORDER BY created_at DESC");
-    $stmt_submissions->execute([$user_id]);
-    $submissions = $stmt_submissions->fetchAll(PDO::FETCH_ASSOC);
+    $submissions = $activityRepo->getActivitiesByUser($user_id);
+
 
     // Consolidate Data
     $response = [

@@ -55,8 +55,6 @@ if (!isset($user) && isset($_SESSION['user_id'])) {
     <div class="sidebar-nav">
         <?php if ($_SESSION['role'] === 'admin' || $_SESSION['role'] === 'super_admin' || $_SESSION['role'] === 'immediate_head'): ?>
             <?php
-            // Get Pending Count for Badge
-            $pending_count = 0;
             if (isset($pdo)) {
                 $stmt_pending = $pdo->query("SELECT COUNT(*) FROM ld_activities WHERE reviewed_by_supervisor = 0");
                 $pending_count = $stmt_pending->fetchColumn();
@@ -81,6 +79,7 @@ if (!isset($user) && isset($_SESSION['user_id'])) {
                 </div>
                 <span class="nav-text">Submissions</span>
             </a>
+
 
             <a href="<?php echo $admin_prefix; ?>users.php"
                 class="nav-item <?php echo ($current_page == 'users.php') ? 'active' : ''; ?>" data-tooltip="Activity Logs">
@@ -160,6 +159,7 @@ if (!isset($user) && isset($_SESSION['user_id'])) {
             </a>
 
             <?php if ($_SESSION['role'] === 'hr'): ?>
+
                 <a href="<?php echo $admin_prefix; ?>../hr/register.php"
                     class="nav-item <?php echo ($current_page == 'register.php') ? 'active' : ''; ?>"
                     data-tooltip="Register Personnel">
