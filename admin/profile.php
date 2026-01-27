@@ -3,7 +3,7 @@ session_start();
 require '../includes/init_repos.php';
 
 // Check if user is logged in
-if (!isset($_SESSION['user_id']) || ($_SESSION['role'] !== 'admin' && $_SESSION['role'] !== 'super_admin' && $_SESSION['role'] !== 'immediate_head')) {
+if (!isset($_SESSION['user_id']) || ($_SESSION['role'] !== 'admin' && $_SESSION['role'] !== 'super_admin' && $_SESSION['role'] !== 'immediate_head' && $_SESSION['role'] !== 'head_hr')) {
     header("Location: ../index.php");
     exit;
 }
@@ -43,8 +43,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['upload_certificate']))
     }
 }
 
-// Handle form submission (Super Admin Only)
-if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['update_profile_admin'])) {
+// Handle form submission (Super Admin / Head HR / Admin)
+if ($_SERVER["REQUEST_METHOD"] == "POST" && (isset($_POST['update_profile_admin']) || isset($_POST['update_profile_user']))) {
     $full_name = trim($_POST['full_name']);
     $office_station = trim($_POST['office_station']);
     $position = trim($_POST['position']);
@@ -56,16 +56,42 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['update_profile_admin']
         'position' => $position
     ];
 
+    // Handle Profile Picture
+    if (isset($_FILES['profile_picture']) && $_FILES['profile_picture']['error'] === UPLOAD_ERR_OK) {
+        $uploadDir = '../uploads/profile_pics/';
+        if (!is_dir($uploadDir))
+            mkdir($uploadDir, 0777, true);
+        $fileName = uniqid() . '_' . preg_replace('/[^a-zA-Z0-9\._-]/', '', basename($_FILES['profile_picture']['name']));
+        $targetPath = $uploadDir . $fileName;
+        if (move_uploaded_file($_FILES['profile_picture']['tmp_name'], $targetPath)) {
+            $updateData['profile_picture'] = 'uploads/profile_pics/' . $fileName;
+        }
+    }
+
     if ($password) {
         $updateData['password'] = password_hash($password, PASSWORD_DEFAULT);
+    }
+
+    if ($_SESSION['role'] === 'immediate_head') {
+        $updateData['age'] = (int) $_POST['age'];
+        $updateData['sex'] = trim($_POST['sex']);
+        $updateData['rating_period'] = trim($_POST['rating_period']);
+        $updateData['area_of_specialization'] = trim($_POST['area_of_specialization']);
     }
 
     if ($userRepo->updateUserProfile($user_id, $updateData)) {
         $_SESSION['toast'] = ['title' => 'Profile Updated', 'message' => 'Your profile has been successfully updated.', 'type' => 'success'];
         $_SESSION['full_name'] = $full_name;
 
-        // Log the action
-        $logRepo->logAction($user_id, 'Updated Admin Profile', 'Profile details changed');
+        // Update session profile picture if changed
+        if (isset($updateData['profile_picture'])) {
+            $_SESSION['profile_picture'] = $updateData['profile_picture'];
+        }
+
+        // Log the action (Skip for Super Admin as per request)
+        if ($_SESSION['role'] !== 'super_admin') {
+            $logRepo->logAction($user_id, 'Profile Updated', 'User updated their personal information and/or profile picture.');
+        }
     } else {
         $_SESSION['toast'] = ['title' => 'Update Failed', 'message' => 'There was an error updating your profile.', 'type' => 'error'];
     }
@@ -632,7 +658,7 @@ $user_ildns = $ildnRepo->getILDNsByUser($user_id);
 </head>
 
 <body>
-    <div class="admin-layout">
+    <div class="app-layout">
         <?php require '../includes/sidebar.php'; ?>
 
         <div class="main-content">
@@ -837,54 +863,111 @@ $user_ildns = $ildnRepo->getILDNsByUser($user_id);
                                         Settings</h2>
                                 </div>
                                 <div class="card-body" style="padding: 30px;">
-                                    <div class="alert alert-info" style="margin-bottom: 20px; font-size: 0.9rem;">
-                                        <i class="bi bi-info-circle"></i> Profile editing is restricted. Contact HR to
-                                        update system-level fields.
-                                    </div>
+                                    <form method="POST" enctype="multipart/form-data">
+                                        <input type="hidden" name="update_profile_user" value="1">
+                                        <div class="form-group mb-4">
+                                            <label class="form-label"
+                                                style="display: block; margin-bottom: 15px; font-weight: 700; color: #475569; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em;">Personal
+                                                Avatar</label>
+                                            <div
+                                                style="display: flex; align-items: center; gap: 25px; background: #f8fafc; padding: 20px; border-radius: 20px; border: 1.5px solid #eef2f6;">
+                                                <div id="avatarPreviewContainer"
+                                                    style="width: 100px; height: 100px; border-radius: 50%; overflow: hidden; border: 4px solid white; box-shadow: 0 10px 20px rgba(0,0,0,0.08); flex-shrink: 0; background: #f1f5f9; display: flex; align-items: center; justify-content: center;">
+                                                    <?php if (!empty($user['profile_picture'])): ?>
+                                                        <img src="../<?php echo htmlspecialchars($user['profile_picture']); ?>"
+                                                            id="currentAvatar"
+                                                            style="width: 100%; height: 100%; object-fit: cover;">
+                                                    <?php else: ?>
+                                                        <div
+                                                            style="font-size: 2.5rem; font-weight: 800; color: var(--primary); opacity: 0.3;">
+                                                            <?php echo strtoupper(substr($user['full_name'], 0, 1)); ?>
+                                                        </div>
+                                                    <?php endif; ?>
+                                                </div>
+                                                <div style="flex: 1;">
+                                                    <div style="margin-bottom: 12px;">
+                                                        <button type="button"
+                                                            onclick="document.getElementById('profile_pic_input').click()"
+                                                            class="btn btn-outline-primary"
+                                                            style="height: 42px; padding: 0 20px; border-radius: 12px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+                                                            <i class="bi bi-camera"></i> Update Photo
+                                                        </button>
+                                                        <input type="file" name="profile_picture" id="profile_pic_input"
+                                                            style="display: none;" accept="image/*"
+                                                            onchange="updateFileName(this)">
+                                                    </div>
+                                                    <div id="fileNameDisplay"
+                                                        style="font-size: 0.82rem; color: #94a3b8; font-weight: 500;">
+                                                        Recommended: Square image, max 2MB (JPG, PNG)
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
 
-                                    <div class="form-grid-profile">
-                                        <div>
-                                            <div class="form-group">
-                                                <label class="form-label">Full Name</label>
-                                                <input type="text" class="form-control" readonly
-                                                    value="<?php echo htmlspecialchars($user['full_name']); ?>">
-                                            </div>
-                                            <div class="form-group">
-                                                <label class="form-label">Position / Designation</label>
-                                                <input type="text" class="form-control" readonly
-                                                    value="<?php echo htmlspecialchars($user['position'] ?: 'Not Specified'); ?>">
-                                            </div>
-                                            <div class="form-group">
-                                                <label class="form-label">Office / Station</label>
-                                                <input type="text" class="form-control" readonly
-                                                    value="<?php echo htmlspecialchars($user['office_station']); ?>">
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <div class="form-group">
-                                                <label class="form-label">Rating Period</label>
-                                                <input type="text" class="form-control" readonly
-                                                    value="<?php echo htmlspecialchars($user['rating_period'] ?: 'Not Specified'); ?>">
-                                            </div>
-                                            <div class="form-group">
-                                                <label class="form-label">Area of Specialization</label>
-                                                <input type="text" class="form-control" readonly
-                                                    value="<?php echo htmlspecialchars($user['area_of_specialization'] ?: 'Not Specified'); ?>">
-                                            </div>
-                                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                                        <script>
+                                            function updateFileName(input) {
+                                                const display = document.getElementById('fileNameDisplay');
+                                                if (input.files && input.files[0]) {
+                                                    display.innerHTML = `<i class="bi bi-file-earmark-check"></i> Selected: <strong>${input.files[0].name}</strong>`;
+                                                    display.style.color = "var(--primary)";
+                                                }
+                                            }
+                                        </script>
+                                        <div class="form-grid-profile">
+                                            <div>
                                                 <div class="form-group">
-                                                    <label class="form-label">Age</label>
-                                                    <input type="number" class="form-control" readonly
-                                                        value="<?php echo htmlspecialchars($user['age']); ?>">
+                                                    <label class="form-label">Full Name</label>
+                                                    <input type="text" name="full_name" class="form-control" required
+                                                        value="<?php echo htmlspecialchars($user['full_name']); ?>">
                                                 </div>
                                                 <div class="form-group">
-                                                    <label class="form-label">Sex</label>
-                                                    <input type="text" class="form-control" readonly
-                                                        value="<?php echo htmlspecialchars($user['sex'] ?: 'Not Specified'); ?>">
+                                                    <label class="form-label">Position / Designation</label>
+                                                    <input type="text" name="position" class="form-control"
+                                                        value="<?php echo htmlspecialchars($user['position'] ?: ''); ?>">
+                                                </div>
+                                                <div class="form-group">
+                                                    <label class="form-label">Office / Station</label>
+                                                    <input type="text" name="office_station" class="form-control" required
+                                                        value="<?php echo htmlspecialchars($user['office_station']); ?>">
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <div class="form-group">
+                                                    <label class="form-label">Rating Period</label>
+                                                    <input type="text" name="rating_period" class="form-control"
+                                                        value="<?php echo htmlspecialchars($user['rating_period'] ?: ''); ?>">
+                                                </div>
+                                                <div class="form-group">
+                                                    <label class="form-label">Area of Specialization</label>
+                                                    <input type="text" name="area_of_specialization" class="form-control"
+                                                        value="<?php echo htmlspecialchars($user['area_of_specialization'] ?: ''); ?>">
+                                                </div>
+                                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                                                    <div class="form-group">
+                                                        <label class="form-label">Age</label>
+                                                        <input type="number" name="age" class="form-control"
+                                                            value="<?php echo htmlspecialchars($user['age']); ?>">
+                                                    </div>
+                                                    <div class="form-group">
+                                                        <label class="form-label">Sex</label>
+                                                        <select name="sex" class="form-control">
+                                                            <option value="">Select...</option>
+                                                            <option value="Male" <?php echo $user['sex'] === 'Male' ? 'selected' : ''; ?>>Male</option>
+                                                            <option value="Female" <?php echo $user['sex'] === 'Female' ? 'selected' : ''; ?>>Female</option>
+                                                        </select>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
-                                    </div>
+                                        <div class="form-group mt-3">
+                                            <label class="form-label">New Password (Leave blank to keep current)</label>
+                                            <input type="password" name="password" class="form-control"
+                                                placeholder="••••••••">
+                                        </div>
+                                        <div style="text-align: right; margin-top: 20px;">
+                                            <button type="submit" class="btn btn-primary">Save Changes</button>
+                                        </div>
+                                    </form>
                                 </div>
                             </div>
                         </div>

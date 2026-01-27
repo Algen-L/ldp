@@ -11,8 +11,8 @@ session_start();
 header('Content-Type: application/json');
 
 try {
-    // Check if user is logged in as admin/super_admin/immediate_head
-    if (!isset($_SESSION['user_id']) || !in_array($_SESSION['role'], ['admin', 'super_admin', 'immediate_head'])) {
+    // Check if user is logged in as admin/super_admin/immediate_head/head_hr
+    if (!isset($_SESSION['user_id']) || !in_array($_SESSION['role'], ['admin', 'super_admin', 'immediate_head', 'head_hr'])) {
         throw new Exception('Unauthorized access');
     }
 

@@ -364,7 +364,7 @@ $statuses = [
 </head>
 
 <body>
-    <div class="admin-layout">
+    <div class="app-layout">
         <?php require '../includes/sidebar.php'; ?>
 
         <div class="main-content">
@@ -394,7 +394,8 @@ $statuses = [
                         <div class="filter-grid">
                             <div class="search-wrapper">
                                 <i class="bi bi-search"></i>
-                                <input type="text" name="search" value="<?php echo htmlspecialchars($filters['search']); ?>"
+                                <input type="text" name="search"
+                                    value="<?php echo htmlspecialchars($filters['search']); ?>"
                                     placeholder="Search entries, names, offices or categories (OSDS, CID, SGOD)..."
                                     class="search-control">
                             </div>

@@ -2,10 +2,12 @@
     rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
 <link rel="stylesheet" href="../css/base/variables.css?v=3.0">
+<link rel="stylesheet" href="../css/layout/sidebar.css?v=3.0">
 <link rel="stylesheet" href="../css/user.css?v=3.0">
 <link rel="stylesheet" href="../css/layout/notifications.css?v=3.0">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="../js/notifications.js"></script>
+<script src="../js/ui-core.js"></script>
 
 <!-- Prevent Sidebar Flash/Animation -->
 <script>

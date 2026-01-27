@@ -38,7 +38,7 @@ class ActivityLogRepository
      */
     public function getAllLogs($filters = [])
     {
-        $sql = "SELECT l.*, u.full_name as user_name 
+        $sql = "SELECT l.*, u.full_name as user_name, u.profile_picture 
                 FROM activity_logs l 
                 JOIN users u ON l.user_id = u.id 
                 WHERE 1=1";

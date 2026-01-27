@@ -2,8 +2,8 @@
 session_start();
 require '../includes/init_repos.php';
 
-// Check if user is logged in and is Super Admin or HR
-if (!isset($_SESSION['user_id']) || ($_SESSION['role'] !== 'super_admin' && $_SESSION['role'] !== 'hr')) {
+// Check if user is logged in and is Super Admin, HR, or Head HR
+if (!isset($_SESSION['user_id']) || ($_SESSION['role'] !== 'super_admin' && $_SESSION['role'] !== 'hr' && $_SESSION['role'] !== 'head_hr')) {
     header("Location: dashboard.php");
     exit;
 }
@@ -25,6 +25,13 @@ if (!$user_to_edit) {
     exit;
 }
 
+// Protection: HR and Head HR cannot edit Super Admin
+if (($_SESSION['role'] === 'hr' || $_SESSION['role'] === 'head_hr') && $user_to_edit['role'] === 'super_admin') {
+    $_SESSION['toast'] = ['title' => 'Access Denied', 'message' => 'You do not have permission to edit a Super Admin account.', 'type' => 'error'];
+    header("Location: manage_users.php");
+    exit;
+}
+
 // Handle Form Submission
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $full_name = trim($_POST['full_name']);
@@ -37,8 +44,24 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $sex = trim($_POST['sex'] ?? '');
     $password = trim($_POST['password']);
 
-    // Only Super Admin can change role
-    $role = ($_SESSION['role'] === 'super_admin') ? $_POST['role'] : $user_to_edit['role'];
+    // Only Super Admin and Head HR can change role
+    // However, Head HR cannot change someone TO Head HR or Super Admin
+    $role = $user_to_edit['role'];
+    if ($_SESSION['role'] === 'super_admin') {
+        $role = $_POST['role'];
+    } elseif ($_SESSION['role'] === 'head_hr') {
+        $requested_role = $_POST['role'];
+        if ($requested_role !== 'super_admin' && $requested_role !== 'head_hr') {
+            $role = $requested_role;
+        }
+    }
+
+    // Final security check before update
+    if ($_SESSION['role'] !== 'super_admin' && $user_to_edit['role'] === 'super_admin') {
+        $_SESSION['toast'] = ['title' => 'Error', 'message' => 'Critical security check failed.', 'type' => 'error'];
+        header("Location: manage_users.php");
+        exit;
+    }
 
     // Handle Profile Picture
     $dbPath = $user_to_edit['profile_picture'];
@@ -72,8 +95,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     }
 
     if ($userRepo->updateUserProfile($id, $updateData)) {
-        // Log the action
-        $logRepo->logAction($_SESSION['user_id'], 'Edited User Profile', "Target User: $full_name (ID: $id)");
+        // Log the action (Exclude Super Admin targets)
+        if ($user_to_edit['role'] !== 'super_admin') {
+            $logRepo->logAction($_SESSION['user_id'], 'Profile Modified by Admin', "Profile of $full_name was updated by " . $_SESSION['role']);
+        }
 
         $_SESSION['toast'] = ['title' => 'User Updated', 'message' => 'The user record has been updated successfully.', 'type' => 'success'];
         header("Location: manage_users.php");
@@ -292,7 +317,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 </head>
 
 <body>
-    <div class="admin-layout">
+    <div class="app-layout">
         <?php require '../includes/sidebar.php'; ?>
         <div class="main-content">
             <header class="top-bar">

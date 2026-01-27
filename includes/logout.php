@@ -3,7 +3,7 @@ session_start();
 
 // Log Logout Activity
 if (isset($_SESSION['user_id'])) {
-    require '../includes/init_repos.php';
+    require 'init_repos.php';
     $logRepo->logAction($_SESSION['user_id'], 'Logged Out');
 }
 

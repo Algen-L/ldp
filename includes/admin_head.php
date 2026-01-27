@@ -19,11 +19,12 @@ $path_to_root = ($current_page_dir === 'admin') ? '../' : '';
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
 
 <!-- Base Styles -->
-<link rel="stylesheet" href="<?php echo $path_to_root; ?>css/base/variables.css">
+<link rel="stylesheet" href="<?php echo $path_to_root; ?>css/base/variables.css?v=3.0">
 <!-- Layout Styles -->
-<link rel="stylesheet" href="<?php echo $path_to_root; ?>css/layout/notifications.css">
+<link rel="stylesheet" href="<?php echo $path_to_root; ?>css/layout/notifications.css?v=3.0">
 <!-- Admin Panel Styles -->
-<link rel="stylesheet" href="<?php echo $path_to_root; ?>admin/css/admin.css">
+<link rel="stylesheet" href="<?php echo $path_to_root; ?>css/layout/sidebar.css?v=3.0">
+<link rel="stylesheet" href="<?php echo $path_to_root; ?>admin/css/admin.css?v=3.0">
 
 <!-- Global Notification JS -->
 <script src="<?php echo $path_to_root; ?>js/notifications.js"></script>

@@ -2,8 +2,8 @@
 session_start();
 require '../includes/init_repos.php';
 
-// Check if user is logged in and is Super Admin
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'super_admin') {
+// Check if user is logged in and is Super Admin or Head HR
+if (!isset($_SESSION['user_id']) || ($_SESSION['role'] !== 'super_admin' && $_SESSION['role'] !== 'head_hr')) {
     header("Location: dashboard.php");
     exit;
 }
@@ -25,13 +25,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
     // Basic validation
     if (empty($username) || empty($password) || empty($full_name) || empty($role)) {
-        $message = "Please fill in all required fields.";
-        $messageType = "error";
+        $_SESSION['toast'] = ['title' => 'Missing Fields', 'message' => 'Please fill in all required fields.', 'type' => 'error'];
     } else {
         // Check if username exists
         if ($userRepo->getUserByUsername($username)) {
-            $message = "Username already exists.";
-            $messageType = "error";
+            $_SESSION['toast'] = ['title' => 'Registration Error', 'message' => 'Username already exists.', 'type' => 'error'];
         } else {
             // Hash password
             $hashed_password = password_hash($password, PASSWORD_DEFAULT);
@@ -62,18 +60,21 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 'sex' => $sex,
                 'profile_picture' => $dbPath,
                 'role' => $role,
-                'created_by' => $_SESSION['user_id']
+                'created_by' => $_SESSION['user_id'],
+                'is_active' => 1
             ];
 
             if ($userRepo->createUser($userData)) {
-                $message = "Account created successfully!";
-                $messageType = "success";
+                $_SESSION['toast'] = ['title' => 'Account Created', 'message' => "Account for $username has been created successfully!", 'type' => 'success'];
 
                 // Log activity
                 $logRepo->logAction($_SESSION['user_id'], 'Created User (Super Admin)', "Created new $role: $username");
+
+                // Redirect to refresh and show toast
+                header("Location: register.php");
+                exit;
             } else {
-                $message = "Something went wrong. Please try again.";
-                $messageType = "error";
+                $_SESSION['toast'] = ['title' => 'Creation Failed', 'message' => 'Something went wrong. Please try again.', 'type' => 'error'];
             }
         }
     }
@@ -261,7 +262,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 </head>
 
 <body>
-    <div class="admin-layout">
+    <div class="app-layout">
         <?php require '../includes/sidebar.php'; ?>
 
         <div class="main-content">
@@ -285,11 +286,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             </header>
 
             <main class="content-wrapper">
-                <?php if ($message): ?>
-                    <div class="alert alert-<?php echo $messageType; ?> fade show" role="alert">
-                        <?php echo $message; ?>
-                    </div>
-                <?php endif; ?>
+
 
                 <form method="POST" action="" enctype="multipart/form-data" id="registerForm">
                     <div class="register-container">
@@ -326,6 +323,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                                         <option value="immediate_head" style="color: #334155;">Immediate Head (Approver)
                                         </option>
                                         <option value="admin" style="color: #334155;">System Admin</option>
+                                        <?php if ($_SESSION['role'] === 'super_admin'): ?>
+                                            <option value="head_hr" style="color: #334155;">Head HR Personnel</option>
+                                        <?php endif; ?>
                                     </select>
                                 </div>
 

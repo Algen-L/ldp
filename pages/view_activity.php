@@ -24,8 +24,19 @@ if (!$activity) {
 }
 
 // Access Control
-if (($_SESSION['role'] !== 'admin' && $_SESSION['role'] !== 'super_admin' && $_SESSION['role'] !== 'immediate_head') && $activity['user_id'] != $_SESSION['user_id']) {
-    die("Unauthorized access.");
+if (($_SESSION['role'] !== 'admin' && $_SESSION['role'] !== 'super_admin' && $_SESSION['role'] !== 'immediate_head' && $_SESSION['role'] !== 'head_hr') && $activity['user_id'] != $_SESSION['user_id']) {
+    $_SESSION['toast'] = [
+        'title' => 'Access Restricted',
+        'message' => 'You do not have permission to view this specific activity record.',
+        'type' => 'warning'
+    ];
+
+    // Redirect back to referring page or dashboard fallback
+    $fallback = ($_SESSION['role'] === 'admin' || $_SESSION['role'] === 'super_admin' || $_SESSION['role'] === 'head_hr') ? '../admin/dashboard.php' : '../user/home.php';
+    $redirect = $_SERVER['HTTP_REFERER'] ?? $fallback;
+
+    header("Location: $redirect");
+    exit;
 }
 
 // Log View Activity
@@ -280,7 +291,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_approval'])) {
                 page-break-after: avoid !important;
             }
 
-            .user-layout {
+            .app-layout {
                 display: block !important;
                 padding: 0 !important;
                 background: white !important;
@@ -472,7 +483,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_approval'])) {
 
 <body>
 
-    <div class="user-layout">
+    <div class="app-layout">
         <?php require '../includes/sidebar.php'; ?>
 
         <div class="main-content">

@@ -89,7 +89,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
 <body>
 
-    <div class="user-layout">
+    <div class="app-layout">
         <?php require '../includes/sidebar.php'; ?>
 
         <div class="main-content">
@@ -655,8 +655,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 onItemAdd: function (value, $item) {
                     this.setTextboxValue('');
                     this.refreshOptions();
-                 },
-                onChange: function() {
+                },
+                onChange: function () {
                     // Manually trigger change on the underlying select for autosave
                     document.getElementById('competency_select').dispatchEvent(new Event('change', { bubbles: true }));
                 }
@@ -679,9 +679,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         });
 
         <?php if ($message): ?>
-                showToast("<?php echo ($messageType === 'success') ? 'Success' : 'Notice'; ?>", "<?php echo $message; ?>", "<?php echo $messageType; ?>");
+            showToast("<?php echo ($messageType === 'success') ? 'Success' : 'Notice'; ?>", "<?php echo $message; ?>", "<?php echo $messageType; ?>");
         <?php endif; ?>
     </script>
-</body>
-
-</html>
+</body></html>

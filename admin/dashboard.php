@@ -3,7 +3,7 @@ session_start();
 require '../includes/init_repos.php';
 
 // Check if user is logged in and is admin
-if (!isset($_SESSION['user_id']) || ($_SESSION['role'] !== 'admin' && $_SESSION['role'] !== 'super_admin' && $_SESSION['role'] !== 'immediate_head')) {
+if (!isset($_SESSION['user_id']) || ($_SESSION['role'] !== 'admin' && $_SESSION['role'] !== 'super_admin' && $_SESSION['role'] !== 'immediate_head' && $_SESSION['role'] !== 'head_hr')) {
     header("Location: ../index.php");
     exit;
 }
@@ -152,6 +152,10 @@ $freqValues = array_values($frequencyData);
             grid-template-columns: 1fr 1.8fr;
             gap: 16px;
             margin-bottom: 24px;
+        }
+
+        .dashboard-row-bottom.full-view {
+            grid-template-columns: 1fr;
         }
 
         @media (max-width: 1200px) {
@@ -390,7 +394,7 @@ $freqValues = array_values($frequencyData);
 </head>
 
 <body>
-    <div class="admin-layout">
+    <div class="app-layout">
         <?php require '../includes/sidebar.php'; ?>
 
         <div class="main-content">
@@ -595,159 +599,170 @@ $freqValues = array_values($frequencyData);
                     </div>
                 </div>
 
-                <div class="dashboard-row-bottom">
-                    <div class="dashboard-card hover-elevate">
-                        <div class="card-header" style="padding: 12px 20px;">
-                            <h2 style="font-size: 0.9rem;"><i class="bi bi-megaphone text-gradient"></i> Recent
-                                Activity
-                                Submitted</h2>
-                        </div>
-                        <div class="card-body" style="padding: 0; max-height: 350px; overflow-y: auto;">
-                            <div class="activity-feed">
-                                <?php if (empty($activities)): ?>
-                                    <div class="text-center py-4 text-muted" style="font-size: 0.85rem;">No recent
-                                        activities.</div>
-                                <?php else: ?>
-                                    <?php foreach (array_slice($activities, 0, 10) as $i => $act):
-                                        $f_office = strtoupper($act['office_station'] ?? '');
-                                        $feed_class = '';
-                                        if (in_array($f_office, $osdsOffices))
-                                            $feed_class = 'osds';
-                                        elseif (in_array($f_office, $cidOffices))
-                                            $feed_class = 'cid';
-                                        elseif (in_array($f_office, $sgodOffices))
-                                            $feed_class = 'sgod';
-                                        ?>
-                                        <a href="../pages/view_activity.php?id=<?php echo $act['id']; ?>"
-                                            class="feed-item <?php echo $feed_class; ?>" style="text-decoration: none;">
-                                            <?php if ($act['profile_picture']): ?>
-                                                <img src="../<?php echo htmlspecialchars($act['profile_picture']); ?>"
-                                                    class="feed-avatar">
-                                            <?php else: ?>
-                                                <div class="feed-avatar-placeholder">
-                                                    <?php echo strtoupper(substr($act['full_name'], 0, 1)); ?>
-                                                </div>
-                                            <?php endif; ?>
-                                            <div class="feed-info">
-                                                <span
-                                                    class="feed-user"><?php echo htmlspecialchars($act['full_name']); ?></span>
-                                                <span class="feed-activity"
-                                                    title="<?php echo htmlspecialchars($act['title']); ?>">
-                                                    <?php echo htmlspecialchars($act['title']); ?>
-                                                </span>
-                                            </div>
-                                            <div style="display: flex; align-items: center;">
-                                                <?php if ($i < 3): ?>
-                                                    <span class="pulse-indicator"></span>
+                <div class="dashboard-row-bottom <?php echo ($_SESSION['role'] === 'head_hr') ? 'full-view' : ''; ?>">
+                    <?php if ($_SESSION['role'] !== 'head_hr'): ?>
+                        <div class="dashboard-card hover-elevate">
+                            <div class="card-header" style="padding: 12px 20px;">
+                                <h2 style="font-size: 0.9rem;"><i class="bi bi-megaphone text-gradient"></i> Recent
+                                    Activity
+                                    Submitted</h2>
+                            </div>
+                            <div class="card-body" style="padding: 0; max-height: 350px; overflow-y: auto;">
+                                <div class="activity-feed">
+                                    <?php if (empty($activities)): ?>
+                                        <div class="text-center py-4 text-muted" style="font-size: 0.85rem;">No recent
+                                            activities.</div>
+                                    <?php else: ?>
+                                        <?php foreach (array_slice($activities, 0, 10) as $i => $act):
+                                            $f_office = strtoupper($act['office_station'] ?? '');
+                                            $feed_class = '';
+                                            if (in_array($f_office, $osdsOffices))
+                                                $feed_class = 'osds';
+                                            elseif (in_array($f_office, $cidOffices))
+                                                $feed_class = 'cid';
+                                            elseif (in_array($f_office, $sgodOffices))
+                                                $feed_class = 'sgod';
+                                            ?>
+                                            <a href="../pages/view_activity.php?id=<?php echo $act['id']; ?>"
+                                                class="feed-item <?php echo $feed_class; ?>" style="text-decoration: none;">
+                                                <?php if ($act['profile_picture']): ?>
+                                                    <img src="../<?php echo htmlspecialchars($act['profile_picture']); ?>"
+                                                        class="feed-avatar">
+                                                <?php else: ?>
+                                                    <div class="feed-avatar-placeholder">
+                                                        <?php echo strtoupper(substr($act['full_name'], 0, 1)); ?>
+                                                    </div>
                                                 <?php endif; ?>
-                                                <span class="feed-time"
-                                                    title="<?php echo date('M d, Y h:i A', strtotime($act['activity_created_at'] ?? $act['created_at'])); ?>">
-                                                    <?php echo time_elapsed_string($act['activity_created_at'] ?? $act['created_at']); ?>
-                                                </span>
-                                            </div>
-                                        </a>
-                                    <?php endforeach; ?>
-                                <?php endif; ?>
+                                                <div class="feed-info">
+                                                    <span
+                                                        class="feed-user"><?php echo htmlspecialchars($act['full_name']); ?></span>
+                                                    <span class="feed-activity"
+                                                        title="<?php echo htmlspecialchars($act['title']); ?>">
+                                                        <?php echo htmlspecialchars($act['title']); ?>
+                                                    </span>
+                                                </div>
+                                                <div style="display: flex; align-items: center;">
+                                                    <?php if ($i < 3): ?>
+                                                        <span class="pulse-indicator"></span>
+                                                    <?php endif; ?>
+                                                    <span class="feed-time"
+                                                        title="<?php echo date('M d, Y h:i A', strtotime($act['activity_created_at'] ?? $act['created_at'])); ?>">
+                                                        <?php echo time_elapsed_string($act['activity_created_at'] ?? $act['created_at']); ?>
+                                                    </span>
+                                                </div>
+                                            </a>
+                                        <?php endforeach; ?>
+                                    <?php endif; ?>
+                                </div>
                             </div>
                         </div>
-                    </div>
 
-                    <div class="dashboard-card hover-elevate">
-                        <div class="card-header"
-                            style="padding: 12px 20px; background: linear-gradient(135deg, #0f4c75 0%, #3282b8 100%); border-bottom: none;">
-                            <h2 style="font-size: 0.9rem; color: white;"><i class="bi bi-journal-text"
-                                    style="color: rgba(255,255,255,0.9); margin-right: 8px;"></i> Recent
-                                Activity Logs</h2>
-                            <a href="submissions.php" class="btn btn-sm"
-                                style="padding: 4px 12px; font-size: 0.75rem; background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.3); border-radius: 6px; font-weight: 600; text-decoration: none;">
-                                View All <i class="bi bi-arrow-right" style="margin-left: 4px;"></i>
-                            </a>
-                        </div>
-                        <div class="card-body" style="padding: 0;">
-                            <div class="table-responsive" style="max-height: 350px; overflow-y: auto;">
-                                <table class="data-table">
-                                    <thead
-                                        style="position: sticky; top: 0; z-index: 20; background: white; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
-                                        <tr>
-                                            <th>Submission Date</th>
-                                            <th>User / Personnel</th>
-                                            <th>Activity Description</th>
-                                            <th>Status</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <?php if (empty($activities)): ?>
+                        <div class="dashboard-card hover-elevate">
+                            <div class="card-header"
+                                style="padding: 12px 20px; background: linear-gradient(135deg, #0f4c75 0%, #3282b8 100%); border-bottom: none;">
+                                <h2 style="font-size: 0.9rem; color: white;"><i class="bi bi-journal-text"
+                                        style="color: rgba(255,255,255,0.9); margin-right: 8px;"></i> Recent
+                                    Activity Logs</h2>
+                                <a href="submissions.php" class="btn btn-sm"
+                                    style="padding: 4px 12px; font-size: 0.75rem; background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.3); border-radius: 6px; font-weight: 600; text-decoration: none;">
+                                    View All <i class="bi bi-arrow-right" style="margin-left: 4px;"></i>
+                                </a>
+                            </div>
+                            <div class="card-body" style="padding: 0;">
+                                <div class="table-responsive" style="max-height: 350px; overflow-y: auto;">
+                                    <table class="data-table">
+                                        <thead
+                                            style="position: sticky; top: 0; z-index: 20; background: white; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
                                             <tr>
-                                                <td colspan="4" class="text-center py-5">
-                                                    <div class="empty-state">
-                                                        <i class="bi bi-inbox text-muted" style="font-size: 3rem;"></i>
-                                                        <p class="mt-3">No activity logs recorded yet.</p>
-                                                    </div>
-                                                </td>
+                                                <th>Submission Date</th>
+                                                <th>User / Personnel</th>
+                                                <th>Activity Description</th>
+                                                <th>Status</th>
                                             </tr>
-                                        <?php else: ?>
-                                            <?php foreach (array_slice($activities, 0, 20) as $act):
-                                                $row_class = '';
-                                                $office = strtoupper($act['office_station'] ?? '');
-                                                if (in_array($office, $osdsOffices))
-                                                    $row_class = 'row-osds';
-                                                elseif (in_array($office, $cidOffices))
-                                                    $row_class = 'row-cid';
-                                                elseif (in_array($office, $sgodOffices))
-                                                    $row_class = 'row-sgod';
-                                                ?>
-                                                <tr class="<?php echo $row_class; ?>">
-                                                    <td>
-                                                        <span
-                                                            class="cell-primary"><?php echo date('M d, Y', strtotime($act['activity_created_at'] ?? $act['created_at'])); ?></span>
-                                                        <span
-                                                            class="cell-secondary"><?php echo date('h:i A', strtotime($act['activity_created_at'] ?? $act['created_at'])); ?></span>
-                                                    </td>
-                                                    <td>
-                                                        <div class="cell-primary">
-                                                            <?php echo htmlspecialchars($act['full_name']); ?>
+                                        </thead>
+                                        <tbody>
+                                            <?php if (empty($activities)): ?>
+                                                <tr>
+                                                    <td colspan="4" class="text-center py-5">
+                                                        <div class="empty-state">
+                                                            <i class="bi bi-inbox text-muted" style="font-size: 3rem;"></i>
+                                                            <p class="mt-3">No activity logs recorded yet.</p>
                                                         </div>
-                                                        <div class="cell-secondary" style="font-size: 0.65rem;">
-                                                            <?php echo htmlspecialchars($act['office_station']); ?>
-                                                        </div>
-                                                    </td>
-                                                    <td style="max-width: 200px;">
-                                                        <span class="cell-primary text-truncate" style="display: block;"
-                                                            title="<?php echo htmlspecialchars($act['title']); ?>">
-                                                            <?php echo htmlspecialchars($act['title']); ?>
-                                                        </span>
-                                                        <span class="cell-secondary">
-                                                            <?php echo htmlspecialchars($act['type_ld'] ?? 'Training'); ?>
-                                                        </span>
-                                                    </td>
-                                                    <td>
-                                                        <?php
-                                                        $status_class = 'status-pending';
-                                                        $label = 'Pending';
-                                                        if ($act['approved_sds']) {
-                                                            $status_class = 'status-resolved';
-                                                            $label = 'Approved';
-                                                        } elseif ($act['recommending_asds']) {
-                                                            $status_class = 'status-in_progress';
-                                                            $label = 'Recommended';
-                                                        } elseif ($act['reviewed_by_supervisor']) {
-                                                            $status_class = 'status-accepted';
-                                                            $label = 'Reviewed';
-                                                        }
-                                                        ?>
-                                                        <span class="status-badge <?php echo $status_class; ?>"
-                                                            style="padding: 4px 10px; font-size: 0.65rem;">
-                                                            <?php echo $label; ?>
-                                                        </span>
                                                     </td>
                                                 </tr>
-                                            <?php endforeach; ?>
-                                        <?php endif; ?>
-                                    </tbody>
-                                </table>
+                                            <?php else: ?>
+                                                <?php foreach (array_slice($activities, 0, 20) as $act):
+                                                    $row_class = '';
+                                                    $office = strtoupper($act['office_station'] ?? '');
+                                                    if (in_array($office, $osdsOffices))
+                                                        $row_class = 'row-osds';
+                                                    elseif (in_array($office, $cidOffices))
+                                                        $row_class = 'row-cid';
+                                                    elseif (in_array($office, $sgodOffices))
+                                                        $row_class = 'row-sgod';
+                                                    ?>
+                                                    <tr class="<?php echo $row_class; ?>">
+                                                        <td>
+                                                            <span
+                                                                class="cell-primary"><?php echo date('M d, Y', strtotime($act['activity_created_at'] ?? $act['created_at'])); ?></span>
+                                                            <span
+                                                                class="cell-secondary"><?php echo date('h:i A', strtotime($act['activity_created_at'] ?? $act['created_at'])); ?></span>
+                                                        </td>
+                                                        <td>
+                                                            <div class="cell-primary">
+                                                                <?php echo htmlspecialchars($act['full_name']); ?>
+                                                            </div>
+                                                            <div class="cell-secondary" style="font-size: 0.65rem;">
+                                                                <?php echo htmlspecialchars($act['office_station']); ?>
+                                                            </div>
+                                                        </td>
+                                                        <td style="max-width: 200px;">
+                                                            <span class="cell-primary text-truncate" style="display: block;"
+                                                                title="<?php echo htmlspecialchars($act['title']); ?>">
+                                                                <?php echo htmlspecialchars($act['title']); ?>
+                                                            </span>
+                                                            <span class="cell-secondary">
+                                                                <?php echo htmlspecialchars($act['type_ld'] ?? 'Training'); ?>
+                                                            </span>
+                                                        </td>
+                                                        <td>
+                                                            <?php
+                                                            $status_class = 'status-pending';
+                                                            $label = 'Pending';
+                                                            if ($act['approved_sds']) {
+                                                                $status_class = 'status-resolved';
+                                                                $label = 'Approved';
+                                                            } elseif ($act['recommending_asds']) {
+                                                                $status_class = 'status-in_progress';
+                                                                $label = 'Recommended';
+                                                            } elseif ($act['reviewed_by_supervisor']) {
+                                                                $status_class = 'status-accepted';
+                                                                $label = 'Reviewed';
+                                                            }
+                                                            ?>
+                                                            <span class="status-badge <?php echo $status_class; ?>"
+                                                                style="padding: 4px 10px; font-size: 0.65rem;">
+                                                                <?php echo $label; ?>
+                                                            </span>
+                                                        </td>
+                                                    </tr>
+                                                <?php endforeach; ?>
+                                            <?php endif; ?>
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    <?php else: ?>
+                        <!-- Head HR Placeholder -->
+                        <div class="dashboard-card hover-elevate" style="background: rgba(15, 76, 117, 0.02); border-style: dashed; display: flex; align-items: center; justify-content: center; padding: 60px;">
+                            <div class="text-center">
+                                <i class="bi bi-shield-lock" style="font-size: 3rem; color: var(--text-muted); opacity: 0.2; display: block; margin-bottom: 16px;"></i>
+                                <span style="font-weight: 700; color: var(--text-muted); opacity: 0.6;">Management Overview Focused</span>
+                                <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 8px; opacity: 0.5;">Use the sidebar to access Activity Logs and User Status.</p>
+                            </div>
+                        </div>
+                    <?php endif; ?>
                 </div>
             </main>
 

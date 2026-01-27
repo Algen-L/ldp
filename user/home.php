@@ -26,7 +26,6 @@ $total_count = $stats['total'];
 $approved_count = $stats['approved'] ?: 0;
 $progress_pct = $total_count > 0 ? round(($approved_count / $total_count) * 100) : 0;
 ?>
-?>
 <!DOCTYPE html>
 <html lang="en">
 
@@ -34,12 +33,12 @@ $progress_pct = $total_count > 0 ? round(($approved_count / $total_count) * 100)
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Dashboard - LDP Passbook</title>
-    <?php require '../includes/head.php'; ?>
+    <?php require 'includes/user_head.php'; ?>
 </head>
 
 <body>
 
-    <div class="user-layout">
+    <div class="app-layout">
         <!-- Sidebar -->
         <?php require '../includes/sidebar.php'; ?>
 
@@ -54,11 +53,15 @@ $progress_pct = $total_count > 0 ? round(($approved_count / $total_count) * 100)
                 <div class="top-bar-right">
                     <div class="current-date-box">
                         <div class="time-section">
-                            <span id="real-time-clock"><?php echo date('h:i:s A'); ?></span>
+                            <span id="real-time-clock">
+                                <?php echo date('h:i:s A'); ?>
+                            </span>
                         </div>
                         <div class="date-section">
                             <i class="bi bi-calendar3"></i>
-                            <span><?php echo date('F j, Y'); ?></span>
+                            <span>
+                                <?php echo date('F j, Y'); ?>
+                            </span>
                         </div>
                     </div>
                 </div>
@@ -80,18 +83,24 @@ $progress_pct = $total_count > 0 ? round(($approved_count / $total_count) * 100)
                                 <?php endif; ?>
                             </div>
 
-                            <h2 class="profile-name"><?php echo htmlspecialchars($user['full_name']); ?></h2>
-                            <p class="profile-position"><?php echo htmlspecialchars($user['position'] ?: 'Employee'); ?>
+                            <h2 class="profile-name">
+                                <?php echo htmlspecialchars($user['full_name']); ?>
+                            </h2>
+                            <p class="profile-position">
+                                <?php echo htmlspecialchars($user['position'] ?: 'Employee'); ?>
                             </p>
 
                             <div class="profile-stats">
                                 <div class="profile-stat-item">
-                                    <span class="profile-stat-val"><?php echo $total_count; ?></span>
+                                    <span class="profile-stat-val">
+                                        <?php echo $total_count; ?>
+                                    </span>
                                     <span class="profile-stat-label">Activities</span>
                                 </div>
                                 <div class="profile-stat-item">
-                                    <span class="profile-stat-val"
-                                        style="color: var(--success);"><?php echo $approved_count; ?></span>
+                                    <span class="profile-stat-val" style="color: var(--success);">
+                                        <?php echo $approved_count; ?>
+                                    </span>
                                     <span class="profile-stat-label">Approved</span>
                                 </div>
                             </div>
@@ -100,8 +109,9 @@ $progress_pct = $total_count > 0 ? round(($approved_count / $total_count) * 100)
                                 <div class="progress-label"
                                     style="display: flex; justify-content: space-between; font-size: 0.75rem; font-weight: 700; color: #64748b; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">
                                     <span>Goal Completion</span>
-                                    <span
-                                        style="color: var(--primary); font-weight: 800;"><?php echo $progress_pct; ?>%</span>
+                                    <span style="color: var(--primary); font-weight: 800;">
+                                        <?php echo $progress_pct; ?>%
+                                    </span>
                                 </div>
                                 <div class="progress-bar-bg"
                                     style="height: 8px; background: #f1f5f9; border-radius: 4px; overflow: hidden;">
@@ -117,8 +127,9 @@ $progress_pct = $total_count > 0 ? round(($approved_count / $total_count) * 100)
                                     <div class="profile-info-icon"><i class="bi bi-building"></i></div>
                                     <div class="profile-info-content">
                                         <span class="profile-info-label">Office / Station</span>
-                                        <span
-                                            class="profile-info-value"><?php echo htmlspecialchars($user['office_station'] ?: 'Not Set'); ?></span>
+                                        <span class="profile-info-value">
+                                            <?php echo htmlspecialchars($user['office_station'] ?: 'Not Set'); ?>
+                                        </span>
                                     </div>
                                 </div>
                                 <div class="profile-info-item">
@@ -127,8 +138,9 @@ $progress_pct = $total_count > 0 ? round(($approved_count / $total_count) * 100)
                                             class="bi bi-calendar-event"></i></div>
                                     <div class="profile-info-content">
                                         <span class="profile-info-label">Rating Period</span>
-                                        <span
-                                            class="profile-info-value"><?php echo htmlspecialchars($user['rating_period'] ?: 'Not Set'); ?></span>
+                                        <span class="profile-info-value">
+                                            <?php echo htmlspecialchars($user['rating_period'] ?: 'Not Set'); ?>
+                                        </span>
                                     </div>
                                 </div>
                                 <div class="profile-info-item">
@@ -137,8 +149,9 @@ $progress_pct = $total_count > 0 ? round(($approved_count / $total_count) * 100)
                                             class="bi bi-award"></i></div>
                                     <div class="profile-info-content">
                                         <span class="profile-info-label">Specialization</span>
-                                        <span
-                                            class="profile-info-value"><?php echo htmlspecialchars($user['area_of_specialization'] ?: 'Generalist'); ?></span>
+                                        <span class="profile-info-value">
+                                            <?php echo htmlspecialchars($user['area_of_specialization'] ?: 'Generalist'); ?>
+                                        </span>
                                     </div>
                                 </div>
                             </div>
@@ -158,7 +171,7 @@ $progress_pct = $total_count > 0 ? round(($approved_count / $total_count) * 100)
                                     </p>
                                 </div>
                                 <div class="hero-action">
-                                    <a href="add_activity.php" class="hero-action-btn">
+                                    <a href="../pages/add_activity.php" class="hero-action-btn">
                                         <i class="bi bi-plus"></i>
                                         <span>ADD ACTIVITY</span>
                                     </a>
@@ -171,7 +184,7 @@ $progress_pct = $total_count > 0 ? round(($approved_count / $total_count) * 100)
                         <div class="dashboard-card recent-activity-card">
                             <div class="card-header">
                                 <h2><i class="bi bi-clock-history"></i> Recent Activity Log</h2>
-                                <a href="submissions_progress.php"
+                                <a href="../pages/submissions_progress.php"
                                     style="font-size: 0.85rem; font-weight: 700; color: var(--primary); text-decoration: none;">View
                                     All History <i class="bi bi-arrow-right"></i></a>
                             </div>
@@ -185,17 +198,21 @@ $progress_pct = $total_count > 0 ? round(($approved_count / $total_count) * 100)
                                                 </div>
                                                 <div class="activity-content">
                                                     <div class="activity-header">
-                                                        <span
-                                                            class="activity-title"><?php echo htmlspecialchars($act['title']); ?></span>
-                                                        <span class="activity-time"><?php
-                                                        $dates = explode(', ', $act['date_attended']);
-                                                        echo date('M d, Y', strtotime($dates[0]));
-                                                        ?></span>
+                                                        <span class="activity-title">
+                                                            <?php echo htmlspecialchars($act['title']); ?>
+                                                        </span>
+                                                        <span class="activity-time">
+                                                            <?php
+                                                            $dates = explode(', ', $act['date_attended']);
+                                                            echo date('M d, Y', strtotime($dates[0]));
+                                                            ?>
+                                                        </span>
                                                     </div>
                                                     <div
                                                         style="display: flex; align-items: center; justify-content: space-between; margin-top: 6px;">
-                                                        <span
-                                                            style="font-size: 0.85rem; color: var(--text-muted);"><?php echo htmlspecialchars($act['competency']); ?></span>
+                                                        <span style="font-size: 0.85rem; color: var(--text-muted);">
+                                                            <?php echo htmlspecialchars($act['competency']); ?>
+                                                        </span>
                                                         <?php
                                                         $statusLabel = 'Pending';
                                                         $statusClass = 'status-pending';
@@ -234,8 +251,10 @@ $progress_pct = $total_count > 0 ? round(($approved_count / $total_count) * 100)
             </main>
 
             <footer class="user-footer">
-                <p>&copy; <?php echo date('Y'); ?> SDO L&D Passbook System. <span class="text-muted">Developed by Algen
-                        D. Loveres and Cedrick V. Bacaresas</span></p>
+                <p>&copy;
+                    <?php echo date('Y'); ?> SDO L&D Passbook System. <span class="text-muted">Developed by Algen
+                        D. Loveres and Cedrick V. Bacaresas</span>
+                </p>
             </footer>
         </div>
     </div>

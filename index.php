@@ -62,10 +62,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     $logStmt = $pdo->prepare("INSERT INTO activity_logs (user_id, action, ip_address) VALUES (?, ?, ?)");
                     $logStmt->execute([$user['id'], 'Logged In', $_SERVER['REMOTE_ADDR']]);
 
-                    if ($user['role'] === 'admin' || $user['role'] === 'super_admin' || $user['role'] === 'immediate_head') {
+                    if ($user['role'] === 'admin' || $user['role'] === 'super_admin' || $user['role'] === 'immediate_head' || $user['role'] === 'head_hr') {
                         header("Location: admin/dashboard.php");
+                    } elseif ($user['role'] === 'hr') {
+                        header("Location: hr/dashboard.php");
                     } else {
-                        header("Location: pages/home.php");
+                        header("Location: user/home.php");
                     }
                     exit;
                 }

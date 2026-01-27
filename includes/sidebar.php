@@ -4,9 +4,10 @@ $current_dir = basename(dirname($_SERVER['PHP_SELF']));
 $is_admin_dir = ($current_dir === 'admin');
 $is_hr_dir = ($current_dir === 'hr');
 $is_pages_dir = ($current_dir === 'pages');
+$is_user_dir = ($current_dir === 'user');
 
 // Determine path to root
-$to_root = ($is_admin_dir || $is_hr_dir || $is_pages_dir) ? '../' : '';
+$to_root = ($is_admin_dir || $is_hr_dir || $is_pages_dir || $is_user_dir) ? '../' : '';
 
 // Define prefixes
 $admin_prefix = $is_admin_dir ? '' : $to_root . 'admin/';
@@ -53,7 +54,7 @@ if (!isset($user) && isset($_SESSION['user_id'])) {
     </div>
 
     <div class="sidebar-nav">
-        <?php if ($_SESSION['role'] === 'admin' || $_SESSION['role'] === 'super_admin' || $_SESSION['role'] === 'immediate_head'): ?>
+        <?php if ($_SESSION['role'] === 'admin' || $_SESSION['role'] === 'super_admin' || $_SESSION['role'] === 'immediate_head' || $_SESSION['role'] === 'head_hr'): ?>
             <?php
             if (isset($pdo)) {
                 $stmt_pending = $pdo->query("SELECT COUNT(*) FROM ld_activities WHERE reviewed_by_supervisor = 0");
@@ -68,17 +69,19 @@ if (!isset($user) && isset($_SESSION['user_id'])) {
                 <span class="nav-text">Dashboard</span>
             </a>
 
-            <a href="<?php echo $admin_prefix; ?>submissions.php"
-                class="nav-item <?php echo (in_array($current_page, ['submissions.php', 'view_activity.php', 'edit_activity.php']) && ($_SESSION['role'] === 'admin' || $_SESSION['role'] === 'super_admin')) ? 'active' : ''; ?>"
-                data-tooltip="Submissions">
-                <div class="nav-icon">
-                    <i class="bi bi-file-earmark-text-fill"></i>
-                    <?php if ($pending_count > 0): ?>
-                        <span class="nav-badge"><?php echo $pending_count; ?></span>
-                    <?php endif; ?>
-                </div>
-                <span class="nav-text">Submissions</span>
-            </a>
+            <?php if ($_SESSION['role'] === 'admin' || $_SESSION['role'] === 'super_admin'): ?>
+                <a href="<?php echo $admin_prefix; ?>submissions.php"
+                    class="nav-item <?php echo (in_array($current_page, ['submissions.php', 'view_activity.php', 'edit_activity.php']) && ($_SESSION['role'] === 'admin' || $_SESSION['role'] === 'super_admin')) ? 'active' : ''; ?>"
+                    data-tooltip="Submissions">
+                    <div class="nav-icon">
+                        <i class="bi bi-file-earmark-text-fill"></i>
+                        <?php if ($pending_count > 0): ?>
+                            <span class="nav-badge"><?php echo $pending_count; ?></span>
+                        <?php endif; ?>
+                    </div>
+                    <span class="nav-text">Submissions</span>
+                </a>
+            <?php endif; ?>
 
 
             <a href="<?php echo $admin_prefix; ?>users.php"
@@ -98,7 +101,7 @@ if (!isset($user) && isset($_SESSION['user_id'])) {
                 <span class="nav-text">User Status</span>
             </a>
 
-            <?php if ($_SESSION['role'] === 'super_admin'): ?>
+            <?php if ($_SESSION['role'] === 'super_admin' || $_SESSION['role'] === 'head_hr'): ?>
                 <a href="<?php echo $admin_prefix; ?>manage_users.php"
                     class="nav-item <?php echo ($current_page == 'manage_users.php') ? 'active' : ''; ?>"
                     data-tooltip="User Management">
@@ -118,7 +121,7 @@ if (!isset($user) && isset($_SESSION['user_id'])) {
                 </a>
             <?php endif; ?>
 
-            <?php if ($_SESSION['role'] === 'admin' || $_SESSION['role'] === 'immediate_head'): ?>
+            <?php if ($_SESSION['role'] === 'admin' || $_SESSION['role'] === 'immediate_head' || $_SESSION['role'] === 'head_hr'): ?>
                 <a href="<?php echo $pages_prefix; ?>add_activity.php"
                     class="nav-item <?php echo ($current_page == 'add_activity.php') ? 'active' : ''; ?>"
                     data-tooltip="Record Activity">
@@ -146,17 +149,27 @@ if (!isset($user) && isset($_SESSION['user_id'])) {
                     <i class="bi bi-person-circle"></i>
                 </div>
                 <span
-                    class="nav-text"><?php echo ($_SESSION['role'] === 'immediate_head') ? 'My Profile' : 'Admin Profile'; ?></span>
+                    class="nav-text"><?php echo ($_SESSION['role'] === 'immediate_head' || $_SESSION['role'] === 'head_hr') ? 'My Profile' : 'Admin Profile'; ?></span>
             </a>
 
         <?php else: // HR and Regular Users ?>
-            <a href="<?php echo $pages_prefix; ?>home.php"
-                class="nav-item <?php echo ($current_page == 'home.php') ? 'active' : ''; ?>" data-tooltip="Dashboard">
-                <div class="nav-icon">
-                    <i class="bi bi-house-door-fill"></i>
-                </div>
-                <span class="nav-text">My Dashboard</span>
-            </a>
+            <?php if ($_SESSION['role'] === 'hr'): ?>
+                <a href="<?php echo $pages_prefix; ?>../hr/dashboard.php"
+                    class="nav-item <?php echo ($current_page == 'dashboard.php') ? 'active' : ''; ?>" data-tooltip="Dashboard">
+                    <div class="nav-icon">
+                        <i class="bi bi-house-door-fill"></i>
+                    </div>
+                    <span class="nav-text">My Dashboard</span>
+                </a>
+            <?php else: ?>
+                <a href="<?php echo $to_root; ?>user/home.php"
+                    class="nav-item <?php echo ($current_page == 'home.php') ? 'active' : ''; ?>" data-tooltip="Dashboard">
+                    <div class="nav-icon">
+                        <i class="bi bi-house-door-fill"></i>
+                    </div>
+                    <span class="nav-text">My Dashboard</span>
+                </a>
+            <?php endif; ?>
 
             <?php if ($_SESSION['role'] === 'hr'): ?>
 
@@ -199,13 +212,23 @@ if (!isset($user) && isset($_SESSION['user_id'])) {
 
             <div class="nav-divider"></div>
 
-            <a href="<?php echo $pages_prefix; ?>profile.php"
-                class="nav-item <?php echo ($current_page == 'profile.php') ? 'active' : ''; ?>" data-tooltip="My Profile">
-                <div class="nav-icon">
-                    <i class="bi bi-person-circle"></i>
-                </div>
-                <span class="nav-text">My Profile</span>
-            </a>
+            <?php if ($_SESSION['role'] === 'hr'): ?>
+                <a href="<?php echo $pages_prefix; ?>../hr/profile.php"
+                    class="nav-item <?php echo ($current_page == 'profile.php') ? 'active' : ''; ?>" data-tooltip="My Profile">
+                    <div class="nav-icon">
+                        <i class="bi bi-person-circle"></i>
+                    </div>
+                    <span class="nav-text">My Profile</span>
+                </a>
+            <?php else: ?>
+                <a href="<?php echo $to_root; ?>user/profile.php"
+                    class="nav-item <?php echo ($current_page == 'profile.php') ? 'active' : ''; ?>" data-tooltip="My Profile">
+                    <div class="nav-icon">
+                        <i class="bi bi-person-circle"></i>
+                    </div>
+                    <span class="nav-text">My Profile</span>
+                </a>
+            <?php endif; ?>
         <?php endif; ?>
     </div>
 
@@ -229,7 +252,7 @@ if (!isset($user) && isset($_SESSION['user_id'])) {
                 <span class="user-role"><?php echo htmlspecialchars($display_role); ?></span>
             </div>
         </div>
-        <a href="<?php echo $pages_prefix; ?>logout.php" class="logout-btn-new" title="Log out">
+        <a href="<?php echo $to_root; ?>includes/logout.php" class="logout-btn-new" title="Log out">
             <i class="bi bi-power"></i>
         </a>
     </div>
@@ -240,11 +263,13 @@ if (!isset($user) && isset($_SESSION['user_id'])) {
         const sidebar = document.getElementById('mainSidebar');
         const sidebarToggle = document.getElementById('sidebarToggle'); // Internal Chevron
         const overlay = document.getElementById('sidebarOverlay');
-        const layout = document.querySelector('.admin-layout') || document.querySelector('.user-layout');
+        const layout = document.querySelector('.admin-layout') || document.querySelector('.user-layout') || document.querySelector('.app-layout');
 
         function toggleDesktopCollapse() {
             sidebar.classList.toggle('collapsed');
-            if (layout) layout.classList.toggle('sidebar-collapsed');
+            if (layout) {
+                layout.classList.toggle('sidebar-collapsed');
+            }
             localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
         }
 
@@ -300,7 +325,9 @@ if (!isset($user) && isset($_SESSION['user_id'])) {
         // Persistence & Initialization
         if (window.innerWidth > 992 && localStorage.getItem('sidebarCollapsed') === 'true') {
             sidebar.classList.add('collapsed');
-            if (layout) layout.classList.add('sidebar-collapsed');
+            if (layout) {
+                layout.classList.add('sidebar-collapsed');
+            }
         }
 
         // Cleanup flash-prevention class

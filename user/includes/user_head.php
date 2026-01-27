@@ -1,13 +1,10 @@
 <?php
-// Determine the path to root from the current file
-$current_page_dir = basename(dirname($_SERVER['PHP_SELF']));
-$path_to_root = ($current_page_dir === 'pages') ? '../' : '';
+// Determine path to root
+$path_to_root = '../';
 ?>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
 <meta name="theme-color" content="#0f4c75">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
 <!-- Fonts -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -18,19 +15,16 @@ $path_to_root = ($current_page_dir === 'pages') ? '../' : '';
 <!-- Bootstrap Icons -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
 
-<!-- Base Styles fallback -->
+<!-- Base Styles -->
 <link rel="stylesheet" href="<?php echo $path_to_root; ?>css/base/variables.css?v=3.0">
 
-<!-- Notification Styles -->
-<link rel="stylesheet" href="<?php echo $path_to_root; ?>css/layout/notifications.css?v=3.0">
-
-<!-- Centralized User Design System -->
+<!-- Layout Styles -->
 <link rel="stylesheet" href="<?php echo $path_to_root; ?>css/layout/sidebar.css?v=3.0">
 <link rel="stylesheet" href="<?php echo $path_to_root; ?>css/user.css?v=3.0">
+<link rel="stylesheet" href="<?php echo $path_to_root; ?>css/layout/notifications.css?v=3.0">
 
-<!-- Global Notification JS -->
+<!-- Global Scripts -->
 <script src="<?php echo $path_to_root; ?>js/notifications.js"></script>
-<!-- Global UI Core JS -->
 <script src="<?php echo $path_to_root; ?>js/ui-core.js"></script>
 
 <?php if (isset($_SESSION['toast'])): ?>
@@ -46,7 +40,7 @@ $path_to_root = ($current_page_dir === 'pages') ? '../' : '';
     <?php unset($_SESSION['toast']); ?>
 <?php endif; ?>
 
-<!-- Prevent Sidebar Flash/Animation (Must be in head) -->
+<!-- Prevent Sidebar Flash/Animation -->
 <script>
     (function () {
         const collapsed = localStorage.getItem('sidebarCollapsed') === 'true';
@@ -54,4 +48,6 @@ $path_to_root = ($current_page_dir === 'pages') ? '../' : '';
             document.documentElement.classList.add('sidebar-initial-collapsed');
         }
     })();
+
+    // Real-time Clock Functionality handled by ui-core.js
 </script>

@@ -24,15 +24,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
     // Basic validation
     if (empty($username) || empty($password) || empty($full_name)) {
-        $message = "Please fill in all required fields.";
-        $messageType = "error";
+        $_SESSION['toast'] = ['title' => 'Missing Fields', 'message' => 'Please fill in all required fields.', 'type' => 'error'];
     } else {
         // Check if username exists
         $stmt = $pdo->prepare("SELECT id FROM users WHERE username = ?");
         $stmt->execute([$username]);
         if ($stmt->fetch()) {
-            $message = "Username already exists.";
-            $messageType = "error";
+            $_SESSION['toast'] = ['title' => 'Registration Error', 'message' => 'Username already exists.', 'type' => 'error'];
         } else {
             // Hash password
             $hashed_password = password_hash($password, PASSWORD_DEFAULT);
@@ -50,19 +48,20 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 }
             }
 
-            // Insert user with fixed 'user' role
-            $sql = "INSERT INTO users (username, password, full_name, office_station, position, rating_period, area_of_specialization, age, sex, profile_picture, role, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'user', ?)";
+            // Insert user with fixed 'user' role and auto-verified status
+            $sql = "INSERT INTO users (username, password, full_name, office_station, position, rating_period, area_of_specialization, age, sex, profile_picture, role, created_by, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'user', ?, 1)";
             $stmt = $pdo->prepare($sql);
             if ($stmt->execute([$username, $hashed_password, $full_name, $office_station, $position, $rating_period, $area_of_specialization, $age, $sex, $dbPath, $_SESSION['user_id']])) {
-                $message = "Personnel account created successfully!";
-                $messageType = "success";
+                $_SESSION['toast'] = ['title' => 'Personnel Created', 'message' => "Account for $username has been created successfully!", 'type' => 'success'];
 
                 // Log activity
                 $logStmt = $pdo->prepare("INSERT INTO activity_logs (user_id, action, details, ip_address) VALUES (?, ?, ?, ?)");
                 $logStmt->execute([$_SESSION['user_id'], 'Created User', "Created new user: $username", $_SERVER['REMOTE_ADDR']]);
+
+                header("Location: register.php");
+                exit;
             } else {
-                $message = "Something went wrong. Please try again.";
-                $messageType = "error";
+                $_SESSION['toast'] = ['title' => 'Creation Failed', 'message' => 'Something went wrong. Please try again.', 'type' => 'error'];
             }
         }
     }
@@ -296,7 +295,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 </head>
 
 <body>
-    <div class="user-layout">
+    <div class="app-layout">
         <?php require '../includes/sidebar.php'; ?>
 
         <div class="main-content">
@@ -500,16 +499,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
     <script src="../js/notifications.js"></script>
     <script>
-        // PHP Message to Toast
-        <?php if ($message): ?>
-            document.addEventListener('DOMContentLoaded', function () {
-                showToast(
-                    '<?php echo $messageType === 'success' ? 'Success' : 'Action Failed'; ?>',
-                    '<?php echo addslashes($message); ?>',
-                    '<?php echo $messageType; ?>'
-                );
-            });
-        <?php endif; ?>
+
 
         new TomSelect("#office-select", {
             create: true,

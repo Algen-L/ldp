@@ -3,7 +3,7 @@ session_start();
 require '../includes/db.php';
 
 // Check if user is logged in and is admin
-if (!isset($_SESSION['user_id']) || ($_SESSION['role'] !== 'admin' && $_SESSION['role'] !== 'super_admin' && $_SESSION['role'] !== 'immediate_head')) {
+if (!isset($_SESSION['user_id']) || ($_SESSION['role'] !== 'admin' && $_SESSION['role'] !== 'super_admin' && $_SESSION['role'] !== 'immediate_head' && $_SESSION['role'] !== 'head_hr')) {
     header("Location: ../index.php");
     exit;
 }
@@ -781,7 +781,7 @@ require '../includes/functions/user-functions.php';
 </head>
 
 <body>
-    <div class="admin-layout">
+    <div class="app-layout">
         <?php require '../includes/sidebar.php'; ?>
 
         <div class="main-content">
@@ -846,10 +846,12 @@ require '../includes/functions/user-functions.php';
                                         style="max-width: 180px;"><?php echo htmlspecialchars($u['position'] ?: 'Educational Personnel'); ?></span>
                                 </div>
                                 <div class="last-seen" style="margin-left: auto;">
-                                    <a href="../pages/view_activity.php?id=<?php echo $u['latest_activity_id']; ?>"
-                                        style="text-decoration:none; color:inherit; display:block;">
+                                    <?php if ($_SESSION['role'] !== 'head_hr'): ?>
+                                        <a href="../pages/view_activity.php?id=<?php echo $u['latest_activity_id']; ?>"
+                                            style="text-decoration:none; color:inherit; display:block;">
+                                        <?php endif; ?>
                                         <div
-                                            style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 8px 10px; border-radius: 8px; transition: all 0.2s; box-shadow: 0 0 8px rgba(59,130,246,0.2);">
+                                            style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 8px 10px; border-radius: 8px; transition: all 0.2s; box-shadow: 0 0 8px rgba(59,130,246,0.2); <?php echo ($_SESSION['role'] === 'head_hr') ? 'cursor: default;' : ''; ?>">
                                             <?php if ($u['latest_activity_title']): ?>
                                                 <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
                                                     <i class="bi bi-activity" style="font-size: 0.75rem; color: #3b82f6;"></i>
@@ -882,7 +884,9 @@ require '../includes/functions/user-functions.php';
                                                 </div>
                                             <?php endif; ?>
                                         </div>
-                                    </a>
+                                        <?php if ($_SESSION['role'] !== 'head_hr'): ?>
+                                        </a>
+                                    <?php endif; ?>
                                 </div>
                             </div>
 
@@ -1024,6 +1028,7 @@ require '../includes/functions/user-functions.php';
     </div>
 
     <script>
+        const userRole = '<?php echo $_SESSION['role']; ?>';
         let currentUserId = null;
         let currentTimeframe = 'week';
 
@@ -1116,15 +1121,23 @@ require '../includes/functions/user-functions.php';
                         const certList = document.getElementById('modalCertList');
                         if (data.certificates.length > 0) {
                             data.certificates.forEach(c => {
-                                certList.innerHTML += `
-                                    <a href="../${c.certificate_path}" target="_blank" class="cert-card-mini">
-                                        <div class="cert-icon"><i class="bi bi-file-earmark-pdf"></i></div>
-                                        <div class="cert-info-mini">
-                                            <h4>${c.title}</h4>
-                                            <p>${new Date(c.date_attended).toLocaleDateString()}</p>
-                                        </div>
-                                    </a>
+                                const certContent = `
+                                    <div class="cert-icon"><i class="bi bi-file-earmark-pdf"></i></div>
+                                    <div class="cert-info-mini">
+                                        <h4>${c.title}</h4>
+                                        <p>${new Date(c.date_attended).toLocaleDateString()}</p>
+                                    </div>
                                 `;
+
+                                if (userRole === 'head_hr') {
+                                    certList.innerHTML += `<div class="cert-card-mini" style="cursor: default;">${certContent}</div>`;
+                                } else {
+                                    certList.innerHTML += `
+                                        <a href="../${c.certificate_path}" target="_blank" class="cert-card-mini">
+                                            ${certContent}
+                                        </a>
+                                    `;
+                                }
                             });
                         } else {
                             certList.innerHTML = '<div class="no-data-msg" style="grid-column: 1/-1;">No certificates uploaded yet.</div>';
@@ -1140,16 +1153,24 @@ require '../includes/functions/user-functions.php';
                                 else if (s.reviewed_by_supervisor == 1) statusTag = '<span class="submission-status-tag status-tag-reviewed">Reviewed</span>';
                                 else statusTag = '<span class="submission-status-tag status-tag-pending">Pending</span>';
 
-                                submissionList.innerHTML += `
-                                    <a href="../pages/view_activity.php?id=${s.id}" class="submission-card-mini">
-                                        <div class="submission-icon"><i class="bi bi-file-earmark-text"></i></div>
-                                        <div class="submission-info-mini">
-                                            <h4>${s.title}</h4>
-                                            <p>${s.type_ld}</p>
-                                            ${statusTag}
-                                        </div>
-                                    </a>
+                                const submissionContent = `
+                                    <div class="submission-icon"><i class="bi bi-file-earmark-text"></i></div>
+                                    <div class="submission-info-mini">
+                                        <h4>${s.title}</h4>
+                                        <p>${s.type_ld}</p>
+                                        ${statusTag}
+                                    </div>
                                 `;
+
+                                if (userRole === 'head_hr') {
+                                    submissionList.innerHTML += `<div class="submission-card-mini" style="cursor: default;">${submissionContent}</div>`;
+                                } else {
+                                    submissionList.innerHTML += `
+                                        <a href="../pages/view_activity.php?id=${s.id}" class="submission-card-mini">
+                                            ${submissionContent}
+                                        </a>
+                                    `;
+                                }
                             });
                         } else {
                             submissionList.innerHTML = '<div class="no-data-msg" style="grid-column: 1/-1;">No submissions found.</div>';
@@ -1232,7 +1253,7 @@ require '../includes/functions/user-functions.php';
                 })
                 .catch(err => {
                     console.error('Fetch error:', err);
-                    alert(err.message);
+                    showToast("Access Restricted", err.message, "warning");
                     closeModal();
                 });
         }

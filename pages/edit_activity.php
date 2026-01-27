@@ -21,9 +21,20 @@ if (!$activity) {
     die("Activity not found.");
 }
 
-// Access Control: Only owner or admin
+// Access Control: Only owner or higher admin
 if ($_SESSION['role'] !== 'admin' && $_SESSION['role'] !== 'super_admin' && $activity['user_id'] != $_SESSION['user_id']) {
-    die("Unauthorized access.");
+    $_SESSION['toast'] = [
+        'title' => 'Access Restricted',
+        'message' => 'You do not have permission to modify this activity record.',
+        'type' => 'warning'
+    ];
+
+    // Redirect back to referring page or dashboard fallback
+    $fallback = ($_SESSION['role'] === 'admin' || $_SESSION['role'] === 'super_admin' || $_SESSION['role'] === 'head_hr') ? '../admin/dashboard.php' : '../user/home.php';
+    $redirect = $_SERVER['HTTP_REFERER'] ?? $fallback;
+
+    header("Location: $redirect");
+    exit;
 }
 
 $message = '';
@@ -263,7 +274,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
 <body>
 
-    <div class="user-layout">
+    <div class="app-layout">
         <?php require '../includes/sidebar.php'; ?>
 
         <div class="main-content">

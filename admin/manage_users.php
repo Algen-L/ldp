@@ -2,7 +2,7 @@
 session_start();
 require '../includes/init_repos.php';
 
-if (!isset($_SESSION['user_id']) || ($_SESSION['role'] !== 'super_admin' && $_SESSION['role'] !== 'hr')) {
+if (!isset($_SESSION['user_id']) || ($_SESSION['role'] !== 'super_admin' && $_SESSION['role'] !== 'hr' && $_SESSION['role'] !== 'head_hr')) {
     header("Location: dashboard.php");
     exit;
 }
@@ -15,7 +15,31 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         if ($_SESSION['role'] === 'super_admin') {
             $role = $_POST['role'];
             $success = $userRepo->updateUserRole($user_id, $role, $office);
+        } elseif ($_SESSION['role'] === 'head_hr') {
+            // Head HR Case
+            $requested_role = $_POST['role'] ?? null;
+            $target_user = $userRepo->getUserById($user_id);
+
+            if ($target_user && $target_user['role'] === 'super_admin') {
+                $_SESSION['toast'] = ['title' => 'Error', 'message' => 'Head HR cannot edit Super Admin profiles.', 'type' => 'error'];
+                header("Location: manage_users.php");
+                exit;
+            }
+
+            // If changing role, Head HR cannot set it to super_admin or head_hr
+            if ($requested_role && $requested_role !== 'super_admin' && $requested_role !== 'head_hr') {
+                $success = $userRepo->updateUserRole($user_id, $requested_role, $office);
+            } else {
+                $success = $userRepo->updateUserProfile($user_id, ['office_station' => $office]);
+            }
         } else {
+            // HR Case: Check if target is super_admin or head_hr
+            $target_user = $userRepo->getUserById($user_id);
+            if ($target_user && ($target_user['role'] === 'super_admin' || $target_user['role'] === 'head_hr')) {
+                $_SESSION['toast'] = ['title' => 'Error', 'message' => 'HR cannot edit higher-tier administrative profiles.', 'type' => 'error'];
+                header("Location: manage_users.php");
+                exit;
+            }
             $success = $userRepo->updateUserProfile($user_id, ['office_station' => $office]);
         }
 
@@ -34,8 +58,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $can_delete = false;
             if ($_SESSION['role'] === 'super_admin')
                 $can_delete = true;
+            elseif ($_SESSION['role'] === 'head_hr' && $target_role !== 'super_admin' && $target_role !== 'head_hr')
+                $can_delete = true;
             elseif ($_SESSION['role'] === 'hr' && $target_role === 'user')
                 $can_delete = true;
+
+            // Final safety: Never allow HR/Head HR to delete super_admin or head_hr
+            if (($_SESSION['role'] === 'hr' || $_SESSION['role'] === 'head_hr') && ($target_role === 'super_admin' || $target_role === 'head_hr')) {
+                $can_delete = false;
+            }
 
             if ($can_delete) {
                 if ($userRepo->deleteUser($user_id)) {
@@ -109,6 +140,17 @@ $filters = [
 $users = ($view === 'active') ? $userRepo->getUsersForManagement($filters) : [];
 $pending_users = $userRepo->getPendingUsers();
 $target_user = ($view === 'details' && $target_id) ? $userRepo->getUserById($target_id) : null;
+
+// Fetch logs for Notifications view
+$audit_logs = [];
+if ($view === 'notifications') {
+    $audit_logs = $logRepo->getAllLogs([
+        'action_type' => 'Profile',
+        'limit' => 100
+    ]);
+    // Filter out any logs related to Super Admin (target or actor if needed, but per request "except on the superadmin role")
+    // If $audit_logs contains details or we need more precise filtering, we'll do it here or in repo.
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -168,8 +210,15 @@ $target_user = ($view === 'details' && $target_id) ? $userRepo->getUserById($tar
         }
 
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         .detail-card {
@@ -476,7 +525,7 @@ $target_user = ($view === 'details' && $target_id) ? $userRepo->getUserById($tar
 </head>
 
 <body>
-    <div class="admin-layout">
+    <div class="app-layout">
         <?php require '../includes/sidebar.php'; ?>
 
         <div class="main-content">
@@ -484,7 +533,7 @@ $target_user = ($view === 'details' && $target_id) ? $userRepo->getUserById($tar
                 <div class="top-bar-left">
                     <div class="breadcrumb">
                         <h1 class="page-title">
-                            Personnel Management 
+                            Personnel Management
                             <span style="color: #94a3b8; font-weight: 500; margin-left: 8px;">
                                 <?php if ($view === 'active'): ?>
                                     / Active Personnel
@@ -512,203 +561,514 @@ $target_user = ($view === 'details' && $target_id) ? $userRepo->getUserById($tar
 
             <main class="content-wrapper">
                 <div class="management-tabs">
-                    <a href="manage_users.php?view=active" class="tab-item <?php echo $view === 'active' ? 'active' : ''; ?>">
+                    <a href="manage_users.php?view=active"
+                        class="tab-item <?php echo $view === 'active' ? 'active' : ''; ?>">
                         <i class="bi bi-people-fill"></i> Active Personnel
                     </a>
-                    <a href="manage_users.php?view=verification" class="tab-item <?php echo $view === 'verification' ? 'active' : ''; ?>">
+                    <a href="manage_users.php?view=verification"
+                        class="tab-item <?php echo $view === 'verification' ? 'active' : ''; ?>">
                         <i class="bi bi-person-check-fill"></i> Pending Requests
                         <?php if (count($pending_users) > 0): ?>
-                                <span class="tab-badge"><?php echo count($pending_users); ?></span>
+                            <span class="tab-badge"><?php echo count($pending_users); ?></span>
                         <?php endif; ?>
+                    </a>
+                    <a href="manage_users.php?view=notifications"
+                        class="tab-item <?php echo $view === 'notifications' ? 'active' : ''; ?>">
+                        <i class="bi bi-clock-history"></i> Profile Log
                     </a>
                 </div>
                 <div style="height: 1px;"></div>
 
                 <?php if ($view === 'active'): ?>
-                        <!-- Redesigned High-Fidelity Filter Bar -->
-                        <div class="filter-bar"
-                            style="padding: 16px; background: white; border-radius: 12px; margin-bottom: 24px; box-shadow: var(--shadow-sm); border: 1.5px solid #f1f5f9;">
-                            <form method="GET" class="filter-form"
-                                style="display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: nowrap;">
-                                <input type="hidden" name="view" value="active">
-                                <!-- Search Field with Icon -->
-                                <div class="filter-item" style="position: relative; flex: 1.5; min-width: 0;">
-                                    <i class="bi bi-search"
-                                        style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 0.95rem;"></i>
-                                    <input type="text" name="search" value="<?php echo htmlspecialchars($filters['search']); ?>"
-                                        placeholder="Search entries..."
-                                        style="width: 100%; height: 42px; padding: 0 12px 0 42px; border: 1.2px solid #e2e8f0; border-radius: 10px; font-size: 0.9rem; color: #475569; font-weight: 500; background: #fafbfc; outline: none; transition: all 0.2s;">
-                                </div>
+                    <!-- Redesigned High-Fidelity Filter Bar -->
+                    <div class="filter-bar"
+                        style="padding: 16px; background: white; border-radius: 12px; margin-bottom: 24px; box-shadow: var(--shadow-sm); border: 1.5px solid #f1f5f9;">
+                        <form method="GET" class="filter-form"
+                            style="display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: nowrap;">
+                            <input type="hidden" name="view" value="active">
+                            <!-- Search Field with Icon -->
+                            <div class="filter-item" style="position: relative; flex: 1.5; min-width: 0;">
+                                <i class="bi bi-search"
+                                    style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 0.95rem;"></i>
+                                <input type="text" name="search" value="<?php echo htmlspecialchars($filters['search']); ?>"
+                                    placeholder="Search entries..."
+                                    style="width: 100%; height: 42px; padding: 0 12px 0 42px; border: 1.2px solid #e2e8f0; border-radius: 10px; font-size: 0.9rem; color: #475569; font-weight: 500; background: #fafbfc; outline: none; transition: all 0.2s;">
+                            </div>
 
-                                <!-- Role Field -->
-                                <div class="filter-item" style="position: relative; flex: 1;">
-                                    <select name="filter_role"
-                                        style="width: 100%; height: 42px; padding: 0 40px 0 16px; border: 1.2px solid #e2e8f0; border-radius: 10px; font-size: 0.9rem; color: #475569; font-weight: 600; background: white; appearance: none; cursor: pointer; outline: none;">
-                                        <option value="">All Personnel</option>
-                                        <option value="user" <?php echo $filters['role'] === 'user' ? 'selected' : ''; ?>>Staff
-                                        </option>
-                                        <option value="hr" <?php echo $filters['role'] === 'hr' ? 'selected' : ''; ?>>HR Personnel
-                                        </option>
-                                        <option value="immediate_head" <?php echo $filters['role'] === 'immediate_head' ? 'selected' : ''; ?>>Immediate Head</option>
-                                        <option value="admin" <?php echo $filters['role'] === 'admin' ? 'selected' : ''; ?>>System
-                                            Admin</option>
-                                        <option value="super_admin" <?php echo $filters['role'] === 'super_admin' ? 'selected' : ''; ?>>Super Admin</option>
-                                    </select>
-                                    <i class="bi bi-chevron-down"
-                                        style="position: absolute; right: 14px; top: 50%; transform: translateY(-50%); color: #94a3b8; pointer-events: none; font-size: 0.8rem;"></i>
-                                </div>
+                            <!-- Role Field -->
+                            <div class="filter-item" style="position: relative; flex: 1;">
+                                <select name="filter_role"
+                                    style="width: 100%; height: 42px; padding: 0 40px 0 16px; border: 1.2px solid #e2e8f0; border-radius: 10px; font-size: 0.9rem; color: #475569; font-weight: 600; background: white; appearance: none; cursor: pointer; outline: none;">
+                                    <option value="">All Personnel</option>
+                                    <option value="user" <?php echo $filters['role'] === 'user' ? 'selected' : ''; ?>>Staff
+                                    </option>
+                                    <option value="hr" <?php echo $filters['role'] === 'hr' ? 'selected' : ''; ?>>HR Personnel
+                                    </option>
+                                    <option value="immediate_head" <?php echo $filters['role'] === 'immediate_head' ? 'selected' : ''; ?>>Immediate Head</option>
+                                    <option value="admin" <?php echo $filters['role'] === 'admin' ? 'selected' : ''; ?>>System
+                                        Admin</option>
+                                    <option value="super_admin" <?php echo $filters['role'] === 'super_admin' ? 'selected' : ''; ?>>Super Admin</option>
+                                </select>
+                                <i class="bi bi-chevron-down"
+                                    style="position: absolute; right: 14px; top: 50%; transform: translateY(-50%); color: #94a3b8; pointer-events: none; font-size: 0.8rem;"></i>
+                            </div>
 
-                                <!-- Unit Field -->
-                                <div class="filter-item" style="position: relative; flex: 1;">
-                                    <input type="text" name="filter_office"
-                                        value="<?php echo htmlspecialchars($filters['office']); ?>" placeholder="All Units"
-                                        style="width: 100%; height: 42px; padding: 0 12px; border: 1.2px solid #e2e8f0; border-radius: 10px; font-size: 0.9rem; color: #475569; font-weight: 500; background: white; outline: none;">
-                                </div>
+                            <!-- Unit Field -->
+                            <div class="filter-item" style="position: relative; flex: 1;">
+                                <input type="text" name="filter_office"
+                                    value="<?php echo htmlspecialchars($filters['office']); ?>" placeholder="All Units"
+                                    style="width: 100%; height: 42px; padding: 0 12px; border: 1.2px solid #e2e8f0; border-radius: 10px; font-size: 0.9rem; color: #475569; font-weight: 500; background: white; outline: none;">
+                            </div>
 
-                                <!-- Apply Button -->
-                                <div class="filter-actions" style="display: flex; gap: 8px; align-items: center;">
-                                    <button type="submit" class="btn-apply"
-                                        style="height: 42px; padding: 0 24px; background: #0f4c75; color: white; border: none; border-radius: 10px; font-weight: 700; font-size: 0.9rem; display: flex; align-items: center; gap: 10px; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 10px rgba(15, 76, 117, 0.2);">
-                                        <i class="bi bi-funnel-fill" style="font-size: 0.85rem;"></i> Apply
-                                    </button>
-                                    <?php if ($filters['search'] || $filters['role'] || $filters['office']): ?>
-                                            <a href="manage_users.php?view=active" class="btn-clear"
-                                                style="height: 42px; width: 42px; display: flex; align-items: center; justify-content: center; background: #f1f5f9; color: #64748b; border-radius: 10px; border: none; text-decoration: none; transition: all 0.2s;">
-                                                <i class="bi bi-x-lg"></i>
-                                            </a>
-                                    <?php endif; ?>
-                                </div>
-                            </form>
-                        </div>
+                            <!-- Apply Button -->
+                            <div class="filter-actions" style="display: flex; gap: 8px; align-items: center;">
+                                <button type="submit" class="btn-apply"
+                                    style="height: 42px; padding: 0 24px; background: #0f4c75; color: white; border: none; border-radius: 10px; font-weight: 700; font-size: 0.9rem; display: flex; align-items: center; gap: 10px; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 10px rgba(15, 76, 117, 0.2);">
+                                    <i class="bi bi-funnel-fill" style="font-size: 0.85rem;"></i> Apply
+                                </button>
+                                <?php if ($filters['search'] || $filters['role'] || $filters['office']): ?>
+                                    <a href="manage_users.php?view=active" class="btn-clear"
+                                        style="height: 42px; width: 42px; display: flex; align-items: center; justify-content: center; background: #f1f5f9; color: #64748b; border-radius: 10px; border: none; text-decoration: none; transition: all 0.2s;">
+                                        <i class="bi bi-x-lg"></i>
+                                    </a>
+                                <?php endif; ?>
+                            </div>
+                        </form>
+                    </div>
 
-                        <div class="dashboard-card hover-elevate"
-                            style="border-radius: 16px; overflow: hidden; border: none; box-shadow: var(--shadow-sm);">
-                            <div class="card-body" style="padding: 0;">
-                                <div class="table-responsive"
-                                    style="width: 100%; max-height: 500px; overflow-y: auto; overflow-x: hidden; position: relative;">
-                                    <table class="data-table"
-                                        style="border-collapse: collapse; margin-top: 0; width: 100%; table-layout: fixed;">
-                                        <thead style="background: #f8fafc;">
+                    <div class="dashboard-card hover-elevate"
+                        style="border-radius: 16px; overflow: hidden; border: none; box-shadow: var(--shadow-sm);">
+                        <div class="card-body" style="padding: 0;">
+                            <div class="table-responsive"
+                                style="width: 100%; max-height: 500px; overflow-y: auto; overflow-x: hidden; position: relative;">
+                                <table class="data-table"
+                                    style="border-collapse: collapse; margin-top: 0; width: 100%; table-layout: fixed;">
+                                    <thead style="background: #f8fafc;">
+                                        <tr>
+                                            <th
+                                                style="font-size: 0.68rem; font-weight: 700; color: #94a3b8; padding: 14px 12px; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; width: 22%; position: sticky; top: 0; background: #f8fafc; z-index: 10;">
+                                                User</th>
+                                            <th
+                                                style="font-size: 0.68rem; font-weight: 700; color: #94a3b8; padding: 14px 12px; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; width: 12%; position: sticky; top: 0; background: #f8fafc; z-index: 10;">
+                                                Role</th>
+                                            <th
+                                                style="font-size: 0.68rem; font-weight: 700; color: #94a3b8; padding: 14px 12px; text-transform: uppercase; letter-spacing: 0.5px; text-align: center; white-space: nowrap; width: 15%; position: sticky; top: 0; background: #f8fafc; z-index: 10;">
+                                                Unit</th>
+                                            <th
+                                                style="font-size: 0.68rem; font-weight: 700; color: #94a3b8; padding: 14px 12px; text-transform: uppercase; letter-spacing: 0.5px; text-align: center; white-space: nowrap; width: 10%; position: sticky; top: 0; background: #f8fafc; z-index: 10;">
+                                                Status</th>
+                                            <th
+                                                style="font-size: 0.68rem; font-weight: 700; color: #94a3b8; padding: 14px 12px; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; width: 15%; position: sticky; top: 0; background: #f8fafc; z-index: 10;">
+                                                Last Login</th>
+                                            <th
+                                                style="font-size: 0.68rem; font-weight: 700; color: #94a3b8; padding: 14px 12px; text-transform: uppercase; letter-spacing: 0.5px; text-align: right; white-space: nowrap; width: 16%; position: sticky; top: 0; background: #f8fafc; z-index: 10;">
+                                                Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody style="background: white;">
+                                        <?php if (empty($users)): ?>
                                             <tr>
-                                                <th style="font-size: 0.68rem; font-weight: 700; color: #94a3b8; padding: 14px 12px; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; width: 22%; position: sticky; top: 0; background: #f8fafc; z-index: 10;">User</th>
-                                                <th style="font-size: 0.68rem; font-weight: 700; color: #94a3b8; padding: 14px 12px; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; width: 12%; position: sticky; top: 0; background: #f8fafc; z-index: 10;">Role</th>
-                                                <th style="font-size: 0.68rem; font-weight: 700; color: #94a3b8; padding: 14px 12px; text-transform: uppercase; letter-spacing: 0.5px; text-align: center; white-space: nowrap; width: 15%; position: sticky; top: 0; background: #f8fafc; z-index: 10;">Unit</th>
-                                                <th style="font-size: 0.68rem; font-weight: 700; color: #94a3b8; padding: 14px 12px; text-transform: uppercase; letter-spacing: 0.5px; text-align: center; white-space: nowrap; width: 10%; position: sticky; top: 0; background: #f8fafc; z-index: 10;">Status</th>
-                                                <th style="font-size: 0.68rem; font-weight: 700; color: #94a3b8; padding: 14px 12px; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; width: 15%; position: sticky; top: 0; background: #f8fafc; z-index: 10;">Last Login</th>
-                                                <th style="font-size: 0.68rem; font-weight: 700; color: #94a3b8; padding: 14px 12px; text-transform: uppercase; letter-spacing: 0.5px; text-align: right; white-space: nowrap; width: 16%; position: sticky; top: 0; background: #f8fafc; z-index: 10;">Actions</th>
+                                                <td colspan="6" style="padding: 40px; text-align: center; color: #94a3b8;">No
+                                                    staff records found match your criteria.</td>
                                             </tr>
-                                        </thead>
-                                        <tbody style="background: white;">
-                                            <?php if (empty($users)): ?>
-                                                    <tr><td colspan="6" style="padding: 40px; text-align: center; color: #94a3b8;">No staff records found match your criteria.</td></tr>
-                                            <?php endif; ?>
-                                            <?php foreach ($users as $u):
-                                                $initial = strtoupper(substr($u['full_name'], 0, 1));
-                                                $role_class = 'badge-role-' . $u['role'];
-                                                $role_label = ['super_admin' => 'Super Admin', 'admin' => 'Admin', 'hr' => 'HR Personnel', 'immediate_head' => 'Head', 'user' => 'Staff'][$u['role']] ?? ucfirst($u['role']);
-                                                ?>
-                                                    <tr style="border-bottom: 1px solid #f1f5f9; transition: background 0.2s;">
-                                                        <td style="padding: 12px 20px;">
-                                                            <div style="display: flex; align-items: center; gap: 12px;">
-                                                                <?php if ($u['profile_picture']): ?>
-                                                                        <img src="../<?php echo htmlspecialchars($u['profile_picture']); ?>" style="width: 38px; height: 38px; border-radius: 50%; object-fit: cover; border: 2px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                                                                <?php else: ?>
-                                                                        <div class="user-avatar-placeholder" style="width: 38px; height: 38px; font-size: 0.9rem; border-radius: 50%; background: var(--primary); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700;"><?php echo $initial; ?></div>
-                                                                <?php endif; ?>
-                                                                <div><div style="font-weight: 700; color: #1e293b; font-size: 0.92rem;"><?php echo htmlspecialchars($u['full_name']); ?></div><div style="font-size: 0.78rem; color: #64748b;">@<?php echo htmlspecialchars($u['username']); ?></div></div>
+                                        <?php endif; ?>
+                                        <?php foreach ($users as $u):
+                                            $initial = strtoupper(substr($u['full_name'], 0, 1));
+                                            $role_class = 'badge-role-' . $u['role'];
+                                            $role_label = ['super_admin' => 'Super Admin', 'admin' => 'Admin', 'hr' => 'HR Personnel', 'immediate_head' => 'Head', 'user' => 'Staff'][$u['role']] ?? ucfirst($u['role']);
+                                            ?>
+                                            <tr style="border-bottom: 1px solid #f1f5f9; transition: background 0.2s;">
+                                                <td style="padding: 12px 20px;">
+                                                    <div style="display: flex; align-items: center; gap: 12px;">
+                                                        <?php if ($u['profile_picture']): ?>
+                                                            <img src="../<?php echo htmlspecialchars($u['profile_picture']); ?>"
+                                                                style="width: 38px; height: 38px; border-radius: 50%; object-fit: cover; border: 2px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                                                        <?php else: ?>
+                                                            <div class="user-avatar-placeholder"
+                                                                style="width: 38px; height: 38px; font-size: 0.9rem; border-radius: 50%; background: var(--primary); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700;">
+                                                                <?php echo $initial; ?>
                                                             </div>
-                                                        </td>
-                                                        <td><span class="badge <?php echo $role_class; ?>" style="font-size: 0.7rem; font-weight: 600; padding: 4px 10px; border-radius: 6px;"><?php echo $role_label; ?></span></td>
-                                                        <td style="text-align: center;"><div style="font-weight: 600; color: #475569; font-size: 0.82rem;"><?php echo $u['office_station'] ?: '-'; ?></div></td>
-                                                        <td style="text-align: center;"><span style="padding: 3px 10px; border-radius: 99px; font-size: 0.7rem; font-weight: 700; background: <?php echo $u['is_active'] ? '#ecfdf5' : '#f1f5f9'; ?>; color: <?php echo $u['is_active'] ? '#10b981' : '#64748b'; ?>;"><?php echo $u['is_active'] ? 'Active' : 'Inactive'; ?></span></td>
-                                                        <td><div style="font-size: 0.8rem; color: #334155; font-weight: 500;"><?php echo $u['last_login'] ? date('M d, Y', strtotime($u['last_login'])) : 'Never'; ?></div></td>
-                                                        <td style="text-align: right;">
-                                                            <div style="display: flex; gap: 6px; justify-content: flex-end;">
-                                                                <a href="edit_user.php?id=<?php echo $u['id']; ?>" class="btn btn-secondary btn-sm" style="border-radius: 6px; padding: 4px 12px; background: white; border: 1px solid #e2e8f0; color: #64748b; font-size: 0.8rem; height: 32px;">Edit</a>
-                                                                <?php if ($u['id'] != $_SESSION['user_id']): ?>
-                                                                        <button type="button" onclick="confirmDelete(<?php echo $u['id']; ?>, '<?php echo addslashes($u['full_name']); ?>')" class="btn btn-secondary btn-sm" style="border-radius: 6px; width: 32px; height: 32px; border: 1px solid #fee2e2; color: #ef4444; background: white;"><i class="bi bi-trash"></i></button>
-                                                                <?php endif; ?>
+                                                        <?php endif; ?>
+                                                        <div>
+                                                            <div style="font-weight: 700; color: #1e293b; font-size: 0.92rem;">
+                                                                <?php echo htmlspecialchars($u['full_name']); ?>
                                                             </div>
-                                                        </td>
-                                                    </tr>
-                                            <?php endforeach; ?>
-                                        </tbody>
-                                    </table>
-                                </div>
+                                                            <div style="font-size: 0.78rem; color: #64748b;">
+                                                                @<?php echo htmlspecialchars($u['username']); ?></div>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td><span class="badge <?php echo $role_class; ?>"
+                                                        style="font-size: 0.7rem; font-weight: 600; padding: 4px 10px; border-radius: 6px;"><?php echo $role_label; ?></span>
+                                                </td>
+                                                <td style="text-align: center;">
+                                                    <div style="font-weight: 600; color: #475569; font-size: 0.82rem;">
+                                                        <?php echo $u['office_station'] ?: '-'; ?>
+                                                    </div>
+                                                </td>
+                                                <td style="text-align: center;"><span
+                                                        style="padding: 3px 10px; border-radius: 99px; font-size: 0.7rem; font-weight: 700; background: <?php echo $u['is_active'] ? '#ecfdf5' : '#f1f5f9'; ?>; color: <?php echo $u['is_active'] ? '#10b981' : '#64748b'; ?>;"><?php echo $u['is_active'] ? 'Active' : 'Inactive'; ?></span>
+                                                </td>
+                                                <td>
+                                                    <div style="font-size: 0.8rem; color: #334155; font-weight: 500;">
+                                                        <?php echo $u['last_login'] ? date('M d, Y', strtotime($u['last_login'])) : 'Never'; ?>
+                                                    </div>
+                                                </td>
+                                                <td style="text-align: right;">
+                                                    <div style="display: flex; gap: 6px; justify-content: flex-end;">
+                                                        <?php
+                                                        $can_manage_this = false;
+                                                        if ($_SESSION['role'] === 'super_admin') {
+                                                            $can_manage_this = true;
+                                                        } elseif ($_SESSION['role'] === 'head_hr') {
+                                                            if ($u['role'] !== 'super_admin' && $u['role'] !== 'head_hr')
+                                                                $can_manage_this = true;
+                                                        } elseif ($_SESSION['role'] === 'hr') {
+                                                            if ($u['role'] === 'user')
+                                                                $can_manage_this = true;
+                                                        }
+                                                        if ($can_manage_this):
+                                                            ?>
+                                                            <a href="edit_user.php?id=<?php echo $u['id']; ?>"
+                                                                class="btn btn-secondary btn-sm"
+                                                                style="border-radius: 6px; padding: 4px 12px; background: white; border: 1px solid #e2e8f0; color: #64748b; font-size: 0.8rem; height: 32px;">Edit</a>
+                                                            <?php if ($u['id'] != $_SESSION['user_id']): ?>
+                                                                <button type="button"
+                                                                    onclick="confirmDelete(<?php echo $u['id']; ?>, '<?php echo addslashes($u['full_name']); ?>')"
+                                                                    class="btn btn-secondary btn-sm"
+                                                                    style="border-radius: 6px; width: 32px; height: 32px; border: 1px solid #fee2e2; color: #ef4444; background: white;"><i
+                                                                        class="bi bi-trash"></i></button>
+                                                            <?php endif; ?>
+                                                        <?php else: ?>
+                                                            <span
+                                                                style="font-size: 0.75rem; color: #94a3b8; font-style: italic; padding: 4px;">Protected</span>
+                                                        <?php endif; ?>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
+                    </div>
 
                 <?php elseif ($view === 'verification'): ?>
-                        <div class="verification-view" style="animation: fadeIn 0.3s ease;">
-                            <?php if (empty($pending_users)): ?>
-                                    <div style="text-align: center; padding: 80px 40px; background: white; border-radius: 24px; box-shadow: var(--shadow-sm);">
-                                        <i class="bi bi-check2-all" style="font-size: 4rem; color: #cbd5e1;"></i>
-                                        <h2 style="margin-top: 24px; color: #1e293b; font-weight: 800;">All Clear!</h2>
-                                        <p style="color: #64748b; font-size: 1.1rem;">There are no new registration requests to verify.</p>
-                                    </div>
-                            <?php else: ?>
-                                    <div class="verification-list" style="display: grid; gap: 16px;">
-                                        <?php foreach ($pending_users as $p): ?>
-                                                <div class="ver-item" onclick="location.href='manage_users.php?view=details&id=<?php echo $p['id']; ?>'">
-                                                    <div class="ver-user">
-                                                        <div class="ver-avatar"><?php echo strtoupper(substr($p['full_name'], 0, 1)); ?></div>
-                                                        <div><span class="ver-name"><?php echo htmlspecialchars($p['full_name']); ?></span><span class="ver-handle">@<?php echo htmlspecialchars($p['username']); ?></span></div>
-                                                    </div>
-                                                    <div><span class="ver-info-label">Office</span><span class="ver-info-value"><?php echo htmlspecialchars($p['office_station']); ?></span></div>
-                                                    <div><span class="ver-info-label">Position</span><span class="ver-info-value"><?php echo htmlspecialchars($p['position'] ?: 'Staff'); ?></span></div>
-                                                    <div class="ver-actions" onclick="event.stopPropagation()">
-                                                        <form method="POST" style="margin: 0; display: inline;">
-                                                            <input type="hidden" name="user_id" value="<?php echo $p['id']; ?>">
-                                                            <button type="submit" name="approve_registration" class="ver-btn ver-btn-approve" title="Approve"><i class="bi bi-check-lg"></i></button>
-                                                        </form>
-                                                        <form method="POST" style="margin: 0; display: inline;" onsubmit="return confirm('Reject this registration?');">
-                                                            <input type="hidden" name="user_id" value="<?php echo $p['id']; ?>">
-                                                            <button type="submit" name="reject_registration" class="ver-btn ver-btn-reject" title="Reject"><i class="bi bi-trash3-fill"></i></button>
-                                                        </form>
-                                                    </div>
-                                                </div>
-                                        <?php endforeach; ?>
-                                    </div>
-                            <?php endif; ?>
-                        </div>
-
-                <?php elseif ($view === 'details' && $target_user): ?>
-                        <div class="details-container">
-                            <a href="manage_users.php?view=verification" class="back-btn"><i class="bi bi-arrow-left"></i> Back to Verification Requests</a>
-                            <div class="detail-card">
-                                <div class="detail-header">
-                                    <div style="display: flex; align-items: center; gap: 24px;">
-                                        <div class="ver-avatar" style="width: 80px; height: 80px; font-size: 2rem; border-radius: 20px; box-shadow: 0 8px 16px rgba(0,0,0,0.1);"><?php echo strtoupper(substr($target_user['full_name'], 0, 1)); ?></div>
-                                        <div>
-                                            <h2 style="margin: 0; font-size: 1.8rem; font-weight: 800; letter-spacing: -0.5px;"><?php echo htmlspecialchars($target_user['full_name']); ?></h2>
-                                            <span style="background: rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 8px; font-weight: 600; font-size: 0.9rem;">@<?php echo htmlspecialchars($target_user['username']); ?></span>
+                    <div class="verification-view" style="animation: fadeIn 0.3s ease;">
+                        <?php if (empty($pending_users)): ?>
+                            <div
+                                style="text-align: center; padding: 80px 40px; background: white; border-radius: 24px; box-shadow: var(--shadow-sm);">
+                                <i class="bi bi-check2-all" style="font-size: 4rem; color: #cbd5e1;"></i>
+                                <h2 style="margin-top: 24px; color: #1e293b; font-weight: 800;">All Clear!</h2>
+                                <p style="color: #64748b; font-size: 1.1rem;">There are no new registration requests to verify.
+                                </p>
+                            </div>
+                        <?php else: ?>
+                            <div class="verification-list" style="display: grid; gap: 16px;">
+                                <?php foreach ($pending_users as $p): ?>
+                                    <div class="ver-item"
+                                        onclick="location.href='manage_users.php?view=details&id=<?php echo $p['id']; ?>'">
+                                        <div class="ver-user">
+                                            <div class="ver-avatar"><?php echo strtoupper(substr($p['full_name'], 0, 1)); ?></div>
+                                            <div><span class="ver-name"><?php echo htmlspecialchars($p['full_name']); ?></span><span
+                                                    class="ver-handle">@<?php echo htmlspecialchars($p['username']); ?></span></div>
+                                        </div>
+                                        <div><span class="ver-info-label">Office</span><span
+                                                class="ver-info-value"><?php echo htmlspecialchars($p['office_station']); ?></span>
+                                        </div>
+                                        <div><span class="ver-info-label">Position</span><span
+                                                class="ver-info-value"><?php echo htmlspecialchars($p['position'] ?: 'Staff'); ?></span>
+                                        </div>
+                                        <div class="ver-actions" onclick="event.stopPropagation()">
+                                            <form method="POST" style="margin: 0; display: inline;">
+                                                <input type="hidden" name="user_id" value="<?php echo $p['id']; ?>">
+                                                <button type="submit" name="approve_registration" class="ver-btn ver-btn-approve"
+                                                    title="Approve"><i class="bi bi-check-lg"></i></button>
+                                            </form>
+                                            <form method="POST" style="margin: 0; display: inline;"
+                                                onsubmit="return confirm('Reject this registration?');">
+                                                <input type="hidden" name="user_id" value="<?php echo $p['id']; ?>">
+                                                <button type="submit" name="reject_registration" class="ver-btn ver-btn-reject"
+                                                    title="Reject"><i class="bi bi-trash3-fill"></i></button>
+                                            </form>
                                         </div>
                                     </div>
-                                    <div style="display: flex; gap: 12px;">
-                                        <form method="POST" style="margin: 0;">
-                                            <input type="hidden" name="user_id" value="<?php echo $target_user['id']; ?>">
-                                            <button type="submit" name="reject_registration" class="btn-cancel" style="background: #fee2e2; color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.1); padding: 12px 24px;">Reject Account</button>
-                                        </form>
-                                        <form method="POST" style="margin: 0;">
-                                            <input type="hidden" name="user_id" value="<?php echo $target_user['id']; ?>">
-                                            <button type="submit" name="approve_registration" class="btn-confirm-delete" style="background: #10b981; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2); padding: 12px 24px;">Authorize Account</button>
-                                        </form>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+
+                <?php elseif ($view === 'details' && $target_user): ?>
+                    <div class="details-container">
+                        <a href="manage_users.php?view=verification" class="back-btn"><i class="bi bi-arrow-left"></i> Back
+                            to Verification Requests</a>
+                        <div class="detail-card">
+                            <div class="detail-header">
+                                <div style="display: flex; align-items: center; gap: 24px;">
+                                    <div class="ver-avatar"
+                                        style="width: 80px; height: 80px; font-size: 2rem; border-radius: 20px; box-shadow: 0 8px 16px rgba(0,0,0,0.1);">
+                                        <?php echo strtoupper(substr($target_user['full_name'], 0, 1)); ?>
+                                    </div>
+                                    <div>
+                                        <h2 style="margin: 0; font-size: 1.8rem; font-weight: 800; letter-spacing: -0.5px;">
+                                            <?php echo htmlspecialchars($target_user['full_name']); ?>
+                                        </h2>
+                                        <span
+                                            style="background: rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 8px; font-weight: 600; font-size: 0.9rem;">@<?php echo htmlspecialchars($target_user['username']); ?></span>
                                     </div>
                                 </div>
-                                <div class="detail-body">
-                                    <div class="info-grid-modern">
-                                        <div class="info-block"><span class="info-label">Office / Station</span><div class="info-value"><?php echo htmlspecialchars($target_user['office_station']); ?></div></div>
-                                        <div class="info-block"><span class="info-label">Current Position</span><div class="info-value"><?php echo htmlspecialchars($target_user['position'] ?: 'Not Specified'); ?></div></div>
-                                        <div class="info-block"><span class="info-label">Area of Specialization</span><div class="info-value"><?php echo htmlspecialchars($target_user['area_of_specialization'] ?: 'Not Specified'); ?></div></div>
-                                        <div class="info-block"><span class="info-label">Rating Period</span><div class="info-value"><?php echo htmlspecialchars($target_user['rating_period'] ?: 'Not Specified'); ?></div></div>
-                                        <div class="info-block"><span class="info-label">Age</span><div class="info-value"><?php echo $target_user['age'] ?: 'Not Specified'; ?></div></div>
-                                        <div class="info-block"><span class="info-label">Sex</span><div class="info-value"><?php echo htmlspecialchars($target_user['sex'] ?: 'Not Specified'); ?></div></div>
-                                        <div class="info-block"><span class="info-label">Registration IP</span><div class="info-value"><?php echo $_SERVER['REMOTE_ADDR']; ?></div></div>
-                                        <div class="info-block"><span class="info-label">Registration Date</span><div class="info-value"><?php echo date('F j, Y, g:i A', strtotime($target_user['created_at'])); ?></div></div>
+                                <div style="display: flex; gap: 12px;">
+                                    <form method="POST" style="margin: 0;">
+                                        <input type="hidden" name="user_id" value="<?php echo $target_user['id']; ?>">
+                                        <button type="submit" name="reject_registration" class="btn-cancel"
+                                            style="background: #fee2e2; color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.1); padding: 12px 24px;">Reject
+                                            Account</button>
+                                    </form>
+                                    <form method="POST" style="margin: 0;">
+                                        <input type="hidden" name="user_id" value="<?php echo $target_user['id']; ?>">
+                                        <button type="submit" name="approve_registration" class="btn-confirm-delete"
+                                            style="background: #10b981; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2); padding: 12px 24px;">Authorize
+                                            Account</button>
+                                    </form>
+                                </div>
+                            </div>
+                            <div class="detail-body">
+                                <div class="info-grid-modern">
+                                    <div class="info-block"><span class="info-label">Office / Station</span>
+                                        <div class="info-value">
+                                            <?php echo htmlspecialchars($target_user['office_station']); ?>
+                                        </div>
+                                    </div>
+                                    <div class="info-block"><span class="info-label">Current Position</span>
+                                        <div class="info-value">
+                                            <?php echo htmlspecialchars($target_user['position'] ?: 'Not Specified'); ?>
+                                        </div>
+                                    </div>
+                                    <div class="info-block"><span class="info-label">Area of Specialization</span>
+                                        <div class="info-value">
+                                            <?php echo htmlspecialchars($target_user['area_of_specialization'] ?: 'Not Specified'); ?>
+                                        </div>
+                                    </div>
+                                    <div class="info-block"><span class="info-label">Rating Period</span>
+                                        <div class="info-value">
+                                            <?php echo htmlspecialchars($target_user['rating_period'] ?: 'Not Specified'); ?>
+                                        </div>
+                                    </div>
+                                    <div class="info-block"><span class="info-label">Age</span>
+                                        <div class="info-value"><?php echo $target_user['age'] ?: 'Not Specified'; ?></div>
+                                    </div>
+                                    <div class="info-block"><span class="info-label">Sex</span>
+                                        <div class="info-value">
+                                            <?php echo htmlspecialchars($target_user['sex'] ?: 'Not Specified'); ?>
+                                        </div>
+                                    </div>
+                                    <div class="info-block"><span class="info-label">Registration IP</span>
+                                        <div class="info-value"><?php echo $_SERVER['REMOTE_ADDR']; ?></div>
+                                    </div>
+                                    <div class="info-block"><span class="info-label">Registration Date</span>
+                                        <div class="info-value">
+                                            <?php echo date('F j, Y, g:i A', strtotime($target_user['created_at'])); ?>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
+                    </div>
+                <?php elseif ($view === 'notifications'): ?>
+                    <div class="notifications-view"
+                        style="animation: slideUp 0.4s ease-out; max-width: 900px; margin: 0 auto;">
+                        <style>
+                            .activity-feed {
+                                display: flex;
+                                flex-direction: column;
+                                gap: 20px;
+                                padding: 10px;
+                                max-height: 800px;
+                                overflow-y: auto;
+                                scroll-behavior: smooth;
+                                padding-right: 8px;
+                            }
+
+                            /* Custom Scrollbar for Profile Log */
+                            .activity-feed::-webkit-scrollbar {
+                                width: 6px;
+                            }
+
+                            .activity-feed::-webkit-scrollbar-track {
+                                background: #f1f5f9;
+                                border-radius: 10px;
+                            }
+
+                            .activity-feed::-webkit-scrollbar-thumb {
+                                background: #cbd5e1;
+                                border-radius: 10px;
+                            }
+
+                            .activity-feed::-webkit-scrollbar-thumb:hover {
+                                background: var(--primary-light);
+                            }
+
+                            .activity-item {
+                                background: white;
+                                border-radius: 20px;
+                                border: 1.5px solid #f1f5f9;
+                                padding: 24px;
+                                display: flex;
+                                gap: 20px;
+                                align-items: flex-start;
+                                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                                position: relative;
+                                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
+                            }
+
+                            .activity-item:hover {
+                                transform: translateY(-3px) scale(1.01);
+                                border-color: var(--primary-light);
+                                box-shadow: 0 12px 20px -8px rgba(15, 76, 117, 0.12);
+                                z-index: 2;
+                            }
+
+                            .activity-avatar {
+                                width: 54px;
+                                height: 54px;
+                                border-radius: 16px;
+                                background: var(--primary-gradient);
+                                color: white;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                font-weight: 800;
+                                font-size: 1.3rem;
+                                flex-shrink: 0;
+                                box-shadow: 0 8px 16px -4px rgba(15, 76, 117, 0.25);
+                            }
+
+                            .activity-content {
+                                flex: 1;
+                            }
+
+                            .activity-header {
+                                display: flex;
+                                justify-content: space-between;
+                                align-items: center;
+                                margin-bottom: 8px;
+                            }
+
+                            .activity-user-name {
+                                font-weight: 800;
+                                color: #1e293b;
+                                font-size: 1.05rem;
+                                letter-spacing: -0.01em;
+                            }
+
+                            .activity-time {
+                                font-size: 0.78rem;
+                                color: #94a3b8;
+                                font-weight: 600;
+                                display: flex;
+                                align-items: center;
+                                gap: 6px;
+                            }
+
+                            .activity-action-badge {
+                                display: inline-flex;
+                                align-items: center;
+                                padding: 4px 12px;
+                                border-radius: 8px;
+                                font-size: 0.7rem;
+                                font-weight: 800;
+                                text-transform: uppercase;
+                                letter-spacing: 0.05em;
+                                margin-bottom: 10px;
+                            }
+
+                            .badge-profile {
+                                background: #eff6ff;
+                                color: #2563eb;
+                                border: 1px solid #dbeafe;
+                            }
+
+                            .badge-admin {
+                                background: #fef2f2;
+                                color: #dc2626;
+                                border: 1px solid #fee2e2;
+                            }
+
+                            .activity-details {
+                                color: #475569;
+                                font-size: 0.92rem;
+                                line-height: 1.6;
+                                padding: 12px 16px;
+                                background: #f8fafc;
+                                border-radius: 12px;
+                                border: 1px solid #f1f5f9;
+                            }
+
+                            @keyframes slideUp {
+                                from {
+                                    opacity: 0;
+                                    transform: translateY(20px);
+                                }
+
+                                to {
+                                    opacity: 1;
+                                    transform: translateY(0);
+                                }
+                            }
+                        </style>
+                        <div class="activity-feed">
+                            <?php if (empty($audit_logs)): ?>
+                                <div
+                                    style="text-align: center; padding: 100px 40px; background: white; border-radius: 24px; border: 2px dashed #e2e8f0;">
+                                    <div
+                                        style="width: 80px; height: 80px; background: #f8fafc; color: #cbd5e1; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; margin: 0 auto 24px;">
+                                        <i class="bi bi-bell-slash"></i>
+                                    </div>
+                                    <h3 style="color: #64748b; font-weight: 800; margin-bottom: 8px;">No Recent Activity</h3>
+                                    <p style="color: #94a3b8;">System-wide profile changes will appear here as they occur.</p>
+                                </div>
+                            <?php else: ?>
+                                <?php foreach ($audit_logs as $log):
+                                    $is_admin_action = strpos($log['action'], 'Admin') !== false || strpos($log['action'], 'Modified') !== false;
+                                    $badge_class = $is_admin_action ? 'badge-admin' : 'badge-profile';
+                                    $initials = strtoupper(substr($log['user_name'], 0, 1));
+                                    ?>
+                                    <div class="activity-item">
+                                        <div class="activity-avatar"
+                                            style="<?php echo !empty($log['profile_picture']) ? 'background: #f1f5f9; padding: 0;' : ''; ?>">
+                                            <?php if (!empty($log['profile_picture'])): ?>
+                                                <img src="../<?php echo htmlspecialchars($log['profile_picture']); ?>" alt=""
+                                                    style="width: 100%; height: 100%; object-fit: cover; border-radius: inherit;">
+                                            <?php else: ?>
+                                                <?php echo $initials; ?>
+                                            <?php endif; ?>
+                                        </div>
+                                        <div class="activity-content">
+                                            <div class="activity-header">
+                                                <span
+                                                    class="activity-user-name"><?php echo htmlspecialchars($log['user_name']); ?></span>
+                                                <span class="activity-time">
+                                                    <i class="bi bi-clock"></i>
+                                                    <?php
+                                                    $time = strtotime($log['created_at']);
+                                                    echo date('M d, Y', $time) . ' • ' . date('h:i A', $time);
+                                                    ?>
+                                                </span>
+                                            </div>
+                                            <div class="activity-action-badge <?php echo $badge_class; ?>">
+                                                <i
+                                                    class="bi <?php echo $is_admin_action ? 'bi-shield-shaded' : 'bi-person-circle'; ?> mr-1"></i>
+                                                <?php echo htmlspecialchars($log['action']); ?>
+                                            </div>
+                                            <div class="activity-details">
+                                                <?php echo htmlspecialchars($log['details']); ?>
+                                            </div>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </div>
+                    </div>
                 <?php endif; ?>
             </main>
 
@@ -720,13 +1080,18 @@ $target_user = ($view === 'details' && $target_id) ? $userRepo->getUserById($tar
     </div>
     <!-- Deletion Confirmation Modal -->
     <div id="deleteModal" class="modal-overlay">
-        <div class="delete-modal" style="background: white; max-width: 400px; border-radius: 24px; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);">
+        <div class="delete-modal"
+            style="background: white; max-width: 400px; border-radius: 24px; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);">
             <div class="modal-header-danger" style="background: #fff1f2; padding: 30px; text-align: center;">
-                <div class="danger-icon-circle" style="width: 60px; height: 60px; background: #fee2e2; color: #ef4444; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.75rem; margin: 0 auto 16px;"><i class="bi bi-exclamation-triangle"></i></div>
+                <div class="danger-icon-circle"
+                    style="width: 60px; height: 60px; background: #fee2e2; color: #ef4444; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.75rem; margin: 0 auto 16px;">
+                    <i class="bi bi-exclamation-triangle"></i>
+                </div>
             </div>
             <div class="modal-body" style="padding: 0 30px 30px; text-align: center;">
                 <h3 class="modal-title">Confirm Deletion</h3>
-                <p class="modal-text">Are you sure you want to delete <strong id="deleteTargetName"></strong>? This action will permanently remove all associated data.</p>
+                <p class="modal-text">Are you sure you want to delete <strong id="deleteTargetName"></strong>? This
+                    action will permanently remove all associated data.</p>
             </div>
             <div class="modal-footer-actions">
                 <button type="button" class="btn-cancel" onclick="closeModal('deleteModal')">Cancel</button>
@@ -760,4 +1125,5 @@ $target_user = ($view === 'details' && $target_id) ? $userRepo->getUserById($tar
         }
     </script>
 </body>
+
 </html>

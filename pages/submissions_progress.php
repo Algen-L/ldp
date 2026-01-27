@@ -191,7 +191,7 @@ require '../includes/functions/activity-functions.php';
 
 <body>
 
-    <div class="user-layout">
+    <div class="app-layout">
         <?php require '../includes/sidebar.php'; ?>
 
         <div class="main-content">
@@ -385,6 +385,4 @@ require '../includes/functions/activity-functions.php';
         </div>
     </div>
 
-</body>
-
-</html>
+</body></html>

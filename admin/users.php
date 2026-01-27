@@ -3,7 +3,7 @@ session_start();
 require '../includes/init_repos.php';
 
 // Check if user is logged in and is admin
-if (!isset($_SESSION['user_id']) || ($_SESSION['role'] !== 'admin' && $_SESSION['role'] !== 'super_admin' && $_SESSION['role'] !== 'immediate_head')) {
+if (!isset($_SESSION['user_id']) || ($_SESSION['role'] !== 'admin' && $_SESSION['role'] !== 'super_admin' && $_SESSION['role'] !== 'immediate_head' && $_SESSION['role'] !== 'head_hr')) {
     header("Location: ../index.php");
     exit;
 }
@@ -383,7 +383,7 @@ $logs = $logRepo->getAllLogs($filters);
     }
     ?>
 
-    <div class="admin-layout">
+    <div class="app-layout">
         <?php require '../includes/sidebar.php'; ?>
 
         <div class="main-content">
