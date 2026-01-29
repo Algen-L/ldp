@@ -166,9 +166,11 @@ class ActivityRepository
      */
     public function getAllActivities($filters = [])
     {
-        $sql = "SELECT ld.*, ld.created_at as activity_created_at, u.full_name, u.office_station, u.profile_picture 
+        $sql = "SELECT ld.*, ld.created_at as activity_created_at, u.full_name, u.office_station, u.profile_picture,
+                o.category as office_division
                 FROM ld_activities ld 
                 JOIN users u ON ld.user_id = u.id 
+                LEFT JOIN offices o ON UPPER(u.office_station) = UPPER(o.name)
                 WHERE 1=1";
         $params = [];
 
@@ -210,6 +212,11 @@ class ActivityRepository
             $placeholders = implode(',', array_fill(0, count($filters['offices']), '?'));
             $sql .= " AND u.office_station IN ($placeholders)";
             $params = array_merge($params, $filters['offices']);
+        }
+
+        if (!empty($filters['office_division'])) {
+            $sql .= " AND EXISTS (SELECT 1 FROM offices o WHERE UPPER(o.name) = UPPER(u.office_station) AND o.category = ?)";
+            $params[] = $filters['office_division'];
         }
 
         if (!empty($filters['start_date'])) {

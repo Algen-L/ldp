@@ -28,36 +28,15 @@ $activities = $activityRepo->getAllActivities($filters);
 // Calculate Statistics
 $totalSubmissions = count($activities);
 
-// Define Office Lists
-$osdsOffices = [
-    'ADMINISTRATIVE (PERSONEL)',
-    'ADMINISTRATIVE (PROPERTY AND SUPPLY)',
-    'ADMINISTRATIVE (RECORDS)',
-    'ADMINISTRATIVE (CASH)',
-    'ADMINISTRATIVE (GENERAL SERVICES)',
-    'FINANCE (ACCOUNTING)',
-    'FINANCE (BUDGET)',
-    'LEGAL',
-    'ICT'
-];
-$sgodOffices = [
-    'SCHOOL MANAGEMENT MONITORING & EVALUATION',
-    'HUMAN RESOURCES DEVELOPMENT',
-    'DISASTER RISK REDUCTION
-AND MANAGEMENT',
-    'EDUCATION FACILITIES',
-    'SCHOOL HEALTH AND NUTRITION',
-    'SCHOOL HEALTH AND NUTRITION (DENTAL)',
-    'SCHOOL HEALTH AND NUTRITION (MEDICAL)'
-];
-$cidOffices = [
-    'CURRICULUM IMPLEMENTATION DIVISION (INSTRUCTIONAL MANAGEMENT)',
-    'CURRICULUM IMPLEMENTATION DIVISION
-(LEARNING RESOURCES MANAGEMENT)',
-    'CURRICULUM IMPLEMENTATION DIVISION (ALTERNATIVE LEARNING SYSTEM)',
-    'CURRICULUM
-IMPLEMENTATION DIVISION (DISTRICT INSTRUCTIONAL SUPERVISION)'
-];
+// Fetch all offices from DB for categorization
+$office_map = []; // [OfficeName => Category]
+try {
+    $stmt_all_offices = $pdo->query("SELECT name, category FROM offices");
+    while ($row = $stmt_all_offices->fetch(PDO::FETCH_ASSOC)) {
+        $office_map[strtoupper($row['name'])] = $row['category'];
+    }
+} catch (PDOException $e) { /* Fallback or empty */
+}
 
 // Fetch Users Count
 $totalUsers = $userRepo->getTotalUserCount();
@@ -79,12 +58,15 @@ $sgodCount = 0;
 $frequencyData = []; // To store [date => count]
 
 foreach ($activities as $act) {
+    // Categorize using DB map
     $office = strtoupper($act['office_station'] ?? '');
-    if (in_array($office, $osdsOffices)) {
+    $category = $office_map[$office] ?? '';
+
+    if ($category === 'OSDS') {
         $osdsCount++;
-    } elseif (in_array($office, $cidOffices)) {
+    } elseif ($category === 'CID') {
         $cidCount++;
-    } elseif (in_array($office, $sgodOffices)) {
+    } elseif ($category === 'SGOD') {
         $sgodCount++;
     }
 
@@ -615,12 +597,13 @@ $freqValues = array_values($frequencyData);
                                     <?php else: ?>
                                         <?php foreach (array_slice($activities, 0, 10) as $i => $act):
                                             $f_office = strtoupper($act['office_station'] ?? '');
+                                            $f_cat = $office_map[$f_office] ?? '';
                                             $feed_class = '';
-                                            if (in_array($f_office, $osdsOffices))
+                                            if ($f_cat === 'OSDS')
                                                 $feed_class = 'osds';
-                                            elseif (in_array($f_office, $cidOffices))
+                                            elseif ($f_cat === 'CID')
                                                 $feed_class = 'cid';
-                                            elseif (in_array($f_office, $sgodOffices))
+                                            elseif ($f_cat === 'SGOD')
                                                 $feed_class = 'sgod';
                                             ?>
                                             <a href="../pages/view_activity.php?id=<?php echo $act['id']; ?>"
@@ -694,11 +677,12 @@ $freqValues = array_values($frequencyData);
                                                 <?php foreach (array_slice($activities, 0, 20) as $act):
                                                     $row_class = '';
                                                     $office = strtoupper($act['office_station'] ?? '');
-                                                    if (in_array($office, $osdsOffices))
+                                                    $cat = $office_map[$office] ?? '';
+                                                    if ($cat === 'OSDS')
                                                         $row_class = 'row-osds';
-                                                    elseif (in_array($office, $cidOffices))
+                                                    elseif ($cat === 'CID')
                                                         $row_class = 'row-cid';
-                                                    elseif (in_array($office, $sgodOffices))
+                                                    elseif ($cat === 'SGOD')
                                                         $row_class = 'row-sgod';
                                                     ?>
                                                     <tr class="<?php echo $row_class; ?>">
@@ -755,11 +739,15 @@ $freqValues = array_values($frequencyData);
                         </div>
                     <?php else: ?>
                         <!-- Head HR Placeholder -->
-                        <div class="dashboard-card hover-elevate" style="background: rgba(15, 76, 117, 0.02); border-style: dashed; display: flex; align-items: center; justify-content: center; padding: 60px;">
+                        <div class="dashboard-card hover-elevate"
+                            style="background: rgba(15, 76, 117, 0.02); border-style: dashed; display: flex; align-items: center; justify-content: center; padding: 60px;">
                             <div class="text-center">
-                                <i class="bi bi-shield-lock" style="font-size: 3rem; color: var(--text-muted); opacity: 0.2; display: block; margin-bottom: 16px;"></i>
-                                <span style="font-weight: 700; color: var(--text-muted); opacity: 0.6;">Management Overview Focused</span>
-                                <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 8px; opacity: 0.5;">Use the sidebar to access Activity Logs and User Status.</p>
+                                <i class="bi bi-shield-lock"
+                                    style="font-size: 3rem; color: var(--text-muted); opacity: 0.2; display: block; margin-bottom: 16px;"></i>
+                                <span style="font-weight: 700; color: var(--text-muted); opacity: 0.6;">Management Overview
+                                    Focused</span>
+                                <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 8px; opacity: 0.5;">Use
+                                    the sidebar to access Activity Logs and User Status.</p>
                             </div>
                         </div>
                     <?php endif; ?>

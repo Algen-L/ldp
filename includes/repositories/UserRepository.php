@@ -152,8 +152,8 @@ class UserRepository
         }
 
         if (!empty($filters['office'])) {
-            $sql .= " AND u.office_station LIKE ?";
-            $params[] = "%" . $filters['office'] . "%";
+            $sql .= " AND EXISTS (SELECT 1 FROM offices o WHERE UPPER(o.name) = UPPER(u.office_station) AND o.category = ?)";
+            $params[] = $filters['office'];
         }
 
         $sql .= " ORDER BY u.full_name ASC";
@@ -177,12 +177,29 @@ class UserRepository
     }
 
     /**
-     * Get pending users (is_active = 0)
+     * Get pending users (is_active = 0) with optional filtering
      */
-    public function getPendingUsers()
+    public function getPendingUsers($filters = [])
     {
-        $stmt = $this->db->prepare("SELECT * FROM users WHERE is_active = 0 ORDER BY created_at DESC");
-        $stmt->execute();
+        $sql = "SELECT * FROM users WHERE is_active = 0";
+        $params = [];
+
+        if (!empty($filters['search'])) {
+            $sql .= " AND (username LIKE ? OR full_name LIKE ?)";
+            $term = "%" . $filters['search'] . "%";
+            $params[] = $term;
+            $params[] = $term;
+        }
+
+        if (!empty($filters['office'])) {
+            $sql .= " AND EXISTS (SELECT 1 FROM offices o WHERE UPPER(o.name) = UPPER(office_station) AND o.category = ?)";
+            $params[] = $filters['office'];
+        }
+
+        $sql .= " ORDER BY created_at DESC";
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 

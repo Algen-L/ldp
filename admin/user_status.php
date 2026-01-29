@@ -8,14 +8,16 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] !== 'admin' && $_SESSION[
     exit;
 }
 
-// 1. Fetch Users with Expanded Metrics
+// 1. Fetch Users with Expanded Metrics & Office Categories
 $sql_users = "SELECT 
                 u.id, u.username, u.full_name, u.office_station, u.role, u.position, u.profile_picture, u.created_at as joined_at,
+                o.category as office_division,
                 (SELECT id FROM ld_activities WHERE user_id = u.id ORDER BY created_at DESC LIMIT 1) as latest_activity_id,
                 (SELECT title FROM ld_activities WHERE user_id = u.id ORDER BY created_at DESC LIMIT 1) as latest_activity_title,
                 (SELECT MAX(created_at) FROM ld_activities WHERE user_id = u.id) as latest_submission,
                 (SELECT created_at FROM activity_logs WHERE user_id = u.id ORDER BY id DESC LIMIT 1) as last_action_time
               FROM users u
+              LEFT JOIN offices o ON UPPER(u.office_station) = UPPER(o.name)
               WHERE u.role != 'admin' AND u.role != 'super_admin' 
               ORDER BY latest_submission DESC";
 $stmt_users = $pdo->query($sql_users);
@@ -829,7 +831,7 @@ require '../includes/functions/user-functions.php';
                             data-name="<?php echo strtolower($u['full_name']); ?>"
                             data-office="<?php echo strtolower($u['office_station']); ?>"
                             data-position="<?php echo strtolower($u['position']); ?>"
-                            data-office-category="<?php echo getOfficeCategory($u['office_station'], $osdsOffices, $cidOffices, $sgodOffices); ?>">
+                            data-office-category="<?php echo htmlspecialchars($u['office_division'] ?? 'OTHER'); ?>">
 
                             <div class="card-header">
                                 <?php if ($u['profile_picture']): ?>

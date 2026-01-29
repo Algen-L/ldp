@@ -56,6 +56,11 @@ class ActivityLogRepository
             $params = array_merge($params, $filters['offices']);
         }
 
+        if (!empty($filters['office_filter'])) {
+            $sql .= " AND EXISTS (SELECT 1 FROM offices o WHERE UPPER(o.name) = UPPER(u.office_station) AND o.category = ?)";
+            $params[] = $filters['office_filter'];
+        }
+
         if (!empty($filters['user_id'])) {
             $sql .= " AND l.user_id = ?";
             $params[] = $filters['user_id'];

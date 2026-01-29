@@ -90,16 +90,16 @@ try {
     $activity_data = array_values($rangeData);
 
     // 4. Fetch Certificates (use status filter Approved as per logic or limit to ones with certificate_path)
-    $certificates = $activityRepo->getActivitiesByUser($user_id);
-    $certificates = array_filter($certificates, function ($a) {
+    $all_user_activities = $activityRepo->getActivitiesByUser($user_id);
+    $certificates = array_values(array_filter($all_user_activities, function ($a) {
         return !empty($a['certificate_path']);
-    });
+    }));
 
     // 5. Fetch Recent Logs
     $logs = $logRepo->getLogsByUser($user_id, 5);
 
     // 6. Fetch Submissions
-    $submissions = $activityRepo->getActivitiesByUser($user_id);
+    $submissions = $all_user_activities; // Reuse the list to avoid duplicate query
 
 
     // Consolidate Data

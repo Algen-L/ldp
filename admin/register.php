@@ -79,6 +79,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         }
     }
 }
+
+// Fetch Offices for Dropdown
+try {
+    $stmt_offices = $pdo->query("SELECT category, name, id FROM offices ORDER BY category, name");
+    $offices_list = $stmt_offices->fetchAll(PDO::FETCH_GROUP | PDO::FETCH_ASSOC);
+    // Result: ['OSDS' => [['id'=>1, 'name'=>'...'], ...], 'CID' => [...]]
+} catch (PDOException $e) {
+    $offices_list = [];
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -374,54 +383,17 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                                         <select id="office-select" name="office_station" autocomplete="off"
                                             placeholder="Search office...">
                                             <option value="">Select Office/Station...</option>
-                                            <optgroup label="OSDS">
-                                                <option value="ADMINISTRATIVE (PERSONEL)">ADMINISTRATIVE (PERSONEL)
-                                                </option>
-                                                <option value="ADMINISTRATIVE (PROPERTY AND SUPPLY)">ADMINISTRATIVE
-                                                    (PROPERTY AND SUPPLY)</option>
-                                                <option value="ADMINISTRATIVE (RECORDS)">ADMINISTRATIVE (RECORDS)
-                                                </option>
-                                                <option value="ADMINISTRATIVE (CASH)">ADMINISTRATIVE (CASH)</option>
-                                                <option value="ADMINISTRATIVE (GENERAL SERVICES)">ADMINISTRATIVE
-                                                    (GENERAL SERVICES)</option>
-                                                <option value="FINANCE (ACCOUNTING)">FINANCE (ACCOUNTING)</option>
-                                                <option value="FINANCE (BUDGET)">FINANCE (BUDGET)</option>
-                                                <option value="LEGAL">LEGAL</option>
-                                                <option value="ICT">ICT</option>
-                                            </optgroup>
-                                            <optgroup label="SGOD">
-                                                <option value="SCHOOL MANAGEMENT MONITORING & EVALUATION">SCHOOL
-                                                    MANAGEMENT MONITORING & EVALUATION</option>
-                                                <option value="HUMAN RESOURCES DEVELOPMENT">HUMAN RESOURCES
-                                                    DEVELOPMENT</option>
-                                                <option value="DISASTER RISK REDUCTION AND MANAGEMENT">DISASTER RISK
-                                                    REDUCTION AND MANAGEMENT</option>
-                                                <option value="EDUCATION FACILITIES">EDUCATION FACILITIES</option>
-                                                <option value="SCHOOL HEALTH AND NUTRITION">SCHOOL HEALTH AND
-                                                    NUTRITION</option>
-                                                <option value="SCHOOL HEALTH AND NUTRITION (DENTAL)">SCHOOL HEALTH
-                                                    AND NUTRITION (DENTAL)</option>
-                                                <option value="SCHOOL HEALTH AND NUTRITION (MEDICAL)">SCHOOL HEALTH
-                                                    AND NUTRITION (MEDICAL)</option>
-                                            </optgroup>
-                                            <optgroup label="CID">
-                                                <option
-                                                    value="CURRICULUM IMPLEMENTATION DIVISION (INSTRUCTIONAL MANAGEMENT)">
-                                                    CURRICULUM IMPLEMENTATION DIVISION (INSTRUCTIONAL MANAGEMENT)
-                                                </option>
-                                                <option
-                                                    value="CURRICULUM IMPLEMENTATION DIVISION (LEARNING RESOURCES MANAGEMENT)">
-                                                    CURRICULUM IMPLEMENTATION DIVISION (LEARNING RESOURCES
-                                                    MANAGEMENT)</option>
-                                                <option
-                                                    value="CURRICULUM IMPLEMENTATION DIVISION (ALTERNATIVE LEARNING SYSTEM)">
-                                                    CURRICULUM IMPLEMENTATION DIVISION (ALTERNATIVE LEARNING SYSTEM)
-                                                </option>
-                                                <option
-                                                    value="CURRICULUM IMPLEMENTATION DIVISION (DISTRICT INSTRUCTIONAL SUPERVISION)">
-                                                    CURRICULUM IMPLEMENTATION DIVISION (DISTRICT INSTRUCTIONAL
-                                                    SUPERVISION)</option>
-                                            </optgroup>
+                                            <?php if (!empty($offices_list)): ?>
+                                                <?php foreach ($offices_list as $category => $items): ?>
+                                                    <optgroup label="<?php echo htmlspecialchars($category); ?>">
+                                                        <?php foreach ($items as $office): ?>
+                                                            <option value="<?php echo htmlspecialchars($office['name']); ?>">
+                                                                <?php echo htmlspecialchars($office['name']); ?>
+                                                            </option>
+                                                        <?php endforeach; ?>
+                                                    </optgroup>
+                                                <?php endforeach; ?>
+                                            <?php endif; ?>
                                         </select>
                                     </div>
                                     <div class="form-group">

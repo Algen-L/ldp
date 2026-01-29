@@ -25,6 +25,12 @@ $stats = $activityRepo->getUserStats($_SESSION['user_id']);
 $total_count = $stats['total'];
 $approved_count = $stats['approved'] ?: 0;
 $progress_pct = $total_count > 0 ? round(($approved_count / $total_count) * 100) : 0;
+
+// Fetch Unaddressed Needs (usage_count = 0)
+$all_ildns = $ildnRepo->getILDNsByUser($_SESSION['user_id']);
+$unaddressed_needs = array_filter($all_ildns, function ($item) {
+    return $item['usage_count'] == 0;
+});
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -144,14 +150,33 @@ $progress_pct = $total_count > 0 ? round(($approved_count / $total_count) * 100)
                                     </div>
                                 </div>
                                 <div class="profile-info-item">
-                                    <div class="profile-info-icon"
-                                        style="background: var(--success-bg); color: var(--success);"><i
-                                            class="bi bi-award"></i></div>
+                                    <div class="profile-info-icon" style="background: var(--success-bg); color: var(--success);">
+                                        <i class="bi bi-award"></i>
+                                    </div>
                                     <div class="profile-info-content">
                                         <span class="profile-info-label">Specialization</span>
                                         <span class="profile-info-value">
                                             <?php echo htmlspecialchars($user['area_of_specialization'] ?: 'Generalist'); ?>
                                         </span>
+                                    </div>
+                                </div>
+                                <div class="profile-info-item">
+                                    <div class="profile-info-icon" style="background: #fff1f2; color: #ef4444;">
+                                        <i class="bi bi-lightbulb-fill"></i>
+                                    </div>
+                                    <div class="profile-info-content">
+                                        <span class="profile-info-label">Unaddressed Needs</span>
+                                        <div class="profile-info-value" style="font-size: 0.8rem; line-height: 1.4; margin-top: 4px;">
+                                            <?php if (!empty($unaddressed_needs)): ?>
+                                                <ul style="margin: 0; padding-left: 14px; color: #ef4444; font-weight: 700;">
+                                                    <?php foreach ($unaddressed_needs as $need): ?>
+                                                        <li><?php echo htmlspecialchars($need['need_text']); ?></li>
+                                                    <?php endforeach; ?>
+                                                </ul>
+                                            <?php else: ?>
+                                                <span style="color: var(--success); font-weight: 800;">✓ All needs currently addressed</span>
+                                            <?php endif; ?>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

@@ -8,11 +8,6 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] !== 'admin' && $_SESSION[
     exit;
 }
 
-// 1. Define Office Categories for Search Logic
-$osdsOffices = ['ADMINISTRATIVE (PERSONEL)', 'ADMINISTRATIVE (PROPERTY AND SUPPLY)', 'ADMINISTRATIVE (RECORDS)', 'ADMINISTRATIVE (CASH)', 'ADMINISTRATIVE (GENERAL SERVICES)', 'FINANCE (ACCOUNTING)', 'FINANCE (BUDGET)', 'LEGAL', 'ICT'];
-$sgodOffices = ['SCHOOL MANAGEMENT MONITORING & EVALUATION', 'HUMAN RESOURCES DEVELOPMENT', 'DISASTER RISK REDUCTION AND MANAGEMENT', 'EDUCATION FACILITIES', 'SCHOOL HEALTH AND NUTRITION', 'SCHOOL HEALTH AND NUTRITION (DENTAL)', 'SCHOOL HEALTH AND NUTRITION (MEDICAL)'];
-$cidOffices = ['CURRICULUM IMPLEMENTATION DIVISION (INSTRUCTIONAL MANAGEMENT)', 'CURRICULUM IMPLEMENTATION DIVISION (LEARNING RESOURCES MANAGEMENT)', 'CURRICULUM IMPLEMENTATION DIVISION (ALTERNATIVE LEARNING SYSTEM)', 'CURRICULUM IMPLEMENTATION DIVISION (DISTRICT INSTRUCTIONAL SUPERVISION)'];
-
 // Handle Log Filtering
 $filters = [
     'search' => isset($_GET['search']) ? trim($_GET['search']) : '',
@@ -23,17 +18,11 @@ $filters = [
     'limit' => 100
 ];
 
-// Special categorization handling
+// Special divisional keyword handling (OSDS, CID, SGOD)
 if ($filters['search']) {
     $search_upper = strtoupper($filters['search']);
-    if ($search_upper === 'OSDS') {
-        $filters['offices'] = $osdsOffices;
-        $filters['search'] = '';
-    } elseif ($search_upper === 'CID') {
-        $filters['offices'] = $cidOffices;
-        $filters['search'] = '';
-    } elseif ($search_upper === 'SGOD') {
-        $filters['offices'] = $sgodOffices;
+    if (in_array($search_upper, ['OSDS', 'CID', 'SGOD'])) {
+        $filters['office_filter'] = $search_upper;
         $filters['search'] = '';
     }
 }

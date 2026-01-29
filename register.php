@@ -1,61 +1,5 @@
 <?php
-require 'includes/db.php';
-
-$message = '';
-$messageType = '';
-
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $username = trim($_POST['username']);
-    $password = trim($_POST['password']);
-    $full_name = trim($_POST['full_name']);
-    $office_station = trim($_POST['office_station'] ?? '');
-    $position = trim($_POST['position'] ?? '');
-    $rating_period = trim($_POST['rating_period'] ?? '');
-    $area_of_specialization = trim($_POST['area_of_specialization'] ?? '');
-    $age = isset($_POST['age']) ? (int) $_POST['age'] : 0;
-    $sex = trim($_POST['sex'] ?? '');
-
-    // Basic validation
-    if (empty($username) || empty($password) || empty($full_name)) {
-        $message = "Please fill in all required fields.";
-        $messageType = "error";
-    } else {
-        // Check if username exists
-        $stmt = $pdo->prepare("SELECT id FROM users WHERE username = ?");
-        $stmt->execute([$username]);
-        if ($stmt->fetch()) {
-            $message = "Username already exists.";
-            $messageType = "error";
-        } else {
-            // Hash password
-            $hashed_password = password_hash($password, PASSWORD_DEFAULT);
-
-            // Handle Profile Picture Upload (Simplified for registration)
-            $dbPath = NULL;
-            if (isset($_FILES['profile_picture']) && $_FILES['profile_picture']['error'] === UPLOAD_ERR_OK) {
-                $uploadDir = 'uploads/profile_pics/';
-                if (!is_dir($uploadDir))
-                    mkdir($uploadDir, 0777, true);
-                $fileName = uniqid() . '_' . preg_replace('/[^a-zA-Z0-9\._-]/', '', basename($_FILES['profile_picture']['name']));
-                $targetPath = $uploadDir . $fileName;
-                if (move_uploaded_file($_FILES['profile_picture']['tmp_name'], $targetPath)) {
-                    $dbPath = $uploadDir . $fileName;
-                }
-            }
-
-            // Insert user
-            $sql = "INSERT INTO users (username, password, full_name, office_station, position, rating_period, area_of_specialization, age, sex, profile_picture) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-            $stmt = $pdo->prepare($sql);
-            if ($stmt->execute([$username, $hashed_password, $full_name, $office_station, $position, $rating_period, $area_of_specialization, $age, $sex, $dbPath])) {
-                $message = "Registration successful! You can now login.";
-                $messageType = "success";
-            } else {
-                $message = "Something went wrong. Please try again.";
-                $messageType = "error";
-            }
-        }
-    }
-}
+require 'includes/register_handler.php';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -133,54 +77,124 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             }
         }
 
-        /* Tom Select Custom Styling */
+        /* Simplified Office Dropdown Design */
+        .ts-wrapper {
+            position: relative;
+        }
+
+        .ts-wrapper.form-control {
+            padding: 0 !important;
+            border: none !important;
+            background: transparent !important;
+            box-shadow: none !important;
+            height: auto !important;
+        }
+
         .ts-control {
-            border: 1.5px solid var(--border-color) !important;
-            border-radius: var(--radius-md) !important;
-            padding: 10px 14px !important;
             background: var(--bg-secondary) !important;
+            border: 2px solid var(--border-color) !important;
+            border-radius: 12px !important;
+            padding: 12px 16px !important;
             color: var(--text-primary) !important;
             font-family: inherit !important;
             font-size: 0.95rem !important;
-            transition: all var(--transition-fast) !important;
+            font-weight: 500 !important;
+            transition: all 0.2s ease !important;
+            min-height: 48px !important;
         }
 
-        .ts-control:focus {
+        .ts-control:hover {
             border-color: var(--primary) !important;
-            box-shadow: 0 0 0 4px var(--primary-light) !important;
             background: white !important;
         }
 
+        .ts-control:focus,
+        .ts-control.focus {
+            border-color: var(--primary) !important;
+            background: white !important;
+            box-shadow: 0 0 0 3px rgba(15, 76, 117, 0.1) !important;
+            outline: none !important;
+        }
+
+        .ts-control input {
+            color: var(--text-primary) !important;
+            font-weight: 500 !important;
+        }
+
+        .ts-control input::placeholder {
+            color: var(--text-muted) !important;
+        }
+
+        /* Dropdown Container */
         .ts-dropdown {
-            border-radius: var(--radius-lg) !important;
+            background: white !important;
             border: 1px solid var(--border-light) !important;
-            box-shadow: var(--shadow-lg) !important;
-            margin-top: 8px !important;
+            border-radius: 12px !important;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1) !important;
+            margin-top: 6px !important;
             padding: 8px !important;
             z-index: 2000 !important;
         }
 
+        /* Category Headers */
         .ts-dropdown .optgroup-header {
-            font-weight: 800 !important;
+            font-weight: 700 !important;
             text-transform: uppercase !important;
             font-size: 0.7rem !important;
+            letter-spacing: 0.08em !important;
+            padding: 10px 12px 6px !important;
+            margin-top: 6px !important;
+            background: rgba(15, 76, 117, 0.08) !important;
+            border-radius: 8px !important;
+            border-left: 3px solid var(--primary) !important;
             color: var(--primary) !important;
-            letter-spacing: 0.05em !important;
-            padding: 12px 12px 6px !important;
-            background: var(--bg-secondary) !important;
-            border-radius: var(--radius-sm) !important;
         }
 
+        .ts-dropdown .optgroup-header:first-child {
+            margin-top: 0 !important;
+        }
+
+        /* Office Options */
         .ts-dropdown .option {
             padding: 10px 12px !important;
-            border-radius: var(--radius-sm) !important;
+            border-radius: 8px !important;
             font-size: 0.9rem !important;
             color: var(--text-secondary) !important;
+            font-weight: 500 !important;
+            margin: 2px 0 !important;
+            transition: all 0.15s ease !important;
+            cursor: pointer !important;
         }
 
-        .ts-dropdown .active {
-            background: var(--primary) !important;
+        .ts-dropdown .option:hover {
+            background: rgba(15, 76, 117, 0.08) !important;
+            color: var(--text-primary) !important;
+        }
+
+        .ts-dropdown .option.active {
+            background: var(--primary-gradient) !important;
             color: white !important;
+            font-weight: 600 !important;
+        }
+
+        /* Scrollbar */
+        .ts-dropdown-content::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .ts-dropdown-content::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+            border-radius: 10px;
+        }
+
+        .ts-dropdown-content::-webkit-scrollbar-thumb {
+            background: var(--primary);
+            border-radius: 10px;
+            opacity: 0.5;
+        }
+
+        .ts-dropdown-content::-webkit-scrollbar-thumb:hover {
+            opacity: 0.8;
         }
     </style>
 </head>
@@ -260,41 +274,17 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     <label class="form-label">Office / Station</label>
                     <select name="office_station" id="office_select" class="form-control" required>
                         <option value="">Select your office...</option>
-                        <optgroup label="OSDS">
-                            <option value="ADMINISTRATIVE (PERSONEL)">ADMINISTRATIVE (PERSONEL)</option>
-                            <option value="ADMINISTRATIVE (PROPERTY AND SUPPLY)">ADMINISTRATIVE (PROPERTY AND SUPPLY)
-                            </option>
-                            <option value="ADMINISTRATIVE (RECORDS)">ADMINISTRATIVE (RECORDS)</option>
-                            <option value="ADMINISTRATIVE (CASH)">ADMINISTRATIVE (CASH)</option>
-                            <option value="ADMINISTRATIVE (GENERAL SERVICES)">ADMINISTRATIVE (GENERAL SERVICES)</option>
-                            <option value="FINANCE (ACCOUNTING)">FINANCE (ACCOUNTING)</option>
-                            <option value="FINANCE (BUDGET)">FINANCE (BUDGET)</option>
-                            <option value="LEGAL">LEGAL</option>
-                            <option value="ICT">ICT</option>
-                        </optgroup>
-                        <optgroup label="SGOD">
-                            <option value="SCHOOL MANAGEMENT MONITORING & EVALUATION">SCHOOL MANAGEMENT MONITORING &
-                                EVALUATION</option>
-                            <option value="HUMAN RESOURCES DEVELOPMENT">HUMAN RESOURCES DEVELOPMENT</option>
-                            <option value="DISASTER RISK REDUCTION AND MANAGEMENT">DISASTER RISK REDUCTION AND
-                                MANAGEMENT</option>
-                            <option value="EDUCATION FACILITIES">EDUCATION FACILITIES</option>
-                            <option value="SCHOOL HEALTH AND NUTRITION">SCHOOL HEALTH AND NUTRITION</option>
-                            <option value="SCHOOL HEALTH AND NUTRITION (DENTAL)">SCHOOL HEALTH AND NUTRITION (DENTAL)
-                            </option>
-                            <option value="SCHOOL HEALTH AND NUTRITION (MEDICAL)">SCHOOL HEALTH AND NUTRITION (MEDICAL)
-                            </option>
-                        </optgroup>
-                        <optgroup label="CID">
-                            <option value="CURRICULUM IMPLEMENTATION DIVISION (INSTRUCTIONAL MANAGEMENT)">CURRICULUM
-                                IMPLEMENTATION DIVISION (INSTRUCTIONAL MANAGEMENT)</option>
-                            <option value="CURRICULUM IMPLEMENTATION DIVISION (LEARNING RESOURCES MANAGEMENT)">
-                                CURRICULUM IMPLEMENTATION DIVISION (LEARNING RESOURCES MANAGEMENT)</option>
-                            <option value="CURRICULUM IMPLEMENTATION DIVISION (ALTERNATIVE LEARNING SYSTEM)">CURRICULUM
-                                IMPLEMENTATION DIVISION (ALTERNATIVE LEARNING SYSTEM)</option>
-                            <option value="CURRICULUM IMPLEMENTATION DIVISION (DISTRICT INSTRUCTIONAL SUPERVISION)">
-                                CURRICULUM IMPLEMENTATION DIVISION (DISTRICT INSTRUCTIONAL SUPERVISION)</option>
-                        </optgroup>
+                        <?php if (!empty($offices_list)): ?>
+                            <?php foreach ($offices_list as $category => $items): ?>
+                                <optgroup label="<?php echo htmlspecialchars($category); ?>">
+                                    <?php foreach ($items as $office): ?>
+                                        <option value="<?php echo htmlspecialchars($office['name']); ?>">
+                                            <?php echo htmlspecialchars($office['name']); ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </optgroup>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
                     </select>
                 </div>
 

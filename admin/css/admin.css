@@ -1227,34 +1227,55 @@ h6 {
 }
 
 /* Role-Based Badges (User Management) */
+.badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 12px;
+    border-radius: 8px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+}
+
 .badge-role-super_admin {
-    background: #e0e7ff;
-    color: #6366f1;
-    border: 1px solid #c7d2fe;
+    background: #eef2ff !important;
+    color: #4f46e5 !important;
+    border: 1.5px solid #c7d2fe !important;
 }
 
 .badge-role-admin {
-    background: #ecfdf5;
-    color: #059669;
-    border: 1px solid #d1fae5;
+    background: #ecfdf5 !important;
+    color: #059669 !important;
+    border: 1.5px solid #a7f3d0 !important;
 }
 
 .badge-role-hr {
-    background: #f0fdfa;
-    color: #0d9488;
-    border: 1px solid #ccfbf1;
+    background: #f0fdfa !important;
+    color: #0d9488 !important;
+    border: 1.5px solid #99f6e4 !important;
 }
 
 .badge-role-immediate_head {
-    background: #eff6ff;
-    color: #3b82f6;
-    border: 1px solid #dbeafe;
+    background: #eff6ff !important;
+    color: #2563eb !important;
+    border: 1.5px solid #bfdbfe !important;
+}
+
+.badge-role-head_hr {
+    background: #fdf4ff !important;
+    color: #a21caf !important;
+    border: 1px solid #f5d0fe !important;
+    box-shadow: 0 2px 6px rgba(162, 28, 175, 0.1);
 }
 
 .badge-role-user {
-    background: #f1f5f9;
-    color: #64748b;
-    border: 1px solid #e2e8f0;
+    background: #f8fafc !important;
+    color: #64748b !important;
+    border: 1.5px solid #e2e8f0 !important;
 }
 
 .user-avatar-placeholder {

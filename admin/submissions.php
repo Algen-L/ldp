@@ -11,11 +11,6 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] !== 'admin' && $_SESSION[
 // Fetch all users for filtering
 $all_users = $userRepo->getAllUsers(['admin']);
 
-// 1. Define Office Categories for Search & Highlighting
-$osdsOffices = ['ADMINISTRATIVE (PERSONEL)', 'ADMINISTRATIVE (PROPERTY AND SUPPLY)', 'ADMINISTRATIVE (RECORDS)', 'ADMINISTRATIVE (CASH)', 'ADMINISTRATIVE (GENERAL SERVICES)', 'FINANCE (ACCOUNTING)', 'FINANCE (BUDGET)', 'LEGAL', 'ICT'];
-$sgodOffices = ['SCHOOL MANAGEMENT MONITORING & EVALUATION', 'HUMAN RESOURCES DEVELOPMENT', 'DISASTER RISK REDUCTION AND MANAGEMENT', 'EDUCATION FACILITIES', 'SCHOOL HEALTH AND NUTRITION', 'SCHOOL HEALTH AND NUTRITION (DENTAL)', 'SCHOOL HEALTH AND NUTRITION (MEDICAL)'];
-$cidOffices = ['CURRICULUM IMPLEMENTATION DIVISION (INSTRUCTIONAL MANAGEMENT)', 'CURRICULUM IMPLEMENTATION DIVISION (LEARNING RESOURCES MANAGEMENT)', 'CURRICULUM IMPLEMENTATION DIVISION (ALTERNATIVE LEARNING SYSTEM)', 'CURRICULUM IMPLEMENTATION DIVISION (DISTRICT INSTRUCTIONAL SUPERVISION)'];
-
 // Handle Filtering
 $filters = [
     'user_id' => isset($_GET['user_id']) ? (int) $_GET['user_id'] : 0,
@@ -25,17 +20,11 @@ $filters = [
     'end_date' => isset($_GET['end_date']) ? $_GET['end_date'] : ''
 ];
 
-// Special categorization handling
+// Special divisional keyword handling (OSDS, CID, SGOD)
 if ($filters['search']) {
     $search_upper = strtoupper($filters['search']);
-    if ($search_upper === 'OSDS') {
-        $filters['offices'] = $osdsOffices;
-        $filters['search'] = '';
-    } elseif ($search_upper === 'CID') {
-        $filters['offices'] = $cidOffices;
-        $filters['search'] = '';
-    } elseif ($search_upper === 'SGOD') {
-        $filters['offices'] = $sgodOffices;
+    if (in_array($search_upper, ['OSDS', 'CID', 'SGOD'])) {
+        $filters['office_division'] = $search_upper;
         $filters['search'] = '';
     }
 }
@@ -400,33 +389,7 @@ $statuses = [
                                     class="search-control">
                             </div>
 
-                            <!-- Personnel Custom Select -->
-                            <div class="custom-select-wrapper" id="personnelSelect">
-                                <input type="hidden" name="user_id" value="<?php echo $filters['user_id']; ?>">
-                                <div class="custom-select-trigger">
-                                    <span class="custom-select-text">
-                                        <?php
-                                        $pText = 'All Personnel';
-                                        foreach ($all_users as $u) {
-                                            if ($u['id'] == $filters['user_id'])
-                                                $pText = $u['full_name'];
-                                        }
-                                        echo htmlspecialchars($pText);
-                                        ?>
-                                    </span>
-                                    <i class="bi bi-chevron-down"></i>
-                                </div>
-                                <div class="custom-select-options">
-                                    <div class="custom-option <?php echo $filters['user_id'] == 0 ? 'selected' : ''; ?>"
-                                        data-value="0">All Personnel</div>
-                                    <?php foreach ($all_users as $u): ?>
-                                        <div class="custom-option <?php echo $filters['user_id'] == $u['id'] ? 'selected' : ''; ?>"
-                                            data-value="<?php echo $u['id']; ?>">
-                                            <?php echo htmlspecialchars($u['full_name']); ?>
-                                        </div>
-                                    <?php endforeach; ?>
-                                </div>
-                            </div>
+
 
                             <!-- Status Custom Select -->
                             <div class="custom-select-wrapper" id="statusSelect">
@@ -522,13 +485,9 @@ $statuses = [
                                     <?php else: ?>
                                         <?php foreach ($activities as $act):
                                             $row_class = '';
-                                            $office = strtoupper($act['office_station'] ?? '');
-                                            if (in_array($office, $osdsOffices))
-                                                $row_class = 'row-osds';
-                                            elseif (in_array($office, $cidOffices))
-                                                $row_class = 'row-cid';
-                                            elseif (in_array($office, $sgodOffices))
-                                                $row_class = 'row-sgod';
+                                            if (!empty($act['office_division'])) {
+                                                $row_class = 'row-' . strtolower($act['office_division']);
+                                            }
 
                                             // Highlight Logic for Immediate Head
                                             if ($_SESSION['role'] === 'immediate_head' && $act['reviewed_by_supervisor'] && $act['recommending_asds'] && !$act['approved_sds']) {
@@ -667,7 +626,7 @@ $statuses = [
                 });
             };
 
-            setupCustomSelect('personnelSelect');
+
             setupCustomSelect('statusSelect');
 
             // Global Click to close dropdowns
