@@ -14,12 +14,15 @@ The system features a **multi-role architectural framework** (Personnel, Approve
 - **Hierarchy Protection**: Safeguarded high-level accounts (Head HR & Super Admin) to prevent unauthorized modifications by HR roles.
 - **Auto-Verification**: Streamlined registration for admin-created accounts with instant system activation.
 
-### � Strategic Monitoring
+### 🔍 Strategic Monitoring & Management
+- **Divisional Management**: Advanced filtering for **OSDS**, **CID**, and **SGOD** divisions across User Status, Submissions, and Audit Logs.
+- **Unaddressed Needs Tracking**: Dynamic dashboard checklist listing Individual Learning and Development Needs (ILDN) that require attention.
 - **Profile Log (Audit System)**: Real-time, high-fidelity activity feed tracking all system-wide profile adjustments (excluding Super Admin records).
 - **Universal Account Management**: Self-service profile editing and **High-Fidelity Avatar Picker** for all user levels.
-- **Monitoring Only Mode**: Specialized "User Status Monitor" for Head HR to oversee বিভাগ-wide metrics without accessing raw personnel files.
+- **Monitoring Only Mode**: Specialized "User Status Monitor" for Head HR to oversee division-wide metrics without accessing raw personnel files.
 
 ### 📂 L&D Operations
+- **Premium Filter Suite**: Standardized, division-aware search and filtering tools across all administrative management panels.
 - **Digital Activity Logging**: Intuitive interface for recording comprehensive L&D history.
 - **Electronic Signatures**: Direct canvas drawing for Organizer, ASDS, and SDS signatures.
 - **Evidence Management**: Secure storage for certificates and workplace application documents.
@@ -38,7 +41,10 @@ Submissions follow a strict Division hierarchy:
 2. **Recommending**: ASDS recommendation for division-wide recognition.
 3. **Approved**: SDS final approval with digital signature branding.
 
-### 3. Profile Auditing
+### 3. Growth Tracking
+The system proactively tracks **Individual Learning and Development Needs (ILDN)**. Unaddressed needs are highlighted on user dashboards until a successful activity addressing that specific competency is approved.
+
+### 4. Profile Auditing
 Every profile change (Name, Position, Office, or Photo) is logged in the **Profile Log** with user details, action badges, and timestamps for division-wide transparency.
 
 ---
@@ -52,8 +58,11 @@ ldp/
 ├── user/               # Personnel-specific dashboard & activities
 ├── pages/              # Shared core pages (Logout, Verification errors)
 ├── includes/           # Backend logic & core architecture
-│   ├── repositories/   # PDO-based Data Access layer
-│   └── functions/      # Reusable helpers (Loggers, auth handlers)
+│   ├── repositories/   # PDO-based Data Access layer (SQL logic)
+│   ├── functions/      # Reusable helpers (Loggers, auth handlers)
+│   └── init_repos.php  # Central dependency injection & repository loader
+├── css/                # High-fidelity styling architecture
+├── js/                 # Client-side interactivity & signature pads
 ├── uploads/            # Centralized media & document storage
 └── README.md           # Project Documentation
 ```

@@ -236,3 +236,175 @@ body.auth-page {
     margin-bottom: 20px;
     text-align: center;
 }
+
+/* Added from index.php internal styles */
+.login-container {
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.login-container.register-mode {
+    width: 780px;
+}
+
+.form-section {
+    display: none;
+}
+
+.form-section.active {
+    display: block;
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.form-grid.grid-3 {
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+}
+
+.toggle-link {
+    color: var(--primary-blue);
+    cursor: pointer;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.toggle-link:hover {
+    text-decoration: underline;
+}
+
+/* Simplified Office Dropdown Design (Tom Select) */
+.ts-wrapper.form-control {
+    padding: 0 !important;
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    height: auto !important;
+}
+
+.ts-control {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border: 2px solid rgba(255, 255, 255, 0.15) !important;
+    border-radius: 12px !important;
+    padding: 12px 16px !important;
+    color: var(--text-main) !important;
+    font-family: inherit !important;
+    font-size: 0.95rem !important;
+    font-weight: 500 !important;
+    transition: all 0.2s ease !important;
+    min-height: 48px !important;
+}
+
+.ts-control:hover {
+    border-color: rgba(59, 130, 246, 0.4) !important;
+    background: rgba(59, 130, 246, 0.05) !important;
+}
+
+.ts-control:focus,
+.ts-control.focus {
+    border-color: rgba(59, 130, 246, 0.6) !important;
+    background: rgba(59, 130, 246, 0.08) !important;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
+    outline: none !important;
+}
+
+.ts-control input {
+    color: var(--text-main) !important;
+    font-weight: 500 !important;
+}
+
+.ts-control input::placeholder {
+    color: rgba(148, 163, 184, 0.5) !important;
+}
+
+.ts-dropdown {
+    background: rgba(15, 23, 42, 0.95) !important;
+    backdrop-filter: blur(10px) !important;
+    border: 1px solid rgba(59, 130, 246, 0.2) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3) !important;
+    margin-top: 6px !important;
+    padding: 8px !important;
+    z-index: 2000 !important;
+}
+
+.ts-dropdown .optgroup-header {
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    font-size: 0.7rem !important;
+    letter-spacing: 0.08em !important;
+    padding: 10px 12px 6px !important;
+    margin-top: 6px !important;
+    background: rgba(59, 130, 246, 0.1) !important;
+    border-radius: 8px !important;
+    border-left: 3px solid #3b82f6 !important;
+    color: #60a5fa !important;
+}
+
+.ts-dropdown .option {
+    padding: 10px 12px !important;
+    border-radius: 8px !important;
+    font-size: 0.9rem !important;
+    color: rgba(226, 232, 240, 0.85) !important;
+    font-weight: 500 !important;
+    margin: 2px 0 !important;
+    transition: all 0.15s ease !important;
+    cursor: pointer !important;
+}
+
+.ts-dropdown .option:hover {
+    background: rgba(59, 130, 246, 0.15) !important;
+    color: #ffffff !important;
+}
+
+.ts-dropdown .option.active {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%) !important;
+    color: #ffffff !important;
+    font-weight: 600 !important;
+}
+
+.ts-dropdown-content::-webkit-scrollbar {
+    width: 6px;
+}
+
+.ts-dropdown-content::-webkit-scrollbar-track {
+    background: rgba(15, 23, 42, 0.3);
+    border-radius: 10px;
+}
+
+.ts-dropdown-content::-webkit-scrollbar-thumb {
+    background: rgba(59, 130, 246, 0.5);
+    border-radius: 10px;
+}
+
+/* Classes for inline styles from index.php */
+.alert-success {
+    background: rgba(16, 185, 129, 0.1);
+    border-color: rgba(16, 185, 129, 0.2);
+    color: #10b981;
+    padding: 12px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.required-asterisk {
+    color: #ef4444;
+}
+
+.span-2 {
+    grid-column: span 2;
+}
+
+.auth-footer {
+    margin-top: 20px;
+}
+
+.dev-info {
+    font-size: 0.8em;
+    opacity: 0.5;
+}

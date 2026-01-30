@@ -773,7 +773,7 @@ $user_ildns = $ildnRepo->getILDNsByUser($_SESSION['user_id']);
                                 <form method="POST" enctype="multipart/form-data">
                                     <input type="hidden" name="update_profile" value="1">
                                     <div class="form-group mb-4">
-                                        <label class="form-label"
+                                        <label class="form-label "
                                             style="display: block; margin-bottom: 15px; font-weight: 700; color: #475569; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em;">Personal
                                             Avatar</label>
                                         <div
@@ -781,14 +781,14 @@ $user_ildns = $ildnRepo->getILDNsByUser($_SESSION['user_id']);
                                             <div id="avatarPreviewContainer"
                                                 style="width: 100px; height: 100px; border-radius: 50%; overflow: hidden; border: 4px solid white; box-shadow: 0 10px 20px rgba(0,0,0,0.08); flex-shrink: 0; background: #f1f5f9; display: flex; align-items: center; justify-content: center;">
                                                 <?php if (!empty($user['profile_picture'])): ?>
-                                                    <img src="../<?php echo htmlspecialchars($user['profile_picture']); ?>"
-                                                        id="currentAvatar"
-                                                        style="width: 100%; height: 100%; object-fit: cover;">
+                                                        <img src="../<?php echo htmlspecialchars($user['profile_picture']); ?>"
+                                                            id="currentAvatar"
+                                                            style="width: 100%; height: 100%; object-fit: cover;">
                                                 <?php else: ?>
-                                                    <div
-                                                        style="font-size: 2.5rem; font-weight: 800; color: var(--primary); opacity: 0.3;">
-                                                        <?php echo strtoupper(substr($user['full_name'], 0, 1)); ?>
-                                                    </div>
+                                                        <div
+                                                            style="font-size: 2.5rem; font-weight: 800; color: var(--primary); opacity: 0.3;">
+                                                            <?php echo strtoupper(substr($user['full_name'], 0, 1)); ?>
+                                                        </div>
                                                 <?php endif; ?>
                                             </div>
                                             <div style="flex: 1;">
@@ -922,53 +922,53 @@ $user_ildns = $ildnRepo->getILDNsByUser($_SESSION['user_id']);
                                         <div class="ildn-list"
                                             style="display: flex; flex-direction: column; gap: 12px;">
                                             <?php if (count($user_ildns) > 0): ?>
-                                                <?php foreach ($user_ildns as $ildn): ?>
-                                                    <div class="ildn-item"
-                                                        style="background: white; border: 1px solid #eef2f6; padding: 16px; border-radius: 12px; position: relative; transition: all 0.2s;">
-                                                        <div style="padding-right: 40px;">
-                                                            <div
-                                                                style="font-weight: 700; color: #1e293b; margin-bottom: 4px; font-size: 0.95rem;">
-                                                                <?php echo htmlspecialchars($ildn['need_text']); ?>
-                                                            </div>
-                                                            <?php if ($ildn['description']): ?>
-                                                                <div
-                                                                    style="font-size: 0.85rem; color: #64748b; line-height: 1.4; margin-bottom: 8px;">
-                                                                    <?php echo htmlspecialchars($ildn['description']); ?>
+                                                    <?php foreach ($user_ildns as $ildn): ?>
+                                                            <div class="ildn-item"
+                                                                style="background: white; border: 1px solid #eef2f6; padding: 16px; border-radius: 12px; position: relative; transition: all 0.2s;">
+                                                                <div style="padding-right: 40px;">
+                                                                    <div
+                                                                        style="font-weight: 700; color: #1e293b; margin-bottom: 4px; font-size: 0.95rem;">
+                                                                        <?php echo htmlspecialchars($ildn['need_text']); ?>
+                                                                    </div>
+                                                                    <?php if ($ildn['description']): ?>
+                                                                            <div
+                                                                                style="font-size: 0.85rem; color: #64748b; line-height: 1.4; margin-bottom: 8px;">
+                                                                                <?php echo htmlspecialchars($ildn['description']); ?>
+                                                                            </div>
+                                                                    <?php endif; ?>
+                                                                    <?php if ($ildn['usage_count'] > 0): ?>
+                                                                            <span class="badge badge-success"
+                                                                                style="font-size: 0.7rem; padding: 4px 10px; border-radius: 6px; background: #dcfce7; color: #15803d;">
+                                                                                <i class="bi bi-check-circle-fill"></i> Addressed in
+                                                                                <?php echo $ildn['usage_count']; ?> activity
+                                                                            </span>
+                                                                    <?php else: ?>
+                                                                            <span class="badge badge-warning"
+                                                                                style="font-size: 0.7rem; padding: 4px 10px; border-radius: 6px; background: #fef9c3; color: #a16207;">
+                                                                                <i class="bi bi-exclamation-circle"></i> Not yet addressed
+                                                                            </span>
+                                                                    <?php endif; ?>
                                                                 </div>
-                                                            <?php endif; ?>
-                                                            <?php if ($ildn['usage_count'] > 0): ?>
-                                                                <span class="badge badge-success"
-                                                                    style="font-size: 0.7rem; padding: 4px 10px; border-radius: 6px; background: #dcfce7; color: #15803d;">
-                                                                    <i class="bi bi-check-circle-fill"></i> Addressed in
-                                                                    <?php echo $ildn['usage_count']; ?> activity
-                                                                </span>
-                                                            <?php else: ?>
-                                                                <span class="badge badge-warning"
-                                                                    style="font-size: 0.7rem; padding: 4px 10px; border-radius: 6px; background: #fef9c3; color: #a16207;">
-                                                                    <i class="bi bi-exclamation-circle"></i> Not yet addressed
-                                                                </span>
-                                                            <?php endif; ?>
-                                                        </div>
-                                                        <form method="POST"
-                                                            style="position: absolute; top: 12px; right: 12px; margin: 0;"
-                                                            onsubmit="return confirm('Remove this item?');">
-                                                            <input type="hidden" name="ildn_id"
-                                                                value="<?php echo $ildn['id']; ?>">
-                                                            <button type="submit" name="delete_ildn"
-                                                                style="background: none; border: none; color: #cbd5e1; cursor: pointer; padding: 4px; transition: color 0.2s;">
-                                                                <i class="bi bi-trash3-fill" style="font-size: 1.1rem;"></i>
-                                                            </button>
-                                                        </form>
-                                                    </div>
-                                                <?php endforeach; ?>
+                                                                <form method="POST"
+                                                                    style="position: absolute; top: 12px; right: 12px; margin: 0;"
+                                                                    onsubmit="return confirm('Remove this item?');">
+                                                                    <input type="hidden" name="ildn_id"
+                                                                        value="<?php echo $ildn['id']; ?>">
+                                                                    <button type="submit" name="delete_ildn"
+                                                                        style="background: none; border: none; color: #cbd5e1; cursor: pointer; padding: 4px; transition: color 0.2s;">
+                                                                        <i class="bi bi-trash3-fill" style="font-size: 1.1rem;"></i>
+                                                                    </button>
+                                                                </form>
+                                                            </div>
+                                                    <?php endforeach; ?>
                                             <?php else: ?>
-                                                <div class="empty-state" style="padding: 40px 20px;">
-                                                    <i class="bi bi-list-check"
-                                                        style="font-size: 3rem; color: #cbd5e1; margin-bottom: 16px; display: block;"></i>
-                                                    <p style="color: #64748b; font-weight: 500;">No development needs listed
-                                                        yet.
-                                                    </p>
-                                                </div>
+                                                    <div class="empty-state" style="padding: 40px 20px;">
+                                                        <i class="bi bi-list-check"
+                                                            style="font-size: 3rem; color: #cbd5e1; margin-bottom: 16px; display: block;"></i>
+                                                        <p style="color: #64748b; font-weight: 500;">No development needs listed
+                                                            yet.
+                                                        </p>
+                                                    </div>
                                             <?php endif; ?>
                                         </div>
                                     </div>
@@ -993,70 +993,70 @@ $user_ildns = $ildnRepo->getILDNsByUser($_SESSION['user_id']);
                                         ?>
 
                                         <?php if (count($cert_ready_activities) > 0): ?>
-                                            <?php foreach ($cert_ready_activities as $act): ?>
-                                                <div class="activity-card">
-                                                    <span class="activity-type">
-                                                        <?php echo htmlspecialchars($act['type_ld']); ?>
-                                                    </span>
-                                                    <div class="activity-title">
-                                                        <?php echo htmlspecialchars($act['title']); ?>
-                                                    </div>
-                                                    <div class="activity-meta">
-                                                        <span><i class="bi bi-calendar3"></i>
-                                                            <?php echo date('M d, Y', strtotime($act['created_at'])); ?>
-                                                        </span>
-                                                    </div>
-
-                                                    <?php if ($act['certificate_path']): ?>
-                                                        <div class="has-cert">
-                                                            <div style="display: flex; align-items: center; gap: 10px;">
-                                                                <i class="bi bi-file-earmark-pdf-fill"
-                                                                    style="color: #F57C00; font-size: 1.5rem;"></i>
-                                                                <div
-                                                                    style="display: flex; flex-direction: column; line-height: 1.2;">
-                                                                    <span
-                                                                        style="font-size: 0.8rem; font-weight: 700; color: #c2410c;">Certificate
-                                                                        Uploaded</span>
-                                                                    <a href="../<?php echo htmlspecialchars($act['certificate_path']); ?>"
-                                                                        target="_blank"
-                                                                        style="font-size: 0.72rem; color: #ea580c; text-decoration: underline; font-weight: 600;">View
-                                                                        File</a>
-                                                                </div>
+                                                <?php foreach ($cert_ready_activities as $act): ?>
+                                                        <div class="activity-card">
+                                                            <span class="activity-type">
+                                                                <?php echo htmlspecialchars($act['type_ld']); ?>
+                                                            </span>
+                                                            <div class="activity-title">
+                                                                <?php echo htmlspecialchars($act['title']); ?>
                                                             </div>
-                                                            <button
-                                                                onclick="document.getElementById('upload-<?php echo $act['id']; ?>').click()"
-                                                                title="Replace File"
-                                                                style="border: none; background: none; color: #fb923c; cursor: pointer;">
-                                                                <i class="bi bi-arrow-repeat"></i>
-                                                            </button>
-                                                        </div>
-                                                    <?php else: ?>
-                                                        <div class="cert-upload-zone"
-                                                            onclick="document.getElementById('upload-<?php echo $act['id']; ?>').click()">
-                                                            <i class="bi bi-cloud-upload"></i>
-                                                            <span style="font-size: 0.8rem; font-weight: 600;">Upload
-                                                                Certificate</span>
-                                                        </div>
-                                                    <?php endif; ?>
+                                                            <div class="activity-meta">
+                                                                <span><i class="bi bi-calendar3"></i>
+                                                                    <?php echo date('M d, Y', strtotime($act['created_at'])); ?>
+                                                                </span>
+                                                            </div>
 
-                                                    <form method="POST" enctype="multipart/form-data" style="display: none;">
-                                                        <input type="hidden" name="activity_id"
-                                                            value="<?php echo $act['id']; ?>">
-                                                        <input type="file" name="certificate"
-                                                            id="upload-<?php echo $act['id']; ?>" accept=".pdf,.jpg,.jpeg,.png"
-                                                            onchange="if(confirm('Upload this certificate?')) this.form.dispatchEvent(new Event('submit', {cancelable: true, bubbles: true})); if(window.submitForm) window.submitForm(this.form) else this.form.submit();">
-                                                        <input type="hidden" name="upload_certificate" value="1">
-                                                    </form>
-                                                </div>
-                                            <?php endforeach; ?>
+                                                            <?php if ($act['certificate_path']): ?>
+                                                                    <div class="has-cert">
+                                                                        <div style="display: flex; align-items: center; gap: 10px;">
+                                                                            <i class="bi bi-file-earmark-pdf-fill"
+                                                                                style="color: #F57C00; font-size: 1.5rem;"></i>
+                                                                            <div
+                                                                                style="display: flex; flex-direction: column; line-height: 1.2;">
+                                                                                <span
+                                                                                    style="font-size: 0.8rem; font-weight: 700; color: #c2410c;">Certificate
+                                                                                    Uploaded</span>
+                                                                                <a href="../<?php echo htmlspecialchars($act['certificate_path']); ?>"
+                                                                                    target="_blank"
+                                                                                    style="font-size: 0.72rem; color: #ea580c; text-decoration: underline; font-weight: 600;">View
+                                                                                    File</a>
+                                                                            </div>
+                                                                        </div>
+                                                                        <button
+                                                                            onclick="document.getElementById('upload-<?php echo $act['id']; ?>').click()"
+                                                                            title="Replace File"
+                                                                            style="border: none; background: none; color: #fb923c; cursor: pointer;">
+                                                                            <i class="bi bi-arrow-repeat"></i>
+                                                                        </button>
+                                                                    </div>
+                                                            <?php else: ?>
+                                                                    <div class="cert-upload-zone"
+                                                                        onclick="document.getElementById('upload-<?php echo $act['id']; ?>').click()">
+                                                                        <i class="bi bi-cloud-upload"></i>
+                                                                        <span style="font-size: 0.8rem; font-weight: 600;">Upload
+                                                                            Certificate</span>
+                                                                    </div>
+                                                            <?php endif; ?>
+
+                                                            <form method="POST" enctype="multipart/form-data" style="display: none;">
+                                                                <input type="hidden" name="activity_id"
+                                                                    value="<?php echo $act['id']; ?>">
+                                                                <input type="file" name="certificate"
+                                                                    id="upload-<?php echo $act['id']; ?>" accept=".pdf,.jpg,.jpeg,.png"
+                                                                    onchange="if(confirm('Upload this certificate?')) this.form.dispatchEvent(new Event('submit', {cancelable: true, bubbles: true})); if(window.submitForm) window.submitForm(this.form) else this.form.submit();">
+                                                                <input type="hidden" name="upload_certificate" value="1">
+                                                            </form>
+                                                        </div>
+                                                <?php endforeach; ?>
                                         <?php else: ?>
-                                            <div class="empty-state">
-                                                <i class="bi bi-file-earmark-lock2"
-                                                    style="font-size: 2.5rem; color: #cbd5e1; margin-bottom: 12px; display: block;"></i>
-                                                <p style="font-size: 0.9rem; color: #64748b;">No approved activities
-                                                    available for
-                                                    certificate uploads yet.</p>
-                                            </div>
+                                                <div class="empty-state">
+                                                    <i class="bi bi-file-earmark-lock2"
+                                                        style="font-size: 2.5rem; color: #cbd5e1; margin-bottom: 12px; display: block;"></i>
+                                                    <p style="font-size: 0.9rem; color: #64748b;">No approved activities
+                                                        available for
+                                                        certificate uploads yet.</p>
+                                                </div>
                                         <?php endif; ?>
                                     </div>
                                 </div>
@@ -1090,7 +1090,7 @@ $user_ildns = $ildnRepo->getILDNsByUser($_SESSION['user_id']);
         });
 
         <?php if ($message): ?>
-            showToast("<?php echo ($messageType === 'success') ? 'Success' : 'Notice'; ?>", "<?php echo $message; ?>", "<?php echo $messageType; ?>");
+                showToast("<?php echo ($messageType === 'success') ? 'Success' : 'Notice'; ?>", "<?php echo $message; ?>", "<?php echo $messageType; ?>");
         <?php endif; ?>
     </script>
 </body>

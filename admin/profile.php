@@ -1124,7 +1124,7 @@ $user_ildns = $ildnRepo->getILDNsByUser($user_id);
                                 <?php else: ?>
                                     <?php foreach ($activities as $act): ?>
                                         <div class="activity-card">
-                                            <div onclick="location.href='view_activity.php?id=<?php echo $act['id']; ?>'"
+                                            <div onclick="location.href='../pages/view_activity.php?id=<?php echo $act['id']; ?>'"
                                                 style="cursor: pointer;">
                                                 <span
                                                     class="activity-type"><?php echo htmlspecialchars($act['type_ld'] ?: 'Professional Development'); ?></span>

@@ -97,161 +97,7 @@ try {
     <link rel="stylesheet" href="css/pages/auth.css?v=<?php echo time(); ?>">
     <!-- Tom Select CSS -->
     <link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.css" rel="stylesheet">
-    <style>
-        .login-container {
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        }
 
-        .login-container.register-mode {
-            width: 780px;
-            /* Slimmer registration */
-        }
-
-        .form-section {
-            display: none;
-        }
-
-        .form-section.active {
-            display: block;
-        }
-
-        .form-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-        }
-
-        .toggle-link {
-            color: var(--primary-blue);
-            cursor: pointer;
-            font-weight: 700;
-            text-decoration: none;
-        }
-
-        .toggle-link:hover {
-            text-decoration: underline;
-        }
-
-        /* Simplified Office Dropdown Design */
-        .ts-wrapper {
-            position: relative;
-        }
-
-        .ts-wrapper.form-control {
-            padding: 0 !important;
-            border: none !important;
-            background: transparent !important;
-            box-shadow: none !important;
-            height: auto !important;
-        }
-
-        .ts-control {
-            background: rgba(255, 255, 255, 0.05) !important;
-            border: 2px solid rgba(255, 255, 255, 0.15) !important;
-            border-radius: 12px !important;
-            padding: 12px 16px !important;
-            color: var(--text-main) !important;
-            font-family: inherit !important;
-            font-size: 0.95rem !important;
-            font-weight: 500 !important;
-            transition: all 0.2s ease !important;
-            min-height: 48px !important;
-        }
-
-        .ts-control:hover {
-            border-color: rgba(59, 130, 246, 0.4) !important;
-            background: rgba(59, 130, 246, 0.05) !important;
-        }
-
-        .ts-control:focus,
-        .ts-control.focus {
-            border-color: rgba(59, 130, 246, 0.6) !important;
-            background: rgba(59, 130, 246, 0.08) !important;
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
-            outline: none !important;
-        }
-
-        .ts-control input {
-            color: var(--text-main) !important;
-            font-weight: 500 !important;
-        }
-
-        .ts-control input::placeholder {
-            color: rgba(148, 163, 184, 0.5) !important;
-        }
-
-        /* Dropdown Container */
-        .ts-dropdown {
-            background: rgba(15, 23, 42, 0.95) !important;
-            backdrop-filter: blur(10px) !important;
-            border: 1px solid rgba(59, 130, 246, 0.2) !important;
-            border-radius: 12px !important;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3) !important;
-            margin-top: 6px !important;
-            padding: 8px !important;
-            z-index: 2000 !important;
-        }
-
-        /* Category Headers */
-        .ts-dropdown .optgroup-header {
-            font-weight: 700 !important;
-            text-transform: uppercase !important;
-            font-size: 0.7rem !important;
-            letter-spacing: 0.08em !important;
-            padding: 10px 12px 6px !important;
-            margin-top: 6px !important;
-            background: rgba(59, 130, 246, 0.1) !important;
-            border-radius: 8px !important;
-            border-left: 3px solid #3b82f6 !important;
-            color: #60a5fa !important;
-        }
-
-        .ts-dropdown .optgroup-header:first-child {
-            margin-top: 0 !important;
-        }
-
-        /* Office Options */
-        .ts-dropdown .option {
-            padding: 10px 12px !important;
-            border-radius: 8px !important;
-            font-size: 0.9rem !important;
-            color: rgba(226, 232, 240, 0.85) !important;
-            font-weight: 500 !important;
-            margin: 2px 0 !important;
-            transition: all 0.15s ease !important;
-            cursor: pointer !important;
-        }
-
-        .ts-dropdown .option:hover {
-            background: rgba(59, 130, 246, 0.15) !important;
-            color: #ffffff !important;
-        }
-
-        .ts-dropdown .option.active {
-            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%) !important;
-            color: #ffffff !important;
-            font-weight: 600 !important;
-        }
-
-        /* Scrollbar */
-        .ts-dropdown-content::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        .ts-dropdown-content::-webkit-scrollbar-track {
-            background: rgba(15, 23, 42, 0.3);
-            border-radius: 10px;
-        }
-
-        .ts-dropdown-content::-webkit-scrollbar-thumb {
-            background: rgba(59, 130, 246, 0.5);
-            border-radius: 10px;
-        }
-
-        .ts-dropdown-content::-webkit-scrollbar-thumb:hover {
-            background: rgba(59, 130, 246, 0.7);
-        }
-    </style>
 </head>
 
 <body class="auth-page">
@@ -269,8 +115,7 @@ try {
         </div>
 
         <?php if ($message): ?>
-            <div class="alert <?php echo strpos($message, 'successful') !== false ? 'alert-success' : 'alert-error'; ?>"
-                style="<?php echo strpos($message, 'successful') !== false ? 'background: rgba(16, 185, 129, 0.1); border-color: rgba(16, 185, 129, 0.2); color: #10b981; padding: 12px; border-radius: 8px; font-size: 0.9rem; margin-bottom: 20px; text-align: center;' : ''; ?>">
+            <div class="alert <?php echo strpos($message, 'successful') !== false ? 'alert-success' : 'alert-error'; ?>">
                 <?php echo $message; ?>
             </div>
         <?php endif; ?>
@@ -299,17 +144,17 @@ try {
             <form method="POST" action="">
                 <input type="hidden" name="register" value="1">
                 <div class="form-group">
-                    <label>Full Name <span style="color: #ef4444;">*</span></label>
+                    <label>Full Name <span class="required-asterisk">*</span></label>
                     <input type="text" name="full_name" class="form-control" placeholder="John Doe" required>
                 </div>
 
                 <div class="form-grid">
                     <div class="form-group">
-                        <label>Username <span style="color: #ef4444;">*</span></label>
+                        <label>Username <span class="required-asterisk">*</span></label>
                         <input type="text" name="reg_username" class="form-control" placeholder="j.doe" required>
                     </div>
                     <div class="form-group">
-                        <label>Password <span style="color: #ef4444;">*</span></label>
+                        <label>Password <span class="required-asterisk">*</span></label>
                         <input type="password" name="reg_password" class="form-control" placeholder="••••••••" required>
                     </div>
                 </div>
@@ -332,7 +177,7 @@ try {
                     </select>
                 </div>
 
-                <div class="form-grid" style="grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
+                <div class="form-grid grid-3">
                     <div class="form-group">
                         <label>Position</label>
                         <input type="text" name="position" class="form-control" placeholder="Teacher I">
@@ -347,7 +192,7 @@ try {
                     </div>
                 </div>
 
-                <div class="form-grid" style="grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
+                <div class="form-grid grid-3">
                     <div class="form-group">
                         <label>Sex</label>
                         <select name="sex" class="form-control">
@@ -356,7 +201,7 @@ try {
                             <option value="Female">Female</option>
                         </select>
                     </div>
-                    <div class="form-group" style="grid-column: span 2;">
+                    <div class="form-group span-2">
                         <label>Rating Period</label>
                         <input type="text" name="rating_period" class="form-control" placeholder="e.g. 2025">
                     </div>
@@ -369,9 +214,9 @@ try {
             </div>
         </div>
 
-        <div class="footer-text" style="margin-top: 20px;">
+        <div class="footer-text auth-footer">
             Department of Education - San Pedro Division<br>
-            <span style="font-size: 0.8em; opacity: 0.5;">Developed by A.L and C.B</span>
+            <span class="dev-info">Developed by A.L and C.B</span>
         </div>
     </div>
 

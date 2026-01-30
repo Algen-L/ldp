@@ -91,288 +91,8 @@ $freqValues = array_values($frequencyData);
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard - LDP</title>
     <?php require '../includes/admin_head.php'; ?>
+    <link rel="stylesheet" href="../css/admin/dashboard.css?v=<?php echo time(); ?>">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        /* New Layout Grid System */
-        :root {
-            --vibrant-blue: #0ea5e9;
-            --vibrant-orange: #f97316;
-            --vibrant-blue-gradient: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
-            --vibrant-orange-gradient: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
-        }
-
-        .stat-card {
-            transition: all 0.3s ease;
-            border: 1px solid var(--border-color);
-            border-top: 3px solid var(--accent-color);
-            background: white;
-            box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.3);
-            /* Smaller, darker shadow */
-        }
-
-        .stat-card:hover {
-            border-color: var(--accent-color);
-            transform: translateY(-5px);
-            box-shadow: 0 6px 18px -2px rgba(0, 0, 0, 0.4);
-            /* Darker shadow on hover */
-        }
-
-        .stat-card:hover .stat-icon {
-            transform: scale(1.1);
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-        }
-
-        .dashboard-row-middle {
-            display: grid;
-            grid-template-columns: 1.8fr 1fr;
-            gap: 16px;
-            margin-bottom: 16px;
-        }
-
-        .dashboard-row-bottom {
-            display: grid;
-            grid-template-columns: 1fr 1.8fr;
-            gap: 16px;
-            margin-bottom: 24px;
-        }
-
-        .dashboard-row-bottom.full-view {
-            grid-template-columns: 1fr;
-        }
-
-        @media (max-width: 1200px) {
-
-            .dashboard-row-middle,
-            .dashboard-row-bottom {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        /* Generic Dashboard Card with Dark Shadow */
-        .dashboard-card {
-            background: white;
-            border-radius: 12px;
-            border: 1px solid var(--border-color);
-            box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.3);
-            /* Smaller, darker shadow */
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .dashboard-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 24px -2px rgba(0, 0, 0, 0.4);
-        }
-
-        /* Recent Activity Submitted Feed */
-        .activity-feed {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            padding: 12px;
-        }
-
-        .feed-item {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 10px;
-            background: var(--bg-primary);
-            border-radius: 12px;
-            border: 1px solid var(--border-color);
-            border-left: 4px solid #cbd5e1;
-            transition: all 0.2s ease;
-        }
-
-        .feed-item.osds {
-            border-left-color: var(--vibrant-orange);
-        }
-
-        .feed-item.sgod {
-            border-left-color: var(--vibrant-blue);
-        }
-
-        .feed-item.cid {
-            border-left-color: #eab308;
-        }
-
-
-
-        .feed-item:hover {
-            transform: translateX(4px);
-            border-color: var(--primary-light);
-            background: white;
-            box-shadow: var(--shadow-sm);
-        }
-
-        .feed-avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 10px;
-            object-fit: cover;
-            border: 2px solid white;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
-        }
-
-        .feed-avatar-placeholder {
-            width: 40px;
-            height: 40px;
-            border-radius: 10px;
-            background: var(--primary-gradient);
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 700;
-            font-size: 0.9rem;
-        }
-
-        .feed-info {
-            flex: 1;
-            min-width: 0;
-        }
-
-        .feed-user {
-            font-weight: 700;
-            font-size: 0.85rem;
-            color: var(--text-primary);
-            display: block;
-        }
-
-        .feed-activity {
-            font-size: 0.75rem;
-            color: var(--text-secondary);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            display: block;
-        }
-
-        .feed-time {
-            font-size: 0.7rem;
-            color: var(--text-muted);
-            font-weight: 500;
-            flex-shrink: 0;
-        }
-
-        .pulse-indicator {
-            width: 6px;
-            height: 6px;
-            background: var(--success);
-            border-radius: 50%;
-            margin-right: 6px;
-            box-shadow: 0 0 0 rgba(16, 185, 129, 0.4);
-            animation: pulse-green 2s infinite;
-        }
-
-        @keyframes pulse-green {
-            0% {
-                transform: scale(0.95);
-                box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
-            }
-
-            70% {
-                transform: scale(1);
-                box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
-            }
-
-            100% {
-                transform: scale(0.95);
-                box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
-            }
-        }
-
-        /* Custom Modern Dropdown Component */
-        .custom-dropdown {
-            position: relative;
-            user-select: none;
-            display: flex;
-            align-items: center;
-            gap: 0;
-        }
-
-        .dropdown-trigger {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            background: rgba(15, 76, 117, 0.05);
-            padding: 4px 14px;
-            border-radius: 99px;
-            border: 1px solid rgba(15, 76, 117, 0.1);
-            color: var(--primary);
-            font-weight: 700;
-            font-size: 0.85rem;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            min-width: 150px;
-            justify-content: space-between;
-            flex-shrink: 0;
-        }
-
-        .dropdown-trigger:hover {
-            background: rgba(15, 76, 117, 0.08);
-            border-color: rgba(15, 76, 117, 0.2);
-        }
-
-        .dropdown-trigger.active {
-            background: white;
-            border-color: var(--primary);
-            box-shadow: var(--shadow-sm);
-        }
-
-        .dropdown-menu-custom {
-            position: absolute;
-            top: calc(100% + 8px);
-            right: 0;
-            background: white;
-            border-radius: 14px;
-            border: 1px solid var(--border-color);
-            box-shadow: var(--shadow-lg);
-            min-width: 180px;
-            overflow: hidden;
-            display: none;
-            z-index: 1000;
-            opacity: 0;
-            transform: translateY(-10px);
-            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .dropdown-menu-custom.show {
-            display: block;
-            opacity: 1;
-            transform: translateY(0);
-        }
-
-        .dropdown-item-custom {
-            padding: 10px 16px;
-            font-size: 0.85rem;
-            color: var(--text-secondary);
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.15s ease;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .dropdown-item-custom:hover {
-            background: rgba(15, 76, 117, 0.05);
-            color: var(--primary);
-            padding-left: 20px;
-        }
-
-        .dropdown-item-custom.active {
-            background: var(--primary);
-            color: white;
-        }
-
-        .dropdown-item-custom i {
-            font-size: 1rem;
-            opacity: 0.7;
-        }
-    </style>
 </head>
 
 <body>
@@ -386,7 +106,7 @@ $freqValues = array_values($frequencyData);
                         <h1 class="page-title">Dashboard Overview</h1>
                     </div>
                 </div>
-                <div class="top-bar-right" style="display: flex; gap: 16px; align-items: center;">
+                <div class="top-bar-right top-bar-right-actions">
                     <div class="current-date-box">
                         <div class="time-section">
                             <span id="real-time-clock"><?php echo date('h:i:s A'); ?></span>
@@ -396,14 +116,13 @@ $freqValues = array_values($frequencyData);
                             <span><?php echo date('F j, Y'); ?></span>
                         </div>
                     </div>
-                    <form method="GET" id="filterForm" style="margin: 0; display: flex; gap: 8px; align-items: center;">
+                    <form method="GET" id="filterForm" class="filter-form">
                         <div class="custom-dropdown" id="filterDropdown">
                             <input type="hidden" name="filter" id="filterInput"
                                 value="<?php echo htmlspecialchars($filter); ?>">
                             <div class="dropdown-trigger" id="dropdownTrigger">
                                 <div>
-                                    <i class="bi bi-funnel"
-                                        style="color: var(--primary); font-size: 0.9rem; margin-right: 8px;"></i>
+                                    <i class="bi bi-funnel funnel-icon"></i>
                                     <span id="selectedFilterText">
                                         <?php
                                         switch ($filter) {
@@ -428,7 +147,7 @@ $freqValues = array_values($frequencyData);
                                         ?>
                                     </span>
                                 </div>
-                                <i class="bi bi-chevron-down" style="font-size: 0.8rem; margin-left: 10px;"></i>
+                                <i class="bi bi-chevron-down chevron-down"></i>
                             </div>
 
                             <div class="dropdown-menu-custom" id="dropdownMenu">
@@ -454,25 +173,19 @@ $freqValues = array_values($frequencyData);
                                 </div>
                             </div>
 
-                            <div id="customDateInputs"
-                                style="display: <?php echo ($filter === 'custom') ? 'flex' : 'none'; ?>; gap: 8px; align-items: center; padding-left: 16px; margin-left: 16px; border-left: 1px solid rgba(15, 76, 117, 0.15);">
-                                <div
-                                    style="display: flex; align-items: center; gap: 6px; background: white; padding: 0 8px; border-radius: 99px; border: 1px solid rgba(15, 76, 117, 0.12); box-shadow: var(--shadow-sm);">
+                            <div id="customDateInputs" class="custom-range-inputs"
+                                style="display: <?php echo ($filter === 'custom') ? 'flex' : 'none'; ?>;">
+                                <div class="date-input-wrapper">
                                     <input type="date" name="date_from"
-                                        value="<?php echo htmlspecialchars($dateFrom); ?>"
-                                        class="form-control form-control-sm"
-                                        style="border: none; background: transparent; padding: 0; font-size: 0.8rem; height: 22px; color: var(--primary); font-weight: 600; outline: none; width: 110px;" />
+                                        value="<?php echo htmlspecialchars($date_from); ?>"
+                                        class="form-control form-control-sm custom-date-input" />
                                 </div>
-                                <span
-                                    style="color: var(--primary); font-size: 0.75rem; font-weight: 700; opacity: 0.5;">to</span>
-                                <div
-                                    style="display: flex; align-items: center; gap: 6px; background: white; padding: 0 8px; border-radius: 99px; border: 1px solid rgba(15, 76, 117, 0.12); box-shadow: var(--shadow-sm);">
-                                    <input type="date" name="date_to" value="<?php echo htmlspecialchars($dateTo); ?>"
-                                        class="form-control form-control-sm"
-                                        style="border: none; background: transparent; padding: 0; font-size: 0.8rem; height: 22px; color: var(--primary); font-weight: 600; outline: none; width: 110px;" />
+                                <span class="date-range-to">to</span>
+                                <div class="date-input-wrapper">
+                                    <input type="date" name="date_to" value="<?php echo htmlspecialchars($date_to); ?>"
+                                        class="form-control form-control-sm custom-date-input" />
                                 </div>
-                                <button type="submit" class="btn btn-primary btn-sm"
-                                    style="height: 26px; padding: 0 12px; border-radius: 20px; font-size: 0.7rem; font-weight: 700; background: var(--primary); border: none; box-shadow: 0 4px 10px rgba(15, 76, 117, 0.2); margin-left: 4px; transition: all 0.2s ease;">
+                                <button type="submit" class="btn btn-primary btn-sm apply-btn">
                                     Apply
                                 </button>
                             </div>
@@ -527,54 +240,45 @@ $freqValues = array_values($frequencyData);
 
                 <div class="dashboard-row-middle">
                     <div class="dashboard-card hover-elevate">
-                        <div class="card-header"
-                            style="padding: 12px 20px; background: linear-gradient(135deg, #0f4c75 0%, #3282b8 100%); border-bottom: none;">
-                            <h2 style="font-size: 0.9rem; color: white;"><i class="bi bi-bar-chart-line"
-                                    style="color: rgba(255,255,255,0.9); margin-right: 8px;"></i>
+                        <div class="card-header card-header-gradient">
+                            <h2 class="card-title-white"><i class="bi bi-bar-chart-line card-title-icon-white"></i>
                                 Submission Frequency</h2>
                         </div>
-                        <div class="card-body" style="padding: 12px; height: 180px;">
+                        <div class="card-body p-2 h-180">
                             <canvas id="frequencyChart"></canvas>
                         </div>
                     </div>
 
                     <div class="dashboard-card hover-elevate">
-                        <div class="card-header" style="padding: 12px 20px;">
-                            <h2 style="font-size: 0.9rem;"><i class="bi bi-building text-gradient"></i> Office
+                        <div class="card-header card-header-standard">
+                            <h2 class="card-title-standard"><i class="bi bi-building text-gradient"></i> Office
                                 Activity Distribution</h2>
                         </div>
-                        <div class="card-body"
-                            style="padding: 16px 20px; display: flex; align-items: center; gap: 20px;">
-                            <div style="width: 120px; height: 120px;">
+                        <div class="card-body office-distribution-body">
+                            <div class="doughnut-wrapper">
                                 <canvas id="officeChart"></canvas>
                             </div>
-                            <div style="flex: 1; display: flex; flex-direction: column; gap: 10px;">
-                                <div style="display: flex; justify-content: space-between; align-items: center;">
-                                    <div style="display: flex; align-items: center; gap: 8px;">
-                                        <span
-                                            style="width: 10px; height: 10px; border-radius: 3px; background: var(--vibrant-orange); box-shadow: 0 2px 4px rgba(249, 115, 22, 0.3);"></span>
-                                        <span style="font-size: 0.9rem; color: #334155; font-weight: 700;">OSDS</span>
+                            <div class="office-legend">
+                                <div class="legend-item">
+                                    <div class="legend-label-box">
+                                        <span class="legend-color-dot bg-vibrant-orange shadow-vibrant-orange"></span>
+                                        <span class="legend-text">OSDS</span>
                                     </div>
-                                    <span
-                                        style="font-weight: 700; color: #1e293b; font-size: 1rem;"><?php echo number_format($osdsCount); ?></span>
+                                    <span class="legend-value"><?php echo number_format($osdsCount); ?></span>
                                 </div>
-                                <div style="display: flex; justify-content: space-between; align-items: center;">
-                                    <div style="display: flex; align-items: center; gap: 8px;">
-                                        <span
-                                            style="width: 8px; height: 8px; border-radius: 50%; background: #eab308;"></span>
-                                        <span style="font-size: 0.9rem; color: #334155; font-weight: 600;">CID</span>
+                                <div class="legend-item">
+                                    <div class="legend-label-box">
+                                        <span class="legend-color-dot bg-warning"></span>
+                                        <span class="legend-text">CID</span>
                                     </div>
-                                    <span
-                                        style="font-weight: 700; color: #1e293b; font-size: 1rem;"><?php echo number_format($cidCount); ?></span>
+                                    <span class="legend-value"><?php echo number_format($cidCount); ?></span>
                                 </div>
-                                <div style="display: flex; justify-content: space-between; align-items: center;">
-                                    <div style="display: flex; align-items: center; gap: 8px;">
-                                        <span
-                                            style="width: 10px; height: 10px; border-radius: 3px; background: var(--vibrant-blue); box-shadow: 0 2px 4px rgba(14, 165, 233, 0.3);"></span>
-                                        <span style="font-size: 0.9rem; color: #334155; font-weight: 700;">SGOD</span>
+                                <div class="legend-item">
+                                    <div class="legend-label-box">
+                                        <span class="legend-color-dot bg-vibrant-blue shadow-vibrant-blue"></span>
+                                        <span class="legend-text">SGOD</span>
                                     </div>
-                                    <span
-                                        style="font-weight: 700; color: #1e293b; font-size: 1rem;"><?php echo number_format($sgodCount); ?></span>
+                                    <span class="legend-value"><?php echo number_format($sgodCount); ?></span>
                                 </div>
                             </div>
                         </div>
@@ -641,21 +345,17 @@ $freqValues = array_values($frequencyData);
                         </div>
 
                         <div class="dashboard-card hover-elevate">
-                            <div class="card-header"
-                                style="padding: 12px 20px; background: linear-gradient(135deg, #0f4c75 0%, #3282b8 100%); border-bottom: none;">
-                                <h2 style="font-size: 0.9rem; color: white;"><i class="bi bi-journal-text"
-                                        style="color: rgba(255,255,255,0.9); margin-right: 8px;"></i> Recent
+                            <div class="card-header card-header-gradient">
+                                <h2 class="card-title-white"><i class="bi bi-journal-text card-title-icon-white"></i> Recent
                                     Activity Logs</h2>
-                                <a href="submissions.php" class="btn btn-sm"
-                                    style="padding: 4px 12px; font-size: 0.75rem; background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.3); border-radius: 6px; font-weight: 600; text-decoration: none;">
+                                <a href="submissions.php" class="btn btn-sm view-all-btn">
                                     View All <i class="bi bi-arrow-right" style="margin-left: 4px;"></i>
                                 </a>
                             </div>
-                            <div class="card-body" style="padding: 0;">
-                                <div class="table-responsive" style="max-height: 350px; overflow-y: auto;">
+                            <div class="card-body p-0">
+                                <div class="table-responsive max-h-350 overflow-y-auto">
                                     <table class="data-table">
-                                        <thead
-                                            style="position: sticky; top: 0; z-index: 20; background: white; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+                                        <thead class="sticky-table-header">
                                             <tr>
                                                 <th>Submission Date</th>
                                                 <th>User / Personnel</th>
@@ -762,145 +462,18 @@ $freqValues = array_values($frequencyData);
         </div>
     </div>
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            // Custom Dropdown Logic
-            const dropdown = document.getElementById('filterDropdown');
-            const trigger = document.getElementById('dropdownTrigger');
-            const menu = document.getElementById('dropdownMenu');
-            const input = document.getElementById('filterInput');
-            const text = document.getElementById('selectedFilterText');
-            const items = document.querySelectorAll('.dropdown-item-custom');
-            const customDateInputs = document.getElementById('customDateInputs');
-            const filterForm = document.getElementById('filterForm');
-
-            trigger.addEventListener('click', (e) => {
-                e.stopPropagation();
-                menu.classList.toggle('show');
-                trigger.classList.toggle('active');
-            });
-
-            items.forEach(item => {
-                item.addEventListener('click', () => {
-                    const value = item.getAttribute('data-value');
-
-                    // Update value and text
-                    input.value = value;
-                    text.textContent = item.textContent.trim();
-
-                    // Update active state
-                    items.forEach(i => i.classList.remove('active'));
-                    item.classList.add('active');
-
-                    // Handle Custom Range
-                    if (value === 'custom') {
-                        customDateInputs.style.display = 'flex';
-                        menu.classList.remove('show');
-                        trigger.classList.remove('active');
-                    } else {
-                        customDateInputs.style.display = 'none';
-                        // Clear date inputs when switching away from custom
-                        const dateFromInput = filterForm.querySelector('input[name="date_from"]');
-                        const dateToInput = filterForm.querySelector('input[name="date_to"]');
-                        if (dateFromInput) dateFromInput.value = '';
-                        if (dateToInput) dateToInput.value = '';
-
-                        // Submit form automatically
-                        filterForm.submit();
-                    }
-                });
-            });
-
-            // Close when clicking outside
-            document.addEventListener('click', (e) => {
-                if (!dropdown.contains(e.target)) {
-                    menu.classList.remove('show');
-                    trigger.classList.remove('active');
-                }
-            });
-
-            // Submission Frequency Chart (Line)
-            const freqCtx = document.getElementById('frequencyChart').getContext('2d');
-            new Chart(freqCtx, {
-                type: 'line',
-                data: {
-                    labels: <?php echo json_encode($freqLabels); ?>,
-                    datasets: [{
-                        label: 'Submissions',
-                        data: <?php echo json_encode($freqValues); ?>,
-                        borderColor: '#3282b8',
-                        background: 'rgba(50, 130, 184, 0.1)',
-                        backgroundColor: (context) => {
-                            const chart = context.chart;
-                            const { ctx, chartArea } = chart;
-                            if (!chartArea) return null;
-                            const gradient = ctx.createLinearGradient(0, chartArea.bottom, 0, chartArea.top);
-                            gradient.addColorStop(0, 'rgba(50, 130, 184, 0)');
-                            gradient.addColorStop(1, 'rgba(50, 130, 184, 0.15)');
-                            return gradient;
-                        },
-                        borderWidth: 3,
-                        fill: true,
-                        tension: 0.4,
-                        pointBackgroundColor: 'white',
-                        pointBorderColor: '#3282b8',
-                        pointBorderWidth: 2,
-                        pointRadius: 4,
-                        pointHoverRadius: 6
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            backgroundColor: 'rgba(15, 23, 42, 0.9)',
-                            padding: 10,
-                            displayColors: false
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: { precision: 0, color: '#64748b' },
-                            grid: { color: 'rgba(0,0,0,0.05)' }
-                        },
-                        x: {
-                            ticks: { color: '#64748b', font: { size: 10 } },
-                            grid: { display: false }
-                        }
-                    }
-                }
-            });
-
-            // Office Distribution Chart (Doughnut)
-            const officeCtx = document.getElementById('officeChart').getContext('2d');
-            new Chart(officeCtx, {
-                type: 'doughnut',
-                data: {
-                    labels: ['OSDS', 'CID', 'SGOD'],
-                    datasets: [{
-                        data: [<?php echo $osdsCount; ?>, <?php echo $cidCount; ?>, <?php echo $sgodCount; ?>],
-                        backgroundColor: ['#f97316', '#eab308', '#0ea5e9'],
-                        borderWidth: 0,
-                        hoverOffset: 10
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    cutout: '70%',
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            backgroundColor: 'rgba(15, 23, 42, 0.9)',
-                            padding: 10,
-                            displayColors: true
-                        }
-                    }
-                }
-            });
-        });
+        // Pass PHP data to JavaScript
+        window.dashboardData = {
+            freqLabels: <?php echo json_encode($freqLabels); ?>,
+            freqValues: <?php echo json_encode($freqValues); ?>,
+            osdsCount: <?php echo $osdsCount; ?>,
+            cidCount: <?php echo $cidCount; ?>,
+            sgodCount: <?php echo $sgodCount; ?>
+        };
+    </script>
+    <script src="../js/admin/dashboard.js?v=<?php echo time(); ?>"></script>
+    <script>
+        // Inline script removed and moved to js/admin/dashboard.js
     </script>
 </body>
 
