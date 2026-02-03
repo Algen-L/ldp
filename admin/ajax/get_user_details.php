@@ -101,6 +101,9 @@ try {
     // 6. Fetch Submissions
     $submissions = $all_user_activities; // Reuse the list to avoid duplicate query
 
+    // 7. Fetch ILDNs
+    $ildns = $ildnRepo->getILDNsByUser($user_id);
+
 
     // Consolidate Data
     $response = [
@@ -114,7 +117,8 @@ try {
         'activity_data' => $activity_data,
         'certificates' => $certificates,
         'submissions' => $submissions,
-        'logs' => $logs
+        'logs' => $logs,
+        'ildns' => $ildns
     ];
 
     // Clear buffer before output

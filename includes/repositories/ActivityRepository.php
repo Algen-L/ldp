@@ -102,9 +102,14 @@ class ActivityRepository
         }
 
         $params[] = $activityId;
-        $params[] = $userId;
 
-        $sql = "UPDATE ld_activities SET " . implode(", ", $fields) . " WHERE id = ? AND user_id = ?";
+        $sql = "UPDATE ld_activities SET " . implode(", ", $fields) . " WHERE id = ?";
+
+        if ($userId !== null) {
+            $sql .= " AND user_id = ?";
+            $params[] = $userId;
+        }
+
         $stmt = $this->db->prepare($sql);
         return $stmt->execute($params);
     }
@@ -120,7 +125,8 @@ class ActivityRepository
         if ($stage === 'supervisor') {
             $sql = "UPDATE ld_activities SET reviewed_by_supervisor = 1, reviewed_at = ? WHERE id = ?";
         } elseif ($stage === 'asds') {
-            $sql = "UPDATE ld_activities SET recommending_asds = 1, recommended_at = ? WHERE id = ?";
+            $sql = "UPDATE ld_activities SET recommending_asds = 1, recommended_at = ?, conducted_by = ?, organizer_signature_path = ? WHERE id = ?";
+            array_splice($params, 1, 0, [$extraData['conducted_by'], $extraData['organizer_signature_path']]);
         } elseif ($stage === 'sds') {
             $sql = "UPDATE ld_activities SET approved_sds = 1, approved_at = ?, approved_by = ?, signature_path = ? WHERE id = ?";
             array_splice($params, 1, 0, [$extraData['approved_by'], $extraData['signature_path']]);
@@ -176,7 +182,9 @@ class ActivityRepository
 
         // Handle temporal shortcuts for dashboard
         if (!empty($filters['filter_type'])) {
-            if ($filters['filter_type'] === 'week') {
+            if ($filters['filter_type'] === 'today') {
+                $sql .= " AND DATE(ld.created_at) = CURDATE()";
+            } elseif ($filters['filter_type'] === 'week') {
                 $sql .= " AND ld.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)";
             } elseif ($filters['filter_type'] === 'month') {
                 $sql .= " AND ld.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)";

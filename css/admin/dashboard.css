@@ -25,6 +25,17 @@
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
+.stat-label {
+    color: #000000 !important;
+    font-weight: 800 !important;
+    opacity: 1 !important;
+}
+
+.stat-value {
+    color: #000000 !important;
+    font-weight: 800 !important;
+}
+
 .dashboard-row-middle {
     display: grid;
     grid-template-columns: 1.8fr 1fr;
@@ -393,13 +404,13 @@
     border-bottom: none;
 }
 
-.card-title-white {
+.card-header .card-title-white {
     font-size: 0.9rem;
-    color: white;
+    color: white !important;
 }
 
-.card-title-icon-white {
-    color: rgba(255, 255, 255, 0.9);
+.card-header .card-title-icon-white {
+    color: rgba(255, 255, 255, 0.9) !important;
     margin-right: 8px;
 }
 

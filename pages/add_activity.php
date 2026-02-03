@@ -12,8 +12,9 @@ $message = '';
 $messageType = '';
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    // Fetch user's rating period for alignment
+    // Fetch user's employee number and rating period for alignment
     $userData = $userRepo->getUserById($_SESSION['user_id']);
+    $employee_number = $userData['employee_number'] ?? 'Not Set';
     $current_rating_period = $userData['rating_period'] ?? 'Not Set';
 
     // Collect data
@@ -25,52 +26,50 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $competency = isset($_POST['competency']) ? (is_array($_POST['competency']) ? implode(', ', $_POST['competency']) : trim($_POST['competency'])) : '';
     $type_ld = isset($_POST['type_ld']) ? implode(', ', $_POST['type_ld']) : '';
     $type_ld_others = isset($_POST['type_ld_others']) ? trim($_POST['type_ld_others']) : '';
-    $conducted_by = trim($_POST['conducted_by']);
     $reflection = trim($_POST['reflection']);
 
-    if (empty($title) || empty($date_attended) || empty($conducted_by) || empty($venue) || empty($competency) || empty($modality) || empty($type_ld) || empty($reflection)) {
+    if (empty($title) || empty($date_attended) || empty($venue) || empty($competency) || empty($modality) || empty($type_ld) || empty($reflection) || empty($_FILES['certificate_image']['name'])) {
         $message = "Please fill in all required fields.";
         $messageType = "error";
     } else {
-        $organizer_signature_path = saveSignature('organizer_signature_file', 'organizer_signature_data', 'org');
         $workplace_image_path = saveUpload('workplace_image', 'work', 'workplace');
+        $application_file_path = saveUpload('application_file', 'app_learning', 'application_files');
+        $certificate_path = saveUpload('certificate_image', 'cert', 'certificates');
 
-        // Server-side validation for mandatory signature
-        if (empty($organizer_signature_path)) {
-            $message = "Organizer signature is required.";
-            $messageType = "error";
+        $activityData = [
+            'user_id' => $_SESSION['user_id'],
+            'title' => $title,
+            'date_attended' => $date_attended,
+            'venue' => $venue,
+            'modality' => $modality,
+            'competency' => $competency,
+            'type_ld' => $type_ld,
+            'type_ld_others' => $type_ld_others,
+            'conducted_by' => '',
+            'organizer_signature_path' => '',
+            'workplace_application' => '',
+            'workplace_image_path' => $workplace_image_path,
+            'certificate_path' => $certificate_path,
+            'reflection' => $reflection,
+            'application_learning' => '',
+            'application_file_path' => $application_file_path,
+            'rating_period' => $current_rating_period
+        ];
+
+        if ($activityRepo->createActivity($activityData)) {
+            // Log activity submission
+            $logRepo->logAction($_SESSION['user_id'], 'Submitted Activity', "Activity Title: $title");
+
+            $message = "Activity submitted successfully!";
+            $messageType = "success";
+            echo "<script>localStorage.removeItem('add_activity_form');</script>";
         } else {
-            $activityData = [
-                'user_id' => $_SESSION['user_id'],
-                'title' => $title,
-                'date_attended' => $date_attended,
-                'venue' => $venue,
-                'modality' => $modality,
-                'competency' => $competency,
-                'type_ld' => $type_ld,
-                'type_ld_others' => $type_ld_others,
-                'conducted_by' => $conducted_by,
-                'organizer_signature_path' => $organizer_signature_path,
-                'workplace_application' => '',
-                'workplace_image_path' => $workplace_image_path,
-                'reflection' => $reflection,
-                'rating_period' => $current_rating_period
-            ];
-
-            if ($activityRepo->createActivity($activityData)) {
-                // Log activity submission
-                $logRepo->logAction($_SESSION['user_id'], 'Submitted Activity', "Activity Title: $title");
-
-                $message = "Activity submitted successfully!";
-                $messageType = "success";
-                echo "<script>localStorage.removeItem('add_activity_form');</script>";
-            } else {
-                $message = "Error submitting activity.";
-                $messageType = "error";
-            }
+            $message = "Error submitting activity.";
+            $messageType = "error";
         }
     }
 }
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -102,11 +101,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 <div class="top-bar-right">
                     <div class="current-date-box">
                         <div class="time-section">
-                            <span id="real-time-clock"><?php echo date('h:i:s A'); ?></span>
+                            <span id="real-time-clock">
+                                <?php echo date('h:i:s A'); ?>
+                            </span>
                         </div>
                         <div class="date-section">
                             <i class="bi bi-calendar3"></i>
-                            <span><?php echo date('F j, Y'); ?></span>
+                            <span>
+                                <?php echo date('F j, Y'); ?>
+                            </span>
                         </div>
                     </div>
                 </div>
@@ -178,64 +181,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                                         </select>
                                     </div>
                                     <div class="form-group">
-                                        <label class="form-label">Conducted By <span
-                                                style="color: var(--danger);">*</span></label>
-                                        <input type="text" name="conducted_by" id="conducted_by" class="form-control"
-                                            required placeholder="Organization or Agency">
-
-                                        <!-- Nested Signature Box (Activates on input) -->
-                                        <div id="organizer-signature-section" style="display: none; margin-top: 20px;">
-                                            <div class="signature-box" id="org-sig-box" style="cursor: default;">
-                                                <!-- Direct Canvas Drawing -->
-                                                <div id="org-sig-canvas-container"
-                                                    style="width: 100%; height: 100%; position: relative;">
-                                                    <canvas id="org-sig-canvas"
-                                                        style="width: 100%; height: 100%; cursor: crosshair; touch-action: none;"></canvas>
-
-                                                    <div id="org-sig-hint"
-                                                        style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #94a3b8; pointer-events: none; text-align: center;">
-                                                        <i class="bi bi-pencil-square"
-                                                            style="font-size: 1.5rem; opacity: 0.5;"></i>
-                                                        <p
-                                                            style="font-size: 0.75rem; font-weight: 700; margin-top: 8px; text-transform: uppercase;">
-                                                            Draw Signature Here</p>
-                                                    </div>
-                                                </div>
-
-                                                <div id="org-sig-preview-container"
-                                                    style="display:none; width: 100%; height: 100%; padding: 15px; background: white; position: absolute; top: 0; left: 0;">
-                                                    <img id="org-sig-preview"
-                                                        style="max-height: 100%; max-width: 100%; object-fit: contain;">
-                                                </div>
-
-                                                <div class="sig-actions">
-                                                    <button type="button" class="btn-sig"
-                                                        onclick="triggerSignatureUpload()"
-                                                        title="Upload Signature Image">
-                                                        <i class="bi bi-upload"></i> Upload
-                                                    </button>
-                                                    <button type="button" class="btn-sig" onclick="clearOrgSignature()"
-                                                        title="Clear and Redraw">
-                                                        <i class="bi bi-eraser"></i> Clear
-                                                    </button>
-                                                </div>
-
-                                                <input type="hidden" name="organizer_signature_data"
-                                                    id="organizer_signature_data">
-                                                <input type="file" name="organizer_signature_file" id="org-sig-file"
-                                                    hidden accept="image/*">
-                                            </div>
-
-                                            <div
-                                                style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 10px;">
-                                                <div style="height: 1px; background: #e2e8f0; flex: 1;"></div>
-                                                <p
-                                                    style="font-size: 0.72rem; color: #94a3b8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">
-                                                    <i class="bi bi-shield-check"></i> Digital Attestation
-                                                </p>
-                                                <div style="height: 1px; background: #e2e8f0; flex: 1;"></div>
-                                            </div>
-                                        </div>
+                                        <!-- Removed Conducted By / Organizer Signature -->
                                     </div>
                                 </div>
                             </div>
@@ -563,27 +509,85 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                                     <label class="premium-label">Evidence / Attachments <span
                                             style="color: var(--danger);">*</span></label>
                                     <div class="file-drop-zone" id="drop-zone"
-                                        onclick="document.getElementById('workplace_image').click()">
-                                        <i class="bi bi-cloud-arrow-up"></i>
-                                        <p>Click to upload files (Images or Document)</p>
-                                        <span class="upload-hint">Drag and drop your files here or click to
-                                            browse</span>
+                                        onclick="document.getElementById('workplace_image').click()"
+                                        style="padding: 20px; min-height: auto;">
+                                        <i class="bi bi-cloud-arrow-up" style="font-size: 2rem;"></i>
+                                        <p style="font-size: 0.9rem;">Click to upload files (Images or Document)</p>
+                                        <span class="upload-hint" style="font-size: 0.75rem;">Drag and drop your files
+                                            here or click to browse</span>
                                         <input type="file" name="workplace_image[]" id="workplace_image" multiple
                                             hidden>
                                         <div id="file-list"
-                                            style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 15px;">
+                                            style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 10px;">
                                         </div>
                                     </div>
                                 </div>
+                            </div>
 
-                                <div class="form-group" style="margin-top: 24px;">
+                            <!-- Section 4: Application of Learning -->
+                            <div class="form-section">
+                                <div class="form-section-header">
+                                    <i class="bi bi-lightbulb"></i>
+                                    <h3>Application of Learning</h3>
+                                </div>
+
+                                <div class="form-group">
+                                    <label class="premium-label">Supporting Document (Optional)</label>
+                                    <div class="file-drop-zone" id="app-drop-zone"
+                                        onclick="document.getElementById('application_file').click()"
+                                        style="padding: 20px; min-height: auto;">
+                                        <i class="bi bi-cloud-arrow-up" style="font-size: 2rem;"></i>
+                                        <p style="font-size: 0.9rem;">Click to upload files (Images or Document)</p>
+                                        <span class="upload-hint" style="font-size: 0.75rem;">Drag and drop your files
+                                            here or click to browse</span>
+                                        <input type="file" name="application_file" id="application_file"
+                                            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" hidden>
+                                        <div id="app-file-list"
+                                            style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 10px;">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Section 5: Certificate of Participation -->
+                            <div class="form-section">
+                                <div class="form-section-header">
+                                    <i class="bi bi-award"></i>
+                                    <h3>Certificate of Participation</h3>
+                                </div>
+
+                                <div class="form-group">
+                                    <label class="premium-label">Upload Certificate <span
+                                            style="color: var(--danger);">*</span></label>
+                                    <div class="file-drop-zone" id="cert-drop-zone"
+                                        onclick="document.getElementById('certificate_image').click()"
+                                        style="padding: 20px; min-height: auto;">
+                                        <i class="bi bi-cloud-arrow-up" style="font-size: 2rem;"></i>
+                                        <p style="font-size: 0.9rem;">Click to upload certificate (Images or PDF)</p>
+                                        <span class="upload-hint" style="font-size: 0.75rem;">Drag and drop file here or
+                                            click to browse</span>
+                                        <input type="file" name="certificate_image" id="certificate_image"
+                                            accept=".pdf,.jpg,.jpeg,.png,.webp" hidden required>
+                                        <div id="cert-file-list"
+                                            style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 10px;">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Section 6: Personal Reflection (Moved to Bottom) -->
+                            <div class="form-section">
+                                <div class="form-section-header">
+                                    <i class="bi bi-journal-text"></i>
+                                    <h3>Personal Reflection</h3>
+                                </div>
+                                <div class="form-group">
                                     <label class="form-label">Reflection <span
                                             style="color: var(--danger);">*</span></label>
                                     <textarea name="reflection" class="form-control" required style="min-height: 120px;"
                                         placeholder="Share your key takeaways and how this will improve your performance..."></textarea>
                                 </div>
                             </div>
-
 
                             <!-- Privacy Notice -->
                             <div class="privacy-notice-box">
@@ -618,8 +622,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             </main>
 
             <footer class="user-footer">
-                <p>&copy; <?php echo date('Y'); ?> SDO L&D Passbook System. <span class="text-muted">Developed by Algen
-                        D. Loveres and Cedrick V. Bacaresas</span></p>
+                <p>&copy;
+                    <?php echo date('Y'); ?> SDO L&D Passbook System. <span class="text-muted">Developed by Algen
+                        D. Loveres and Cedrick V. Bacaresas</span>
+                </p>
             </footer>
         </div>
     </div>
@@ -630,7 +636,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <!-- Flatpickr JS -->
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="../js/form-autosave.js"></script>
-    <script src="../js/active-forms.js"></script>
+    <script src="../js/active-forms.js?v=<?php echo time(); ?>"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const datePicker = flatpickr("#date_picker", {
@@ -678,8 +684,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             }
         });
 
-        <?php if ($message): ?>
-            showToast("<?php echo ($messageType === 'success') ? 'Success' : 'Notice'; ?>", "<?php echo $message; ?>", "<?php echo $messageType; ?>");
+        <?php if ($message): ?>         showToast("<?php echo ($messageType === 'success') ? 'Success' : 'Notice'; ?>", "<?php echo $message; ?>", "<?php echo $messageType; ?>");
         <?php endif; ?>
     </script>
-</body></html>
+</body>
+
+</html>

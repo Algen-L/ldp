@@ -37,6 +37,19 @@ while ($row = $stmt_stats->fetch(PDO::FETCH_ASSOC)) {
     $stats[$row['user_id']] = $row;
 }
 
+// 3. Fetch ILDN Statistics
+$sql_ildn = "SELECT 
+                i.user_id,
+                COUNT(*) as total_ildns,
+                SUM(CASE WHEN (SELECT COUNT(*) FROM ld_activities l WHERE l.user_id = i.user_id AND FIND_IN_SET(i.need_text, l.competency)) = 0 THEN 1 ELSE 0 END) as unaddressed_ildns
+              FROM user_ildn i
+              GROUP BY i.user_id";
+$stmt_ildn = $pdo->query($sql_ildn);
+$ildn_stats = [];
+while ($row = $stmt_ildn->fetch(PDO::FETCH_ASSOC)) {
+    $ildn_stats[$row['user_id']] = $row;
+}
+
 require '../includes/functions/user-functions.php';
 ?>
 <!DOCTYPE html>
@@ -577,6 +590,76 @@ require '../includes/functions/user-functions.php';
             border: 1px solid #bbf7d0;
         }
 
+        /* ILDN Modal Styles */
+        .ildn-list-modal {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+            margin-bottom: 24px;
+            max-height: 240px;
+            overflow-y: auto;
+            padding-right: 8px;
+        }
+
+        .ildn-card-mini {
+            background: white;
+            padding: 14px;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: all 0.2s;
+        }
+
+        .ildn-icon-mini {
+            width: 36px;
+            height: 36px;
+            background: #fff7ed;
+            color: #f59e0b;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            flex-shrink: 0;
+        }
+
+        .ildn-info-mini {
+            flex: 1;
+        }
+
+        .ildn-info-mini h4 {
+            font-size: 0.85rem;
+            font-weight: 700;
+            margin: 0;
+            color: #1e293b;
+        }
+
+        .ildn-info-mini p {
+            font-size: 0.7rem;
+            color: #64748b;
+            margin: 2px 0 0;
+        }
+
+        .ildn-status-badge {
+            font-size: 0.6rem;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 6px;
+            text-transform: uppercase;
+        }
+
+        .ildn-badge-unaddressed {
+            background: #fef3c7;
+            color: #d97706;
+        }
+
+        .ildn-badge-addressed {
+            background: #dcfce7;
+            color: #15803d;
+        }
+
         .log-timeline {
             display: flex;
             flex-direction: column;
@@ -920,6 +1003,41 @@ require '../includes/functions/user-functions.php';
                                 </div>
                             </div>
 
+                            <?php
+                            // Get ILDN stats for this user
+                            $user_ildn = isset($ildn_stats[$u['id']]) ? $ildn_stats[$u['id']] : ['total_ildns' => 0, 'unaddressed_ildns' => 0];
+                            ?>
+
+                            <?php if ($user_ildn['total_ildns'] > 0): ?>
+                                <div
+                                    style="margin-top: 8px; padding: 8px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+                                    <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+                                        <i class="bi bi-lightbulb" style="font-size: 0.75rem; color: #F57C00;"></i>
+                                        <span
+                                            style="font-size: 0.65rem; font-weight: 700; text-transform: uppercase; color: #94a3b8; letter-spacing: 0.5px;">Learning
+                                            Needs</span>
+                                    </div>
+                                    <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                                        <span
+                                            style="font-size: 0.7rem; padding: 3px 8px; background: #dbeafe; color: #1e40af; border-radius: 6px; font-weight: 600;">
+                                            <?php echo $user_ildn['total_ildns']; ?> Total
+                                        </span>
+                                        <?php if ($user_ildn['unaddressed_ildns'] > 0): ?>
+                                            <span
+                                                style="font-size: 0.7rem; padding: 3px 8px; background: #fef3c7; color: #d97706; border-radius: 6px; font-weight: 600;">
+                                                <i class="bi bi-exclamation-circle" style="font-size: 0.65rem;"></i>
+                                                <?php echo $user_ildn['unaddressed_ildns']; ?> Unaddressed
+                                            </span>
+                                        <?php else: ?>
+                                            <span
+                                                style="font-size: 0.7rem; padding: 3px 8px; background: #dcfce7; color: #15803d; border-radius: 6px; font-weight: 600;">
+                                                <i class="bi bi-check-circle" style="font-size: 0.65rem;"></i> All Addressed
+                                            </span>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                            <?php endif; ?>
+
                             <div class="meta-info">
                                 <span title="Primary Office"><i class="bi bi-building me-1"></i>
                                     <?php echo htmlspecialchars($u['office_station']); ?></span>
@@ -1020,6 +1138,13 @@ require '../includes/functions/user-functions.php';
                 </div>
 
                 <div class="detail-section-title">
+                    <span><i class="bi bi-lightbulb"></i> Individual Learning Needs</span>
+                </div>
+                <div id="modalIldnList" class="ildn-list-modal">
+                    <!-- ILDNs injected by JS -->
+                </div>
+
+                <div class="detail-section-title">
                     <span><i class="bi bi-clock-history"></i> Recent Engagement Logs</span>
                 </div>
                 <div id="modalLogTimeline" class="log-timeline">
@@ -1044,6 +1169,7 @@ require '../includes/functions/user-functions.php';
             document.getElementById('modalPosition').textContent = 'Please wait...';
             document.getElementById('modalCertList').innerHTML = '';
             document.getElementById('modalActivityList').innerHTML = '';
+            document.getElementById('modalIldnList').innerHTML = '';
             document.getElementById('modalLogTimeline').innerHTML = '';
 
             // Reset Chart UI
@@ -1176,6 +1302,37 @@ require '../includes/functions/user-functions.php';
                             });
                         } else {
                             submissionList.innerHTML = '<div class="no-data-msg" style="grid-column: 1/-1;">No submissions found.</div>';
+                        }
+
+                        // Populate ILDNs
+                        const ildnList = document.getElementById('modalIldnList');
+                        if (data.ildns && data.ildns.length > 0) {
+                            data.ildns.forEach(i => {
+                                const isAddressed = parseInt(i.usage_count) > 0;
+                                const statusClass = isAddressed ? 'ildn-badge-addressed' : 'ildn-badge-unaddressed';
+                                const statusText = isAddressed ? 'Addressed' : 'Unaddressed';
+                                const iconClass = isAddressed ? 'bi-check-circle-fill' : 'bi-exclamation-circle-fill';
+
+                                ildnList.innerHTML += `
+                                    <div class="ildn-card-mini">
+                                        <div class="ildn-icon-mini"><i class="bi bi-lightbulb"></i></div>
+                                        <div class="ildn-info-mini">
+                                            <h4>${i.need_text}</h4>
+                                            ${i.description ? `<p>${i.description}</p>` : ''}
+                                            <div style="margin-top: 6px;">
+                                                <span class="ildn-status-badge ${statusClass}">
+                                                    <i class="bi ${iconClass}"></i> ${statusText}
+                                                </span>
+                                                <span style="font-size: 0.6rem; color: #94a3b8; margin-left: 8px;">
+                                                    Used in ${i.usage_count} activities
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `;
+                            });
+                        } else {
+                            ildnList.innerHTML = '<div class="no-data-msg">No learning needs listed yet.</div>';
                         }
 
                         // Populate Logs

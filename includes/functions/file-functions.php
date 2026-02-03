@@ -23,6 +23,13 @@ if (!function_exists('saveUpload')) {
 
         for ($i = 0; $i < $count; $i++) {
             $error = $isMultiple ? $files['error'][$i] : $files['error'];
+            $size = $isMultiple ? $files['size'][$i] : $files['size'];
+
+            // 100MB Limit (100 * 1024 * 1024)
+            if ($size > 104857600) {
+                continue; // Skip files that are too large
+            }
+
             if ($error === UPLOAD_ERR_OK) {
                 $tmpName = $isMultiple ? $files['tmp_name'][$i] : $files['tmp_name'];
                 $originalName = $isMultiple ? $files['name'][$i] : $files['name'];
@@ -71,11 +78,19 @@ if (!function_exists('saveSignature')) {
 }
 
 /**
- * Admin Signature Handler
+ * Admin Signature Handler (Supports both file upload and base64 signature pad)
  */
 if (!function_exists('saveAdminSignature')) {
-    function saveAdminSignature($postDataKey, $prefix)
+    function saveAdminSignature($postDataKey, $prefix, $fileKey = null)
     {
+        // 1. Check for file upload first if fileKey is provided
+        if ($fileKey !== null && isset($_FILES[$fileKey]) && $_FILES[$fileKey]['error'] === UPLOAD_ERR_OK) {
+            $path = saveUpload($fileKey, $prefix, 'signatures');
+            if ($path)
+                return $path;
+        }
+
+        // 2. Fallback to base64 data (signature pad)
         if (!empty($_POST[$postDataKey])) {
             $data = $_POST[$postDataKey];
             $data = str_replace('data:image/png;base64,', '', $data);

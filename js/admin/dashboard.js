@@ -74,7 +74,7 @@ document.addEventListener('DOMContentLoaded', function () {
         data: {
             labels: dashboardData.freqLabels,
             datasets: [{
-                label: 'Submissions',
+                label: dashboardData.isHR ? 'New Registrations' : 'Submissions',
                 data: dashboardData.freqValues,
                 borderColor: '#3282b8',
                 background: 'rgba(50, 130, 184, 0.1)',
@@ -183,6 +183,14 @@ document.addEventListener('DOMContentLoaded', function () {
                     ];
                     officeChart.update();
                 }
+
+                // Update Legend Values
+                const lOSDS = document.getElementById('legendOSDS');
+                const lCID = document.getElementById('legendCID');
+                const lSGOD = document.getElementById('legendSGOD');
+                if (lOSDS) lOSDS.textContent = (data.charts.office.osds || 0).toLocaleString();
+                if (lCID) lCID.textContent = (data.charts.office.cid || 0).toLocaleString();
+                if (lSGOD) lSGOD.textContent = (data.charts.office.sgod || 0).toLocaleString();
             })
             .catch(error => console.error('Fetch error:', error));
     };

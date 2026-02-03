@@ -13,35 +13,6 @@ $message = '';
 $messageType = '';
 $is_super_admin = ($_SESSION['role'] === 'super_admin');
 
-// Handle Certificate Upload
-if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['upload_certificate'])) {
-    $activity_id = (int) $_POST['activity_id'];
-
-    if (isset($_FILES['certificate']) && $_FILES['certificate']['error'] === UPLOAD_ERR_OK) {
-        $uploadDir = '../uploads/certificates/';
-        if (!is_dir($uploadDir))
-            mkdir($uploadDir, 0777, true);
-
-        $fileExtension = strtolower(pathinfo($_FILES['certificate']['name'], PATHINFO_EXTENSION));
-        $allowedExtensions = ['pdf', 'jpg', 'jpeg', 'png'];
-
-        if (in_array($fileExtension, $allowedExtensions)) {
-            $fileName = uniqid() . '_cert_' . $activity_id . '.' . $fileExtension;
-            $targetPath = $uploadDir . $fileName;
-
-            if (move_uploaded_file($_FILES['certificate']['tmp_name'], $targetPath)) {
-                $dbPath = 'uploads/certificates/' . $fileName;
-                if ($activityRepo->updateActivity($activity_id, $user_id, ['certificate_path' => $dbPath])) {
-                    $message = "Certificate uploaded successfully!";
-                    $messageType = "success";
-                }
-            }
-        } else {
-            $message = "Invalid file type. Only PDF, JPG, and PNG are allowed.";
-            $messageType = "error";
-        }
-    }
-}
 
 // Handle form submission (Super Admin / Head HR / Admin)
 if ($_SERVER["REQUEST_METHOD"] == "POST" && (isset($_POST['update_profile_admin']) || isset($_POST['update_profile_user']))) {
@@ -97,47 +68,35 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && (isset($_POST['update_profile_admin'
     }
 }
 
+// Handle sending notification
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['send_notification'])) {
+    $recipient_id = (int) $_POST['recipient_id'];
+    $notif_message = trim($_POST['notif_message']);
+
+    if ($recipient_id > 0 && !empty($notif_message)) {
+        if ($notifRepo->sendNotification($user_id, $recipient_id, $notif_message)) {
+            $_SESSION['toast'] = [
+                'title' => 'Message Sent',
+                'message' => 'Your notification has been successfully delivered.',
+                'type' => 'success'
+            ];
+            $logRepo->logAction($user_id, 'Sent Notification', "Recipient ID: $recipient_id");
+        } else {
+            $_SESSION['toast'] = ['title' => 'Error', 'message' => 'Failed to send notification.', 'type' => 'error'];
+        }
+    } else {
+        $_SESSION['toast'] = ['title' => 'Incomplete', 'message' => 'Please select a recipient and enter a message.', 'type' => 'warning'];
+    }
+    header("Location: profile.php");
+    exit;
+}
+
+// Fetch all users for the notification dropdown
+$all_users = $userRepo->getAllUsers();
+
 // Fetch current user data
 $user = $userRepo->getUserById($user_id);
 
-// Fetch activities for certificate hub
-$activities = [];
-if (!$is_super_admin) {
-    $activities = $activityRepo->getActivitiesByUser($user_id);
-}
-
-// Handle ILDN Management
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    if (isset($_POST['add_ildn'])) {
-        $need_text = trim($_POST['need_text']);
-        $description = trim($_POST['description'] ?? '');
-        if (!empty($need_text)) {
-            $ildnRepo->createILDN($user_id, $need_text, $description);
-            $message = "Development need added successfully!";
-            $messageType = "success";
-        }
-    } elseif (isset($_POST['delete_ildn'])) {
-        $ildn_id = (int) $_POST['ildn_id'];
-        $ildnRepo->deleteILDN($ildn_id, $user_id);
-        $message = "Development need removed.";
-        $messageType = "success";
-    } elseif (isset($_POST['edit_ildn'])) {
-        $ildn_id = (int) $_POST['ildn_id'];
-        $need_text = trim($_POST['need_text']);
-        $description = trim($_POST['description'] ?? '');
-        if (!empty($need_text)) {
-            $ildnRepo->updateILDN($ildn_id, $user_id, [
-                'need_text' => $need_text,
-                'description' => $description
-            ]);
-            $message = "Development need updated successfully!";
-            $messageType = "success";
-        }
-    }
-}
-
-// Fetch user's ILDNs with usage count
-$user_ildns = $ildnRepo->getILDNsByUser($user_id);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -149,122 +108,9 @@ $user_ildns = $ildnRepo->getILDNsByUser($user_id);
     <?php require '../includes/admin_head.php'; ?>
     <!-- Tom Select CSS -->
     <link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.css" rel="stylesheet">
+    <link rel="stylesheet" href="../css/pages/profile.css?v=<?php echo time(); ?>">
     <style>
         /* Redesign Styles for Admin/Immediate Head */
-        :root {
-            --card-border: #f1f5f9;
-            --hub-bg: #f8fafc;
-        }
-
-        .profile-container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-
-        .profile-hero {
-            background: var(--primary-gradient);
-            padding: 24px 30px;
-            border-radius: 16px;
-            display: flex;
-            gap: 24px;
-            align-items: center;
-            margin-bottom: 24px;
-            color: white;
-            box-shadow: 0 4px 12px -2px rgba(15, 76, 117, 0.2);
-            position: relative;
-            overflow: hidden;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .profile-hero::before {
-            content: '';
-            position: absolute;
-            top: -40px;
-            right: -40px;
-            width: 180px;
-            height: 180px;
-            background: rgba(255, 255, 255, 0.08);
-            border-radius: 40px;
-            transform: rotate(15deg);
-        }
-
-        .hero-avatar {
-            width: 90px;
-            height: 90px;
-            border-radius: 14px;
-            border: 3px solid rgba(255, 255, 255, 0.2);
-            object-fit: cover;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
-            flex-shrink: 0;
-            background: rgba(255, 255, 255, 0.1);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 2.2rem;
-            font-weight: 800;
-        }
-
-        .hero-info h2 {
-            font-size: 1.6rem;
-            font-weight: 800;
-            margin: 0 0 2px 0;
-            letter-spacing: -0.5px;
-            color: white !important;
-        }
-
-        .hero-info p {
-            opacity: 0.85;
-            font-weight: 600;
-            margin: 0;
-            font-size: 0.95rem;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            color: white !important;
-        }
-
-        .stats-grid {
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-        }
-
-        .profile-main-grid {
-            display: grid;
-            grid-template-columns: 1fr 340px;
-            gap: 24px;
-            align-items: stretch;
-            margin-bottom: 40px;
-        }
-
-        .ildn-column,
-        .stats-column {
-            display: flex;
-            flex-direction: column;
-        }
-
-        .ildn-column .dashboard-card,
-        .stats-column .stats-grid {
-            flex-grow: 1;
-        }
-
-        .ildn-list-scroll {
-            max-height: 320px;
-            overflow-y: auto;
-            padding-right: 10px;
-            margin-right: -10px;
-        }
-
-        .ildn-list-scroll::-webkit-scrollbar,
-        .submissions-list-scroll::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        .ildn-list-scroll::-webkit-scrollbar-track,
-        .submissions-list-scroll::-webkit-scrollbar-track {
-            background: #f1f5f9;
-            border-radius: 10px;
-        }
 
         .ildn-list-scroll::-webkit-scrollbar-thumb,
         .submissions-list-scroll::-webkit-scrollbar-thumb {
@@ -654,6 +500,98 @@ $user_ildns = $ildnRepo->getILDNsByUser($user_id);
             color: var(--text-primary) !important;
             height: 48px !important;
         }
+
+        /* Certificate Filter Styles */
+        .cert-filter-bar {
+            display: flex;
+            gap: 12px;
+        }
+
+        .cert-search-wrapper {
+            position: relative;
+            width: 240px;
+        }
+
+        .cert-search-wrapper i {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #94a3b8;
+            font-size: 0.9rem;
+        }
+
+        .cert-filter-input {
+            width: 100%;
+            padding: 8px 12px 8px 36px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            color: #334155;
+            background: #f8fafc;
+            transition: all 0.2s;
+            outline: none;
+            height: 38px;
+        }
+
+        .cert-filter-input:focus {
+            border-color: var(--primary);
+            background: white;
+            box-shadow: 0 0 0 3px rgba(15, 76, 117, 0.1);
+        }
+
+        .cert-select-wrapper {
+            position: relative;
+            width: 160px;
+        }
+
+        .cert-select-wrapper i {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #64748b;
+            font-size: 0.75rem;
+            pointer-events: none;
+        }
+
+        .cert-filter-select {
+            width: 100%;
+            padding: 8px 32px 8px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            color: #334155;
+            background: #f8fafc;
+            transition: all 0.2s;
+            outline: none;
+            height: 38px;
+            appearance: none;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .cert-filter-select:focus {
+            border-color: var(--primary);
+            background: white;
+        }
+
+        @media (max-width: 600px) {
+            .section-header {
+                flex-direction: column;
+                align-items: flex-start !important;
+            }
+
+            .cert-filter-bar {
+                width: 100%;
+                flex-direction: column;
+            }
+
+            .cert-search-wrapper,
+            .cert-select-wrapper {
+                width: 100%;
+            }
+        }
     </style>
 </head>
 
@@ -828,30 +766,94 @@ $user_ildns = $ildnRepo->getILDNsByUser($user_id);
                                 </div>
                             </div>
                         </div>
+
+                        <!-- System Notification Card (Super Admin) -->
+                        <div class="dashboard-card" style="margin-top: 24px; border-left: 4px solid #f59e0b;">
+                            <div class="card-header">
+                                <h2><i class="bi bi-megaphone text-warning"></i> Send System Notification</h2>
+                            </div>
+                            <div class="card-body" style="padding: 24px;">
+                                <form method="POST" action="">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Recipient <span class="text-danger">*</span></label>
+                                        <div style="position: relative;">
+                                            <i class="bi bi-people"
+                                                style="position: absolute; left: 14px; top: 18px; transform: translateY(-50%); color: var(--text-muted); z-index: 10;"></i>
+                                            <select name="recipient_id" id="recipient_select_super" class="form-control"
+                                                required style="padding-left: 42px;">
+                                                <option value="">Search for a user...</option>
+                                                <?php foreach ($all_users as $u): ?>
+                                                    <?php if ($u['id'] != $user_id): ?>
+                                                        <option value="<?php echo $u['id']; ?>">
+                                                            <?php echo htmlspecialchars($u['full_name']); ?>
+                                                            (<?php echo htmlspecialchars($u['office_station']); ?>)
+                                                        </option>
+                                                    <?php endif; ?>
+                                                <?php endforeach; ?>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="form-group mb-4">
+                                        <label class="form-label">Message <span class="text-danger">*</span></label>
+                                        <textarea name="notif_message" class="form-control" rows="3"
+                                            placeholder="Type your notification message here..." required
+                                            style="min-height: 100px; padding: 15px; border-radius: 12px;"></textarea>
+                                    </div>
+                                    <div style="text-align: right;">
+                                        <button type="submit" name="send_notification" class="btn btn-primary"
+                                            style="background: #f59e0b; border-color: #f59e0b; border-radius: 10px; font-weight: 700; height: 48px; padding: 0 25px;">
+                                            <i class="bi bi-send"></i> Send Notification
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
                     </div>
                 <?php else: ?>
                     <!-- Redesign for Admin/Immediate Head -->
                     <div class="profile-container">
 
+
                         <!-- Hero Section -->
                         <div class="profile-hero">
-                            <?php if (!empty($user['profile_picture'])): ?>
-                                <img src="../<?php echo htmlspecialchars($user['profile_picture']); ?>" class="hero-avatar">
-                            <?php else: ?>
-                                <div class="hero-avatar">
-                                    <?php echo strtoupper(substr($user['full_name'], 0, 1)); ?>
+                            <div class="hero-main">
+                                <?php if (!empty($user['profile_picture'])): ?>
+                                    <img src="../<?php echo htmlspecialchars($user['profile_picture']); ?>" class="hero-avatar">
+                                <?php else: ?>
+                                    <div class="hero-avatar">
+                                        <?php echo strtoupper(substr($user['full_name'], 0, 1)); ?>
+                                    </div>
+                                <?php endif; ?>
+                                <div class="hero-info">
+                                    <h2><?php echo htmlspecialchars($user['full_name']); ?></h2>
+                                    <p>
+                                        <i class="bi bi-person-badge"></i>
+                                        <?php echo htmlspecialchars($user['position'] ?: 'Administrative Professional'); ?>
+                                        <span
+                                            style="opacity: 0.5; margin: 0 4px; color: rgba(255,255,255,0.5) !important;">•</span>
+                                        <i class="bi bi-building"></i>
+                                        <?php echo htmlspecialchars($user['office_station']); ?>
+                                    </p>
+                                </div>
+                            </div>
+
+                            <?php if (empty($user['rating_period'])): ?>
+                                <div class="rating-period-alert" id="ratingPeriodAlert">
+                                    <div class="alert-content">
+                                        <div class="alert-icon-box">
+                                            <i class="bi bi-exclamation-triangle-fill"></i>
+                                        </div>
+                                        <div class="alert-text">
+                                            <strong>Rating Period Missing</strong>
+                                            <p>Please set your current Rating Period.</p>
+                                        </div>
+                                    </div>
+                                    <button type="button" class="alert-action-btn"
+                                        onclick="document.getElementById('toggleSettings').click(); document.getElementById('accountSettings').scrollIntoView({behavior: 'smooth'});">
+                                        FIX NOW
+                                    </button>
                                 </div>
                             <?php endif; ?>
-                            <div class="hero-info">
-                                <h2><?php echo htmlspecialchars($user['full_name']); ?></h2>
-                                <p>
-                                    <i class="bi bi-person-badge"></i>
-                                    <?php echo htmlspecialchars($user['position'] ?: 'Administrative Professional'); ?>
-                                    <span style="opacity: 0.5; margin: 0 4px;">•</span>
-                                    <i class="bi bi-building"></i>
-                                    <?php echo htmlspecialchars($user['office_station']); ?>
-                                </p>
-                            </div>
                         </div>
 
                         <!-- Account Information (Hidden by default) -->
@@ -933,6 +935,11 @@ $user_ildns = $ildnRepo->getILDNsByUser($user_id);
                                             </div>
                                             <div>
                                                 <div class="form-group">
+                                                    <label class="form-label">Employee Number</label>
+                                                    <input type="text" name="employee_number" class="form-control"
+                                                        value="<?php echo htmlspecialchars($user['employee_number'] ?: ''); ?>">
+                                                </div>
+                                                <div class="form-group">
                                                     <label class="form-label">Rating Period</label>
                                                     <input type="text" name="rating_period" class="form-control"
                                                         value="<?php echo htmlspecialchars($user['rating_period'] ?: ''); ?>">
@@ -972,216 +979,48 @@ $user_ildns = $ildnRepo->getILDNsByUser($user_id);
                             </div>
                         </div>
 
-                        <?php
-                        $total_activities = count($activities);
-                        $with_certs = 0;
-                        foreach ($activities as $act)
-                            if ($act['certificate_path'])
-                                $with_certs++;
-
-                        $unaddressed_ildns_count = 0;
-                        foreach ($user_ildns as $ildn)
-                            if ($ildn['usage_count'] == 0)
-                                $unaddressed_ildns_count++;
-                        ?>
-
-                        <div class="profile-main-grid">
-                            <div class="ildn-column">
-                                <div class="section-header">
-                                    <h2 class="section-title"><i class="bi bi-lightbulb" style="color: #F57C00;"></i>
-                                        Individual Learning Needs</h2>
-                                </div>
-                                <div class="dashboard-card" style="margin-bottom: 0;">
-                                    <div class="card-body" style="padding: 25px;">
-                                        <form method="POST" class="form-group"
-                                            style="display: flex; flex-direction: column; gap: 16px; margin-bottom: 24px;">
-                                            <div style="display: flex; flex-direction: column; gap: 8px;">
-                                                <input type="text" name="need_text" class="form-control"
-                                                    placeholder="Enter a learning need..." required
-                                                    style="height: 50px; border-radius: 12px; background: #f8fafc; border: 1.5px solid #eef2f6;">
-                                                <textarea name="description" class="form-control"
-                                                    placeholder="What is this all about? (Optional)"
-                                                    style="height: 100px; border-radius: 12px; background: #f8fafc; border: 1.5px solid #eef2f6; resize: none; padding-top: 12px;"></textarea>
-                                            </div>
-                                            <button type="submit" name="add_ildn" class="btn btn-primary"
-                                                style="width: 100%; height: 48px; border-radius: 12px; font-weight: 700; font-size: 1rem; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 12px rgba(15, 76, 117, 0.15);">
-                                                <i class="bi bi-plus-lg"></i> Add
-                                            </button>
-                                        </form>
-
-                                        <?php if (empty($user_ildns)): ?>
-                                            <div
-                                                style="text-align: center; padding: 20px; color: #64748b; background: #f8fafc; border-radius: 12px; border: 1px dashed #cbd5e1;">
-                                                <i class="bi bi-info-circle"
-                                                    style="font-size: 1.2rem; display: block; margin-bottom: 8px; color: #cbd5e1;"></i>
-                                                You haven't set any development needs yet.
-                                            </div>
-                                        <?php else: ?>
-                                            <div class="ildn-list-scroll">
-                                                <div style="display: grid; grid-template-columns: 1fr; gap: 12px;">
-                                                    <?php foreach ($user_ildns as $ildn):
-                                                        $is_addressed = $ildn['usage_count'] > 0;
-                                                        $card_style = $is_addressed
-                                                            ? "background: #f0fdf4; border: 1px solid #bbf7d0; box-shadow: 0 4px 12px rgba(22, 163, 74, 0.08);"
-                                                            : "background: white; border: 1px solid #eef2f6; box-shadow: 0 1px 3px rgba(0,0,0,0.05);";
-                                                        ?>
-                                                        <div style="<?php echo $card_style; ?> border-radius: 12px; padding: 16px; display: flex; justify-content: space-between; align-items: center; transition: all 0.2s ease; cursor: pointer;"
-                                                            onclick="showILDNDescription(<?php echo $ildn['id']; ?>, '<?php echo addslashes(htmlspecialchars($ildn['need_text'])); ?>', '<?php echo addslashes(htmlspecialchars($ildn['description'] ?: 'No description provided.')); ?>')">
-                                                            <div style="display: flex; flex-direction: column; gap: 4px;">
-                                                                <div
-                                                                    style="font-weight: 700; color: <?php echo $is_addressed ? '#15803d' : 'var(--primary)'; ?>; font-size: 0.95rem;">
-                                                                    <?php echo htmlspecialchars($ildn['need_text']); ?>
-                                                                </div>
-                                                                <div style="display: flex; align-items: center; gap: 6px;">
-                                                                    <?php if ($is_addressed): ?>
-                                                                        <span
-                                                                            style="background: #16a34a; color: white; font-size: 0.65rem; font-weight: 800; padding: 2px 8px; border-radius: 20px; text-transform: uppercase;">
-                                                                            <i class="bi bi-check-circle-fill"></i> Addressed
-                                                                            <?php echo $ildn['usage_count']; ?>x
-                                                                        </span>
-                                                                    <?php else: ?>
-                                                                        <span
-                                                                            style="color: #94a3b8; font-size: 0.7rem; font-weight: 600;">
-                                                                            <i class="bi bi-clock"></i> Not yet addressed
-                                                                        </span>
-                                                                    <?php endif; ?>
-                                                                </div>
-                                                            </div>
-                                                            <button type="button" class="btn btn-sm"
-                                                                onclick="event.stopPropagation(); confirmDeleteILDN(<?php echo $ildn['id']; ?>)"
-                                                                style="padding: 6px; color: #dc2626; background: <?php echo $is_addressed ? '#fecaca' : '#fef2f2'; ?>; border: none; border-radius: 8px; width: 32px; height: 32px;">
-                                                                <i class="bi bi-trash"></i>
-                                                            </button>
-                                                        </div>
-                                                    <?php endforeach; ?>
-                                                </div>
-                                            </div>
-                                        <?php endif; ?>
-                                    </div>
-                                </div>
+                        <!-- System Notification Card (Admin/Head) -->
+                        <div class="dashboard-card" style="margin-top: 24px; border-left: 4px solid #f59e0b;">
+                            <div class="card-header">
+                                <h2><i class="bi bi-megaphone text-warning"></i> Send System Notification</h2>
                             </div>
-
-                            <div class="stats-column">
-                                <div class="section-header">
-                                    <h2 class="section-title"><i class="bi bi-graph-up-arrow" style="color: #F57C00;"></i>
-                                        Stats</h2>
-                                </div>
-                                <div class="stats-grid">
-                                    <div class="stat-card">
-                                        <div class="stat-icon" style="background: #e0f2fe; color: #0284c7;"><i
-                                                class="bi bi-journal-bookmark"></i></div>
-                                        <div>
-                                            <span class="stat-value"><?php echo $total_activities; ?></span>
-                                            <span class="stat-label">Total Activities</span>
+                            <div class="card-body" style="padding: 24px;">
+                                <form method="POST" action="">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Recipient <span class="text-danger">*</span></label>
+                                        <div style="position: relative;">
+                                            <i class="bi bi-people"
+                                                style="position: absolute; left: 14px; top: 18px; transform: translateY(-50%); color: var(--text-muted); z-index: 10;"></i>
+                                            <select name="recipient_id" id="recipient_select_admin" class="form-control"
+                                                required style="padding-left: 42px;">
+                                                <option value="">Search for a user...</option>
+                                                <?php foreach ($all_users as $u): ?>
+                                                    <?php if ($u['id'] != $user_id): ?>
+                                                        <option value="<?php echo $u['id']; ?>">
+                                                            <?php echo htmlspecialchars($u['full_name']); ?>
+                                                            (<?php echo htmlspecialchars($u['office_station']); ?>)
+                                                        </option>
+                                                    <?php endif; ?>
+                                                <?php endforeach; ?>
+                                            </select>
                                         </div>
                                     </div>
-                                    <div class="stat-card">
-                                        <div class="stat-icon" style="background: #f0fdf4; color: #16a34a;"><i
-                                                class="bi bi-patch-check"></i></div>
-                                        <div>
-                                            <span class="stat-value"><?php echo $with_certs; ?></span>
-                                            <span class="stat-label">With Certificates</span>
-                                        </div>
+                                    <div class="form-group mb-4">
+                                        <label class="form-label">Message <span class="text-danger">*</span></label>
+                                        <textarea name="notif_message" class="form-control" rows="3"
+                                            placeholder="Type your notification message here..." required
+                                            style="min-height: 100px; border-radius: 12px; padding: 15px;"></textarea>
                                     </div>
-                                    <div class="stat-card">
-                                        <div class="stat-icon"
-                                            style="<?php echo $unaddressed_ildns_count > 0 ? 'background: #fef2f2; color: #dc2626;' : 'background: #f0fdf4; color: #16a34a;'; ?>">
-                                            <i
-                                                class="bi <?php echo $unaddressed_ildns_count > 0 ? 'bi-exclamation-octagon-fill' : 'bi-check-all'; ?>"></i>
-                                        </div>
-                                        <div>
-                                            <span class="stat-value"><?php echo $unaddressed_ildns_count; ?></span>
-                                            <span class="stat-label">Unaddressed Needs</span>
-                                        </div>
+                                    <div style="text-align: right;">
+                                        <button type="submit" name="send_notification" class="btn btn-primary"
+                                            style="background: #f59e0b; border-color: #f59e0b; border-radius: 10px; font-weight: 700; height: 48px; padding: 0 25px;">
+                                            <i class="bi bi-send"></i> Send Notification
+                                        </button>
                                     </div>
-                                    <div class="stat-card">
-                                        <div class="stat-icon" style="background: #fef2f2; color: #dc2626;"><i
-                                                class="bi bi-clock-history"></i></div>
-                                        <div>
-                                            <span class="stat-value"><?php echo $total_activities - $with_certs; ?></span>
-                                            <span class="stat-label">Pending Certs</span>
-                                        </div>
-                                    </div>
-                                </div>
+                                </form>
                             </div>
                         </div>
 
-                        <!-- Certificate Hub Section -->
-                        <div class="section-header">
-                            <h2 class="section-title"><i class="bi bi-trophy"></i> Activity Certificates</h2>
-                        </div>
-
-                        <div class="submissions-list-scroll">
-                            <div class="certificate-grid">
-                                <?php if (empty($activities)): ?>
-                                    <div class="empty-state" style="grid-column: 1 / -1;">
-                                        <div style="font-size: 3rem; color: #e2e8f0; margin-bottom: 20px;"><i
-                                                class="bi bi-file-earmark-x"></i></div>
-                                        <h3 style="color: #64748b; font-weight: 700;">No activities found</h3>
-                                        <p style="color: #94a3b8; max-width: 400px; margin: 0 auto;">No records yet to manage
-                                            certificates.</p>
-                                    </div>
-                                <?php else: ?>
-                                    <?php foreach ($activities as $act): ?>
-                                        <div class="activity-card">
-                                            <div onclick="location.href='../pages/view_activity.php?id=<?php echo $act['id']; ?>'"
-                                                style="cursor: pointer;">
-                                                <span
-                                                    class="activity-type"><?php echo htmlspecialchars($act['type_ld'] ?: 'Professional Development'); ?></span>
-                                                <h3 class="activity-title" title="<?php echo htmlspecialchars($act['title']); ?>">
-                                                    <?php echo htmlspecialchars($act['title']); ?>
-                                                </h3>
-                                                <div class="activity-meta">
-                                                    <span><i class="bi bi-calendar-event"></i>
-                                                        <?php echo date('M d, Y', strtotime($act['date_attended'])); ?></span>
-                                                    <span><i class="bi bi-geo-alt"></i>
-                                                        <?php echo htmlspecialchars(substr($act['venue'], 0, 20)); ?>...</span>
-                                                </div>
-                                            </div>
-
-                                            <?php if ($act['certificate_path']): ?>
-                                                <div class="has-cert">
-                                                    <div style="display: flex; align-items: center; gap: 10px;">
-                                                        <i class="bi bi-patch-check-fill"
-                                                            style="font-size: 1.5rem; color: #F57C00;"></i>
-                                                        <div style="font-size: 0.8rem; font-weight: 800; color: var(--primary);">
-                                                            CERTIFICATE READY
-                                                        </div>
-                                                    </div>
-                                                    <div style="display: flex; gap: 8px;">
-                                                        <a href="../<?php echo $act['certificate_path']; ?>" target="_blank"
-                                                            class="btn btn-primary btn-sm"
-                                                            style="padding: 4px 10px; font-size: 0.7rem; font-weight: 700;">View</a>
-                                                        <button
-                                                            onclick="document.getElementById('file-input-<?php echo $act['id']; ?>').click()"
-                                                            class="btn btn-outline-primary btn-sm"
-                                                            style="padding: 4px 10px; font-size: 0.7rem; font-weight: 700;">Change</button>
-                                                    </div>
-                                                </div>
-                                            <?php else: ?>
-                                                <div class="cert-upload-zone"
-                                                    onclick="document.getElementById('file-input-<?php echo $act['id']; ?>').click()">
-                                                    <i class="bi bi-cloud-arrow-up-fill" style="color: #F57C00;"></i>
-                                                    <div
-                                                        style="font-size: 0.75rem; font-weight: 800; color: var(--primary); text-transform: uppercase;">
-                                                        Upload Certificate
-                                                    </div>
-                                                </div>
-                                            <?php endif; ?>
-
-                                            <!-- Hidden Upload Form -->
-                                            <form method="POST" enctype="multipart/form-data"
-                                                id="upload-form-<?php echo $act['id']; ?>" style="display: none;">
-                                                <input type="hidden" name="upload_certificate" value="1">
-                                                <input type="hidden" name="activity_id" value="<?php echo $act['id']; ?>">
-                                                <input type="file" name="certificate" id="file-input-<?php echo $act['id']; ?>"
-                                                    onchange="this.form.submit()" accept=".pdf,.jpg,.jpeg,.png">
-                                            </form>
-                                        </div>
-                                    <?php endforeach; ?>
-                                <?php endif; ?>
-                            </div>
-                        </div>
                     </div>
                 <?php endif; ?>
             </main>
@@ -1194,121 +1033,33 @@ $user_ildns = $ildnRepo->getILDNsByUser($user_id);
     </div>
     <!-- Tom Select JS -->
     <script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
-    <!-- Custom Delete Confirmation Modal -->
-    <div id="deleteModalOverlay" class="custom-modal-overlay">
-        <div class="custom-modal">
-            <div class="modal-icon-container">
-                <i class="bi bi-trash3-fill"></i>
-            </div>
-            <h3 class="modal-title">Delete Learning Need?</h3>
-            <p class="modal-text">Are you sure you want to remove this learning need? this action cannot be undone.</p>
-            <div class="modal-actions">
-                <button type="button" class="modal-btn modal-btn-cancel" onclick="closeDeleteModal()">Cancel</button>
-                <form id="deleteILDNForm" method="POST" style="flex: 1; margin: 0;">
-                    <input type="hidden" name="ildn_id" id="modal_ildn_id">
-                    <input type="hidden" name="delete_ildn" value="1">
-                    <button type="submit" class="modal-btn modal-btn-delete">Delete</button>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <!-- Description Modal -->
-    <div id="descriptionModalOverlay" class="custom-modal-overlay">
-        <div class="custom-modal" style="max-width: 500px;">
-            <div class="modal-icon-container" style="background: #e0f2fe; color: #0284c7;">
-                <i class="bi bi-info-circle-fill"></i>
-            </div>
-
-            <!-- View Mode -->
-            <div id="desc_view_mode">
-                <h3 class="modal-title" id="desc_modal_title">Learning Need</h3>
-                <p class="modal-text" id="desc_modal_text"
-                    style="text-align: left; white-space: pre-wrap; background: #f8fafc; padding: 15px; border-radius: 12px; border: 1px solid #eef2f6; max-height: 300px; overflow-y: auto;">
-                    Description goes here...
-                </p>
-                <div class="modal-actions" style="margin-top: 20px;">
-                    <button type="button" class="modal-btn modal-btn-cancel"
-                        onclick="closeDescriptionModal()">Close</button>
-                    <button type="button" class="modal-btn" style="background: var(--primary); color: white;"
-                        onclick="toggleEditMode(true)">Edit</button>
-                </div>
-            </div>
-
-            <!-- Edit Mode -->
-            <div id="desc_edit_mode" style="display: none;">
-                <h3 class="modal-title">Edit Learning Need</h3>
-                <form method="POST">
-                    <input type="hidden" name="edit_ildn" value="1">
-                    <input type="hidden" name="ildn_id" id="edit_ildn_id">
-                    <div class="form-group" style="text-align: left;">
-                        <label class="form-label">Learning Need</label>
-                        <input type="text" name="need_text" id="edit_need_text" class="form-control" required
-                            style="background: #f8fafc;">
-                    </div>
-                    <div class="form-group" style="text-align: left;">
-                        <label class="form-label">Description</label>
-                        <textarea name="description" id="edit_description" class="form-control"
-                            style="height: 150px; background: #f8fafc; resize: none;"></textarea>
-                    </div>
-                    <div class="modal-actions" style="margin-top: 20px;">
-                        <button type="button" class="modal-btn modal-btn-cancel"
-                            onclick="toggleEditMode(false)">Cancel</button>
-                        <button type="submit" class="modal-btn" style="background: #10b981; color: white;">Save
-                            Changes</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <script src="../js/profile-actions.js"></script>
     <script>
-        function showILDNDescription(id, title, description) {
-            document.getElementById('desc_modal_title').innerText = title;
-            document.getElementById('desc_modal_text').innerText = description;
-
-            // Populate edit fields
-            document.getElementById('edit_ildn_id').value = id;
-            document.getElementById('edit_need_text').value = title;
-            document.getElementById('edit_description').value = description === 'No description provided.' ? '' : description;
-
-            toggleEditMode(false); // Ensure we start in view mode
-
-            const modal = document.getElementById('descriptionModalOverlay');
-            modal.style.display = 'flex';
-            setTimeout(() => modal.querySelector('.custom-modal').classList.add('show'), 10);
-        }
-
-        function toggleEditMode(isEdit) {
-            document.getElementById('desc_view_mode').style.display = isEdit ? 'none' : 'block';
-            document.getElementById('desc_edit_mode').style.display = isEdit ? 'block' : 'none';
-        }
-
-        function closeDescriptionModal() {
-            const modal = document.getElementById('descriptionModalOverlay');
-            modal.querySelector('.custom-modal').classList.remove('show');
-            setTimeout(() => modal.style.display = 'none', 300);
-        }
-
-        // Close modal when clicking outside
-        window.onclick = function (event) {
-            const deleteModal = document.getElementById('deleteModalOverlay');
-            const descModal = document.getElementById('descriptionModalOverlay');
-            if (event.target == deleteModal) closeDeleteModal();
-            if (event.target == descModal) closeDescriptionModal();
-        }
         document.addEventListener('DOMContentLoaded', function () {
             <?php if ($is_super_admin): ?>
                 new TomSelect('#office_select', {
                     create: false,
-                    sortField: {
-                        field: "text",
-                        direction: "asc"
-                    },
+                    sortField: { field: "text", direction: "asc" },
                     placeholder: "Type to search office...",
                     maxOptions: 50
                 });
+
+                if (document.getElementById('recipient_select_super')) {
+                    new TomSelect('#recipient_select_super', {
+                        create: false,
+                        sortField: { field: "text", direction: "asc" },
+                        placeholder: "Search for a user...",
+                        maxOptions: 50
+                    });
+                }
+            <?php else: ?>
+                if (document.getElementById('recipient_select_admin')) {
+                    new TomSelect('#recipient_select_admin', {
+                        create: false,
+                        sortField: { field: "text", direction: "asc" },
+                        placeholder: "Search for a user...",
+                        maxOptions: 50
+                    });
+                }
             <?php endif; ?>
         });
 
@@ -1330,6 +1081,7 @@ $user_ildns = $ildnRepo->getILDNsByUser($user_id);
             }
         <?php endif; ?>
     </script>
+    <script src="../js/profile-actions.js?v=<?php echo time(); ?>"></script>
 </body>
 
 </html>

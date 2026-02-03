@@ -58,8 +58,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_approval'])) {
         $success = $activityRepo->updateApprovalStatus($activity_id, 'supervisor', $now);
         $actionDesc = "Reviewed Activity Submission";
     } elseif ($stage === 'asds') {
-        $success = $activityRepo->updateApprovalStatus($activity_id, 'asds', $now);
-        $actionDesc = "Recommended Activity Submission";
+        $conductedBy = $_POST['conducted_by'] ?? '';
+        $signaturePath = saveAdminSignature('organizer_signature_data', 'organizer_sig', 'organizer_sig_file');
+
+        if ($signaturePath && !empty($conductedBy)) {
+            $success = $activityRepo->updateApprovalStatus($activity_id, 'asds', $now, [
+                'conducted_by' => $conductedBy,
+                'organizer_signature_path' => $signaturePath
+            ]);
+            $actionDesc = "Recommended Activity Submission";
+        } else {
+            $_SESSION['toast'] = [
+                'title' => 'Missing Requirements',
+                'message' => 'Organizer Name and Signature are required to recommend.',
+                'type' => 'error'
+            ];
+            header("Location: view_activity.php?id=" . $activity_id);
+            exit;
+        }
     } elseif ($stage === 'sds') {
         $approvedBy = $_POST['approved_by'] ?? '';
         $signaturePath = saveAdminSignature('signature_data', 'admin_sds');
@@ -212,16 +228,133 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_approval'])) {
         .view-prog-date {
             font-size: 0.65rem;
             color: var(--text-muted);
-            display: block;
         }
 
-        /* Admin Controls */
-        .admin-controls {
-            background: var(--primary-bg);
-            border: 1px solid var(--primary-light);
+        /* Interactive Tracker States */
+        .view-prog-track.can-interact {
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .view-prog-track.can-interact:hover {
+            border-color: var(--primary);
+            background: #f8fafc;
+            box-shadow: var(--shadow-md);
+            transform: translateY(-2px);
+        }
+
+        .view-prog-track.can-interact:hover .view-prog-label {
+            color: var(--primary);
+        }
+
+        .view-prog-track.can-interact::after {
+            content: 'Click to Update Status';
+            position: absolute;
+            bottom: 8px;
+            right: 24px;
+            font-size: 0.65rem;
+            font-weight: 800;
+            color: var(--primary);
+            text-transform: uppercase;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .view-prog-track.can-interact:hover::after {
+            opacity: 1;
+        }
+
+        /* Approval Modal Styles */
+        .approval-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            align-items: center;
+            justify-content: center;
+        }
+
+        .approval-modal-content {
+            background-color: white;
+            padding: 0;
+            border-radius: var(--radius-xl);
+            width: 90%;
+            max-width: 500px;
+            box-shadow: var(--shadow-lg);
+            overflow: hidden;
+            animation: modalSlideUp 0.3s ease;
+        }
+
+        @keyframes modalSlideUp {
+            from {
+                transform: translateY(20px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border-light);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #f8fafc;
+        }
+
+        .modal-body {
             padding: 24px;
-            border-radius: var(--radius-lg);
-            margin-bottom: 32px;
+        }
+
+        .modal-footer {
+            padding: 16px 24px;
+            border-top: 1px solid var(--border-light);
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            background: #f8fafc;
+        }
+
+        .signature-pad-container {
+            background: white;
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-sm);
+            padding: 6px;
+            text-align: center;
+        }
+
+        canvas.sig-canvas {
+            width: 100%;
+            height: 90px;
+            background: white;
+            cursor: crosshair;
+            touch-action: none;
+        }
+
+        .btn-clear {
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            background: none;
+            border: none;
+            padding: 2px 6px;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+
+        .btn-clear:hover {
+            color: var(--danger);
+        }
         }
 
         .data-section-title {
@@ -234,6 +367,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_approval'])) {
             display: flex;
             align-items: center;
             gap: 10px;
+            margin-left: 25px;
+        }
+
+        .form-group {
+            margin-left: 25px;
         }
 
         .data-section-title::after {
@@ -353,33 +491,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_approval'])) {
             .image-attachment a {
                 border: 1px solid #eee !important;
             }
-        }
-
-        .admin-controls .form-group {
-            margin-bottom: 16px;
-        }
-
-        .admin-controls label {
-            font-size: 0.8rem;
-            font-weight: 700;
-            color: var(--text-secondary);
-            margin-bottom: 8px;
-            display: block;
-        }
-
-        .signature-pad-container {
-            background: #f8fafc;
-            border: 2px dashed var(--border-color);
-            border-radius: var(--radius-md);
-            padding: 10px;
-            text-align: center;
-            margin-bottom: 12px;
-        }
-
-        #sig-canvas {
-            background: white;
-            border: 1px solid var(--border-light);
-            cursor: crosshair;
         }
 
         .print-status-header {
@@ -519,7 +630,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_approval'])) {
                 <div class="view-layout-container">
 
                     <!-- Progress Timeline -->
-                    <div class="view-prog-track">
+                    <?php
+                    $role = $_SESSION['role'];
+                    $next_stage = '';
+                    $can_interact = false;
+
+                    if (!$activity['reviewed_by_supervisor']) {
+                        $next_stage = 'Supervisor Review';
+                        // Authorized to review: Admin, Super Admin, Head HR, Immediate Head
+                        $can_interact = in_array($role, ['admin', 'super_admin', 'head_hr', 'immediate_head']);
+                    } elseif (!$activity['recommending_asds']) {
+                        $next_stage = 'SDO Recommendation';
+                        // Authorized to recommend: Only Admin/Super Admin (as organizer)
+                        $can_interact = in_array($role, ['admin', 'super_admin']);
+                    } elseif (!$activity['approved_sds']) {
+                        $next_stage = 'Final Approval';
+                        // Authorized for final approval: ONLY Immediate Head
+                        $can_interact = ($role === 'immediate_head');
+                    }
+                    ?>
+                    <div class="view-prog-track <?php echo ($can_interact && $next_stage) ? 'can-interact' : ''; ?>"
+                        <?php if ($can_interact && $next_stage): ?>onclick="openApprovalModal()" <?php endif; ?>>
                         <div class="view-prog-steps">
                             <div class="view-prog-line"></div>
                             <?php
@@ -550,67 +681,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_approval'])) {
                         </div>
                     </div>
 
-                    <!-- Admin Controls Panel -->
-                    <?php if ($_SESSION['role'] === 'admin' || $_SESSION['role'] === 'super_admin' || $_SESSION['role'] === 'immediate_head'): ?>
-                        <div class="admin-controls">
-                            <h3
-                                style="font-size: 0.85rem; font-weight: 800; color: var(--primary); text-transform: uppercase; margin-bottom: 16px;">
-                                <i class="bi bi-shield-lock"></i> Administration Controls
-                            </h3>
-                            <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-                                <form method="POST" style="flex: 1;">
-                                    <input type="hidden" name="action_approval" value="1">
-                                    <input type="hidden" name="stage" value="supervisor">
-                                    <button type="submit"
-                                        class="btn btn-sm <?php echo $activity['reviewed_by_supervisor'] ? 'btn-success' : 'btn-secondary'; ?>"
-                                        style="width: 100%;" <?php echo $activity['reviewed_by_supervisor'] ? 'disabled' : ''; ?>>
-                                        <?php echo $activity['reviewed_by_supervisor'] ? '<i class="bi bi-check-all"></i> Reviewed' : 'Review Activity'; ?>
-                                    </button>
-                                </form>
-                                <form method="POST" style="flex: 1;">
-                                    <input type="hidden" name="action_approval" value="1">
-                                    <input type="hidden" name="stage" value="asds">
-                                    <button type="submit"
-                                        class="btn btn-sm <?php echo $activity['recommending_asds'] ? 'btn-success' : 'btn-secondary'; ?>"
-                                        style="width: 100%;" <?php echo ($activity['recommending_asds'] || !$activity['reviewed_by_supervisor']) ? 'disabled' : ''; ?>>
-                                        <?php echo $activity['recommending_asds'] ? '<i class="bi bi-check-all"></i> Recommended' : 'Recommend Activity'; ?>
-                                    </button>
-                                </form>
-                                <?php if ($_SESSION['role'] === 'immediate_head'): ?>
-                                    <form method="POST" id="final-approval-form"
-                                        style="flex: 1; display: flex; flex-direction: column; gap: 12px;">
-                                        <input type="hidden" name="action_approval" value="1">
-                                        <input type="hidden" name="stage" value="sds">
-                                        <input type="hidden" name="signature_data" id="signature_data">
-
-                                        <?php if (!$activity['approved_sds'] && $activity['recommending_asds']): ?>
-                                            <div class="form-group"
-                                                style="background: white; padding: 16px; border-radius: var(--radius-md); border: 1px solid var(--primary-light);">
-                                                <label>Immediate Head Name</label>
-                                                <input type="text" name="approved_by" class="form-control form-control-sm" required
-                                                    placeholder="Enter name for signature">
-
-                                                <label style="margin-top: 12px;">Immediate Head Signature</label>
-                                                <div class="signature-pad-container">
-                                                    <canvas id="sig-canvas" width="300" height="100"></canvas>
-                                                    <div style="margin-top: 8px;">
-                                                        <button type="button" class="btn btn-xs btn-secondary"
-                                                            onclick="clearCanvas()">Clear</button>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        <?php endif; ?>
-
-                                        <button type="button" onclick="submitFinalApproval()"
-                                            class="btn btn-sm <?php echo $activity['approved_sds'] ? 'btn-success' : 'btn-secondary'; ?>"
-                                            style="width: 100%;" <?php echo ($activity['approved_sds'] || !$activity['recommending_asds']) ? 'disabled' : ''; ?>>
-                                            <?php echo $activity['approved_sds'] ? '<i class="bi bi-trophy"></i> Approved' : 'Final Approval'; ?>
-                                        </button>
-                                    </form>
-                                <?php endif; ?>
+                    <!-- Approval Modal -->
+                    <div id="approvalModal" class="approval-modal">
+                        <div class="approval-modal-content">
+                            <div class="modal-header">
+                                <h5 style="margin:0; font-weight:800; color:var(--primary);">
+                                    <i class="bi bi-shield-check"></i> <span id="modalStageTitle">Approval Action</span>
+                                </h5>
+                                <button type="button" class="btn-close" onclick="closeApprovalModal()"
+                                    style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-muted);">&times;</button>
+                            </div>
+                            <div class="modal-body" id="modalStageContent">
+                                <!-- Dynamic Content Loaded by JS -->
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary btn-sm"
+                                    onclick="closeApprovalModal()">Cancel</button>
+                                <button type="button" id="modalSubmitBtn" class="btn btn-primary btn-sm">Submit
+                                    Action</button>
                             </div>
                         </div>
-                    <?php endif; ?>
+                    </div>
+
+
 
                     <!-- Submitter Details -->
                     <div class="submitter-hero">
@@ -730,7 +823,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_approval'])) {
 
                             <?php if (!empty($activity['workplace_image_path'])): ?>
                                 <div class="form-group" style="margin-bottom: 40px;">
-                                    <label class="form-label">Evidence / Attachments</label>
+                                    <label class="form-label">EVIDENCE / ATTACHMENTS</label>
                                     <div style="display: flex; flex-wrap: wrap; gap: 16px;">
 
                                         <?php
@@ -764,12 +857,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_approval'])) {
                                 </div>
                             <?php endif; ?>
 
+                            <div class="data-section-title"><i class="bi bi-lightbulb"></i> Application of Learning
+                            </div>
+
+                            <div class="form-group" style="margin-bottom: 32px;">
+                                <label class="form-label">SUPPORTING DOCUMENT</label>
+                                <?php if (!empty($activity['application_file_path'])): ?>
+                                    <div class="image-attachment" style="display: inline-block;">
+                                        <a href="../<?php echo htmlspecialchars($activity['application_file_path']); ?>"
+                                            target="_blank"
+                                            style="display: flex; align-items: center; gap: 12px; padding: 12px 20px; background: #e0f2fe; border: 1px solid #7dd3fc; border-radius: 10px; text-decoration: none; color: #0284c7; transition: all 0.2s;">
+                                            <i class="bi bi-file-earmark-text-fill" style="font-size: 1.5rem;"></i>
+                                            <div style="display: flex; flex-direction: column;">
+                                                <span style="font-weight: 700; font-size: 0.9rem;">View Supporting
+                                                    Document</span>
+                                                <span style="font-size: 0.75rem; opacity: 0.8;">Click to open file</span>
+                                            </div>
+                                            <i class="bi bi-box-arrow-up-right" style="margin-left: 8px;"></i>
+                                        </a>
+                                    </div>
+                                <?php else: ?>
+                                    <div
+                                        style="color: var(--text-muted); font-style: italic; padding: 15px; background: var(--bg-secondary); border-radius: var(--radius-sm);">
+                                        No application document provided.
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+
                             <div class="print-page-break">
                                 <div class="data-section-title"><i class="bi bi-journal-text"></i> Personal Reflection
                                 </div>
 
                                 <div class="form-group" style="margin-bottom: 32px;">
-                                    <label class="form-label">Personal Reflection</label>
+                                    <label class="form-label">PERSONAL REFLECTION</label>
                                     <div
                                         style="line-height: 1.7; color: var(--text-secondary); background: var(--bg-secondary); padding: 24px; border-radius: var(--radius-lg);">
                                         <?php echo htmlspecialchars($activity['reflection']); ?>
@@ -804,6 +924,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_approval'])) {
                             <div class="signatures-grid"
                                 style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 32px;">
                                 <div class="signature-box" style="text-align: center;">
+                                    <?php if ($activity['recommending_asds']): ?>
+                                        <p
+                                            style="font-size: 0.75rem; font-weight: 800; color: var(--text-primary); margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.3px;">
+                                            Good As Recommended by this
+                                            <?php echo date('M d, Y', strtotime($activity['recommended_at'])); ?>
+                                        </p>
+                                    <?php endif; ?>
                                     <div class="signature-line"
                                         style="height: 120px; display: flex; align-items: center; justify-content: center; border-bottom: 1px solid var(--text-primary); margin-bottom: 12px;">
                                         <?php if (!empty($activity['organizer_signature_path'])): ?>
@@ -814,12 +941,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_approval'])) {
                                                 provided</span>
                                         <?php endif; ?>
                                     </div>
-                                    <p style="font-weight: 800; text-transform: uppercase; font-size: 0.9rem;">
-                                        <?php echo htmlspecialchars($activity['conducted_by']); ?>
-                                    </p>
-                                    <p style="font-size: 0.75rem; color: var(--text-muted);">ORGANIZER / CONDUCTOR</p>
+                                    <p style="font-size: 0.75rem; color: var(--text-muted);">Human Resource Training
+                                        Officer</p>
                                 </div>
                                 <div class="signature-box" style="text-align: center;">
+                                    <?php if ($activity['approved_sds']): ?>
+                                        <p
+                                            style="font-size: 0.75rem; font-weight: 800; color: var(--text-primary); margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.3px;">
+                                            Good As Approved by this
+                                            <?php echo date('M d, Y', strtotime($activity['approved_at'])); ?>
+                                        </p>
+                                    <?php endif; ?>
                                     <div class="signature-line"
                                         style="height: 120px; display: flex; align-items: center; justify-content: center; border-bottom: 1px solid var(--text-primary); margin-bottom: 12px;">
                                         <?php if (!empty($activity['signature_path'])): ?>
@@ -858,94 +990,178 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_approval'])) {
     </div>
 
     <script>
-        // Signature Pad Logic for Admin
-        const canvas = document.getElementById('sig-canvas');
-        if (canvas) {
+        // Enhanced Signature Pad Logic
+        function initSignaturePad(canvasId) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return null;
+
             const ctx = canvas.getContext('2d');
             let drawing = false;
 
-            function getMousePos(canvasDom, touchOrMouseEvent) {
-                var rect = canvasDom.getBoundingClientRect();
+            // Adjust for DPI
+            const dpr = window.devicePixelRatio || 1;
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.scale(dpr, dpr);
+            canvas.style.width = rect.width + 'px';
+            canvas.style.height = rect.height + 'px';
+
+            function getPos(e) {
+                const r = canvas.getBoundingClientRect();
                 return {
-                    x: (touchOrMouseEvent.clientX || touchOrMouseEvent.touches[0].clientX) - rect.left,
-                    y: (touchOrMouseEvent.clientY || touchOrMouseEvent.touches[0].clientY) - rect.top
+                    x: (e.clientX || (e.touches && e.touches[0].clientX)) - r.left,
+                    y: (e.clientY || (e.touches && e.touches[0].clientY)) - r.top
                 };
             }
 
-            canvas.addEventListener("mousedown", function (e) {
+            function start(e) {
                 drawing = true;
                 ctx.beginPath();
                 ctx.lineWidth = 2;
                 ctx.lineCap = 'round';
                 ctx.strokeStyle = '#000';
-                ctx.moveTo(getMousePos(canvas, e).x, getMousePos(canvas, e).y);
-            }, false);
-
-            canvas.addEventListener("mouseup", function (e) {
-                drawing = false;
-            }, false);
-
-            canvas.addEventListener("mousemove", function (e) {
-                if (!drawing) return;
-                ctx.lineTo(getMousePos(canvas, e).x, getMousePos(canvas, e).y);
-                ctx.stroke();
-            }, false);
-
-            // Touch support
-            canvas.addEventListener("touchstart", function (e) {
-                e.preventDefault();
-                drawing = true;
-                ctx.beginPath();
-                ctx.lineWidth = 2;
-                ctx.lineCap = 'round';
-                ctx.strokeStyle = '#000';
-                ctx.moveTo(getMousePos(canvas, e).x, getMousePos(canvas, e).y);
-            }, false);
-            canvas.addEventListener("touchend", function (e) {
-                drawing = false;
-            }, false);
-            canvas.addEventListener("touchmove", function (e) {
-                if (!drawing) return;
-                ctx.lineTo(getMousePos(canvas, e).x, getMousePos(canvas, e).y);
-                ctx.stroke();
-            }, false);
-
-            window.clearCanvas = function () {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-            };
-
-            // Check if canvas is empty using pixel data
-            function isCanvasBlank(canvas) {
-                const context = canvas.getContext('2d');
-                const pixelBuffer = new Uint32Array(
-                    context.getImageData(0, 0, canvas.width, canvas.height).data.buffer
-                );
-                return !pixelBuffer.some(color => color !== 0);
+                const pos = getPos(e);
+                ctx.moveTo(pos.x, pos.y);
+                if (e.type === 'touchstart') e.preventDefault();
             }
 
-            window.submitFinalApproval = function () {
-                const nameInput = document.querySelector('input[name="approved_by"]');
-                const nameVal = nameInput ? nameInput.value.trim() : '';
+            function move(e) {
+                if (!drawing) return;
+                const pos = getPos(e);
+                ctx.lineTo(pos.x, pos.y);
+                ctx.stroke();
+                if (e.type === 'touchmove') e.preventDefault();
+            }
 
-                if (nameVal === '') {
-                    showToast('Missing Field', 'Please enter the Immediate Head Name.', 'error');
-                    nameInput.focus();
-                    return;
-                }
+            function stop() { drawing = false; }
 
-                if (isCanvasBlank(canvas)) {
-                    showToast('Missing Signature', 'Please provide a signature.', 'error');
-                    return;
-                }
+            canvas.addEventListener('mousedown', start);
+            canvas.addEventListener('mousemove', move);
+            window.addEventListener('mouseup', stop);
 
-                const signatureData = canvas.toDataURL();
-                document.getElementById('signature_data').value = signatureData;
+            canvas.addEventListener('touchstart', start);
+            canvas.addEventListener('touchmove', move);
+            canvas.addEventListener('touchend', stop);
 
-                // Confirm action
-                if (confirm('Are you sure you want to approve this submission?')) {
-                    document.getElementById('final-approval-form').submit();
-                }
+            return {
+                clear: () => ctx.clearRect(0, 0, canvas.width, canvas.height),
+                isEmpty: () => {
+                    const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+                    return !Array.from(pixels).some(p => p !== 0);
+                },
+                getData: () => canvas.toDataURL()
             };
+        }
+
+
+        // Modal Logic
+        const modal = document.getElementById('approvalModal');
+        const modalTitle = document.getElementById('modalStageTitle');
+        const modalContent = document.getElementById('modalStageContent');
+        const modalSubmitBtn = document.getElementById('modalSubmitBtn');
+
+        window.openApprovalModal = function () {
+            const nextStage = "<?php echo $next_stage; ?>";
+            modal.style.display = 'flex';
+
+            if (nextStage === 'Supervisor Review') {
+                modalTitle.innerText = 'Supervisor Review';
+                modalContent.innerHTML = `
+                    <p style="color:var(--text-muted); font-size:0.9rem;">Are you sure you want to verify this activity's documentation and details?</p>
+                    <form id="modal-review-form" method="POST">
+                        <input type="hidden" name="action_approval" value="1">
+                        <input type="hidden" name="stage" value="supervisor">
+                    </form>
+                `;
+                modalSubmitBtn.onclick = () => document.getElementById('modal-review-form').submit();
+            } else if (nextStage === 'SDO Recommendation') {
+                modalTitle.innerText = 'SDO Recommendation';
+                modalContent.innerHTML = `
+                    <form id="modal-recommend-form" method="POST" enctype="multipart/form-data">
+                        <input type="hidden" name="action_approval" value="1">
+                        <input type="hidden" name="stage" value="asds">
+                        <input type="hidden" name="organizer_signature_data" id="organizer_signature_data_modal">
+                        
+                        <div style="margin-bottom:16px;">
+                            <label style="font-size:0.75rem; font-weight:700; display:block; margin-bottom:6px;">HR Training Officer Name</label>
+                            <input type="text" name="conducted_by" class="form-control form-control-sm" required placeholder="Full Name" value="<?php echo htmlspecialchars($activity['conducted_by'] ?? ''); ?>">
+                        </div>
+                        
+                        <div style="margin-bottom:16px;">
+                            <label style="font-size:0.75rem; font-weight:700; display:block; margin-bottom:6px;">Upload Scanned Signature (Optional Backup)</label>
+                            <input type="file" name="organizer_sig_file" id="organizer_sig_file" class="form-control form-control-sm" accept="image/*">
+                        </div>
+                        
+                        <label style="font-size:0.75rem; font-weight:700; display:block; margin-bottom:6px;">Draw Signature</label>
+                        <div class="signature-pad-container">
+                            <canvas id="org-sig-canvas-modal" class="sig-canvas" style="height:120px;"></canvas>
+                            <button type="button" class="btn-clear" id="clear-org-modal">Clear Pad</button>
+                        </div>
+                    </form>
+                `;
+                // Wait for DOM
+                setTimeout(() => {
+                    const pad = initSignaturePad('org-sig-canvas-modal');
+                    document.getElementById('clear-org-modal').onclick = () => pad.clear();
+                    modalSubmitBtn.onclick = () => {
+                        const name = modalContent.querySelector('input[name="conducted_by"]').value.trim();
+                        const fileInput = document.getElementById('organizer_sig_file');
+
+                        if (!name) { showToast('Error', 'Name is required', 'error'); return; }
+                        if (pad.isEmpty() && (!fileInput.files || fileInput.files.length === 0)) {
+                            showToast('Error', 'Please provide a signature (either draw it or upload an image)', 'error');
+                            return;
+                        }
+
+                        if (!pad.isEmpty()) {
+                            document.getElementById('organizer_signature_data_modal').value = pad.getData();
+                        }
+                        document.getElementById('modal-recommend-form').submit();
+                    };
+                }, 100);
+            } else if (nextStage === 'Final Approval') {
+                modalTitle.innerText = 'Final Approval';
+                modalContent.innerHTML = `
+                    <form id="modal-approval-form" method="POST">
+                        <input type="hidden" name="action_approval" value="1">
+                        <input type="hidden" name="stage" value="sds">
+                        <input type="hidden" name="signature_data" id="signature_data_modal">
+                        
+                        <div style="margin-bottom:16px;">
+                            <label style="font-size:0.75rem; font-weight:700; display:block; margin-bottom:6px;">Immediate Head Name</label>
+                            <input type="text" name="approved_by" class="form-control form-control-sm" required placeholder="Full Name">
+                        </div>
+                        
+                        <label style="font-size:0.75rem; font-weight:700; display:block; margin-bottom:6px;">Your Signature</label>
+                        <div class="signature-pad-container">
+                            <canvas id="sig-canvas-modal" class="sig-canvas" style="height:120px;"></canvas>
+                            <button type="button" class="btn-clear" id="clear-sig-modal">Clear Pad</button>
+                        </div>
+                    </form>
+                `;
+                setTimeout(() => {
+                    const pad = initSignaturePad('sig-canvas-modal');
+                    document.getElementById('clear-sig-modal').onclick = () => pad.clear();
+                    modalSubmitBtn.onclick = () => {
+                        const name = modalContent.querySelector('input[name="approved_by"]').value.trim();
+                        if (!name) { showToast('Error', 'Name is required', 'error'); return; }
+                        if (pad.isEmpty()) { showToast('Error', 'Signature is required', 'error'); return; }
+                        document.getElementById('signature_data_modal').value = pad.getData();
+                        document.getElementById('modal-approval-form').submit();
+                    };
+                }, 100);
+            }
+        }
+
+        window.closeApprovalModal = function () {
+            modal.style.display = 'none';
+        }
+
+        window.onclick = function (event) {
+            if (event.target == modal) {
+                closeApprovalModal();
+            }
         }
     </script>
 </body>

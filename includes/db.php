@@ -20,7 +20,7 @@ try {
 
     // Create users table
     // Fields based on "Learning & Development Passbook"
-    // Name, Office/Station, Position, Rating Period, Area of Specialization, Age, Sex
+    // Name, Office/Station, Position, Employee Number, Area of Specialization, Age, Sex
     // Plus id, username, password, role (admin/user)
     $sql = "CREATE TABLE IF NOT EXISTS users (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -29,6 +29,7 @@ try {
         full_name VARCHAR(100) NOT NULL,
         office_station VARCHAR(100),
         position VARCHAR(100),
+        employee_number VARCHAR(100),
         rating_period VARCHAR(100),
         area_of_specialization VARCHAR(100),
         age INT,

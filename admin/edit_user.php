@@ -452,10 +452,16 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                                         placeholder="Enter position">
                                 </div>
                                 <div class="form-group">
+                                    <label class="form-label">Employee Number</label>
+                                    <input type="text" name="employee_number" class="form-control"
+                                        value="<?php echo htmlspecialchars($user_to_edit['employee_number']); ?>"
+                                        placeholder="e.g. 1234567">
+                                </div>
+                                <div class="form-group">
                                     <label class="form-label">Rating Period</label>
                                     <input type="text" name="rating_period" class="form-control"
                                         value="<?php echo htmlspecialchars($user_to_edit['rating_period']); ?>"
-                                        placeholder="e.g. 2023-2024">
+                                        placeholder="e.g. 2025">
                                 </div>
                                 <div class="form-group">
                                     <label class="form-label">Area of Specialization</label>

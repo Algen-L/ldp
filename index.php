@@ -202,8 +202,8 @@ try {
                         </select>
                     </div>
                     <div class="form-group span-2">
-                        <label>Rating Period</label>
-                        <input type="text" name="rating_period" class="form-control" placeholder="e.g. 2025">
+                        <label>Employee Number</label>
+                        <input type="text" name="employee_number" class="form-control" placeholder="e.g. 1234567">
                     </div>
                 </div>
 

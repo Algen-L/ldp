@@ -21,8 +21,11 @@ if (!$activity) {
     die("Activity not found.");
 }
 
-// Access Control: Only owner or higher admin
-if ($_SESSION['role'] !== 'admin' && $_SESSION['role'] !== 'super_admin' && $activity['user_id'] != $_SESSION['user_id']) {
+// Access Control: Only owner or authorized administrative roles
+$allowed_admin_roles = ['admin', 'super_admin', 'head_hr', 'immediate_head'];
+$is_admin_edit = in_array($_SESSION['role'], $allowed_admin_roles);
+
+if (!$is_admin_edit && $activity['user_id'] != $_SESSION['user_id']) {
     $_SESSION['toast'] = [
         'title' => 'Access Restricted',
         'message' => 'You do not have permission to modify this activity record.',
@@ -30,7 +33,7 @@ if ($_SESSION['role'] !== 'admin' && $_SESSION['role'] !== 'super_admin' && $act
     ];
 
     // Redirect back to referring page or dashboard fallback
-    $fallback = ($_SESSION['role'] === 'admin' || $_SESSION['role'] === 'super_admin' || $_SESSION['role'] === 'head_hr') ? '../admin/dashboard.php' : '../user/home.php';
+    $fallback = $is_admin_edit ? '../admin/dashboard.php' : '../user/home.php';
     $redirect = $_SERVER['HTTP_REFERER'] ?? $fallback;
 
     header("Location: $redirect");
@@ -70,8 +73,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         'rating_period' => $activity['rating_period']
     ];
 
-    if ($activityRepo->updateActivity($activity_id, $_SESSION['user_id'], $updateData)) {
-        $logRepo->logAction($_SESSION['user_id'], 'Updated Activity', "Activity ID: $activity_id, Title: $title");
+    // For admin edits, we bypass the user_id check by passing null to the repository
+    $updateContextId = $is_admin_edit ? null : $_SESSION['user_id'];
+
+    if ($activityRepo->updateActivity($activity_id, $updateContextId, $updateData)) {
+        $logRepo->logAction($_SESSION['user_id'], 'Updated Activity', "Activity ID: $activity_id, Title: $title" . ($is_admin_edit ? " (Admin Edit)" : ""));
 
         $message = "Activity updated successfully!";
         $messageType = "success";
@@ -408,8 +414,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                                         <label class="form-label">Addressed Competency/ies <span
                                                 style="color: var(--danger);">*</span></label>
                                         <?php
-                                        $user_ildns = $ildnRepo->getILDNList($_SESSION['user_id']);
-                                        ?>
+                                        $user_ildns = $ildnRepo->getILDNList($activity['user_id']);
                                         $current_competencies = explode(', ', $activity['competency']);
                                         ?>
                                         <select id="competency-select" name="competency[]" class="form-control"

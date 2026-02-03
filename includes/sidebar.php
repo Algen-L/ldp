@@ -24,6 +24,12 @@ if (!isset($user) && isset($_SESSION['user_id'])) {
         }
     }
 }
+
+// Fetch Unread Notification Count
+$unreadNotifCount = 0;
+if (isset($_SESSION['user_id']) && isset($notifRepo)) {
+    $unreadNotifCount = $notifRepo->getUnreadCount($_SESSION['user_id']);
+}
 ?>
 <script>
     // Immediate execution to prevent FOUC (Flash of Unstyled Content)
@@ -69,9 +75,9 @@ if (!isset($user) && isset($_SESSION['user_id'])) {
                 <span class="nav-text">Dashboard</span>
             </a>
 
-            <?php if ($_SESSION['role'] === 'admin' || $_SESSION['role'] === 'super_admin'): ?>
+            <?php if ($_SESSION['role'] === 'admin' || $_SESSION['role'] === 'super_admin' || $_SESSION['role'] === 'immediate_head' || $_SESSION['role'] === 'head_hr'): ?>
                 <a href="<?php echo $admin_prefix; ?>submissions.php"
-                    class="nav-item <?php echo (in_array($current_page, ['submissions.php', 'view_activity.php', 'edit_activity.php']) && ($_SESSION['role'] === 'admin' || $_SESSION['role'] === 'super_admin')) ? 'active' : ''; ?>"
+                    class="nav-item <?php echo (in_array($current_page, ['submissions.php', 'view_activity.php', 'edit_activity.php']) && in_array($_SESSION['role'], ['admin', 'super_admin', 'immediate_head', 'head_hr'])) ? 'active' : ''; ?>"
                     data-tooltip="Submissions">
                     <div class="nav-icon">
                         <i class="bi bi-file-earmark-text-fill"></i>
@@ -121,25 +127,7 @@ if (!isset($user) && isset($_SESSION['user_id'])) {
                 </a>
             <?php endif; ?>
 
-            <?php if ($_SESSION['role'] === 'admin' || $_SESSION['role'] === 'immediate_head' || $_SESSION['role'] === 'head_hr'): ?>
-                <a href="<?php echo $pages_prefix; ?>add_activity.php"
-                    class="nav-item <?php echo ($current_page == 'add_activity.php') ? 'active' : ''; ?>"
-                    data-tooltip="Record Activity">
-                    <div class="nav-icon">
-                        <i class="bi bi-plus-circle-fill"></i>
-                    </div>
-                    <span class="nav-text">Record Activity</span>
-                </a>
 
-                <a href="<?php echo $pages_prefix; ?>submissions_progress.php"
-                    class="nav-item <?php echo ($current_page == 'submissions_progress.php') ? 'active' : ''; ?>"
-                    data-tooltip="My Submissions">
-                    <div class="nav-icon">
-                        <i class="bi bi-journal-check"></i>
-                    </div>
-                    <span class="nav-text">My Submissions</span>
-                </a>
-            <?php endif; ?>
 
             <div class="nav-divider"></div>
 
@@ -158,6 +146,9 @@ if (!isset($user) && isset($_SESSION['user_id'])) {
                     class="nav-item <?php echo ($current_page == 'dashboard.php') ? 'active' : ''; ?>" data-tooltip="Dashboard">
                     <div class="nav-icon">
                         <i class="bi bi-house-door-fill"></i>
+                        <?php if ($unreadNotifCount > 0): ?>
+                            <span class="nav-badge" style="background: #f59e0b;"><?php echo $unreadNotifCount; ?></span>
+                        <?php endif; ?>
                     </div>
                     <span class="nav-text">My Dashboard</span>
                 </a>
@@ -166,6 +157,9 @@ if (!isset($user) && isset($_SESSION['user_id'])) {
                     class="nav-item <?php echo ($current_page == 'home.php') ? 'active' : ''; ?>" data-tooltip="Dashboard">
                     <div class="nav-icon">
                         <i class="bi bi-house-door-fill"></i>
+                        <?php if ($unreadNotifCount > 0): ?>
+                            <span class="nav-badge" style="background: #f59e0b;"><?php echo $unreadNotifCount; ?></span>
+                        <?php endif; ?>
                     </div>
                     <span class="nav-text">My Dashboard</span>
                 </a>

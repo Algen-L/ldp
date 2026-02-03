@@ -166,57 +166,86 @@ function initDynamicFormFields() {
         });
     }
 
-    const workplaceInput = document.getElementById('workplace_image');
-    const dropZone = document.getElementById('drop-zone');
+    // Generic Drop Zone Handler
+    function setupDropZone(dropZoneId, inputId, listId) {
+        const dropZone = document.getElementById(dropZoneId);
+        const input = document.getElementById(inputId);
 
-    if (dropZone && workplaceInput) {
-        // Drag and Drop Events
-        ['dragenter', 'dragover'].forEach(eventName => {
-            dropZone.addEventListener(eventName, (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                dropZone.classList.add('drag-over');
+        if (dropZone && input) {
+            // Drag and Drop Events
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropZone.addEventListener(eventName, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    dropZone.classList.add('drag-over');
+                }, false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    dropZone.classList.remove('drag-over');
+                }, false);
+            });
+
+            dropZone.addEventListener('drop', (e) => {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                input.files = files;
+                // Trigger change event manually
+                const event = new Event('change', { bubbles: true });
+                input.dispatchEvent(event);
             }, false);
-        });
 
-        ['dragleave', 'drop'].forEach(eventName => {
-            dropZone.addEventListener(eventName, (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                dropZone.classList.remove('drag-over');
-            }, false);
-        });
+            input.addEventListener('change', function () {
+                const list = document.getElementById(listId);
+                if (!list) return;
+                list.innerHTML = '';
 
-        dropZone.addEventListener('drop', (e) => {
-            const dt = e.dataTransfer;
-            const files = dt.files;
-            workplaceInput.files = files;
-            // Trigger change event manually
-            const event = new Event('change', { bubbles: true });
-            workplaceInput.dispatchEvent(event);
-        }, false);
+                if (this.files.length > 0) {
+                    const validFiles = new DataTransfer();
+                    let hasLargeFile = false;
 
-        workplaceInput.addEventListener('change', function () {
-            const list = document.getElementById('file-list');
-            if (!list) return;
-            list.innerHTML = '';
+                    Array.from(this.files).forEach(file => {
+                        if (file.size > 104857600) { // 100MB Check
+                            hasLargeFile = true;
+                            return;
+                        }
+                        validFiles.items.add(file);
+                    });
 
-            if (this.files.length > 0) {
-                dropZone.classList.add('has-content');
-                Array.from(this.files).forEach(file => {
-                    const isImage = file.type.startsWith('image/');
-                    const icon = isImage ? 'bi-image' : 'bi-file-earmark-text';
+                    if (hasLargeFile) {
+                        alert("Some files were skipped because they exceed the 100MB limit.");
+                    }
 
-                    const badge = document.createElement('div');
-                    badge.className = 'file-badge';
-                    badge.innerHTML = `<i class="bi ${icon}"></i> <span>${file.name.substring(0, 20)}${file.name.length > 20 ? '...' : ''}</span>`;
-                    list.appendChild(badge);
-                });
-            } else {
-                dropZone.classList.remove('has-content');
-            }
-        });
+                    this.files = validFiles.files; // Update input with only valid files
+
+                    if (this.files.length > 0) {
+                        dropZone.classList.add('has-content');
+                        Array.from(this.files).forEach(file => {
+                            const isImage = file.type.startsWith('image/');
+                            const icon = isImage ? 'bi-image' : 'bi-file-earmark-text';
+
+                            const badge = document.createElement('div');
+                            badge.className = 'file-badge';
+                            badge.innerHTML = `<i class="bi ${icon}"></i> <span>${file.name.substring(0, 20)}${file.name.length > 20 ? '...' : ''}</span>`;
+                            list.appendChild(badge);
+                        });
+                    } else {
+                        dropZone.classList.remove('has-content');
+                    }
+                } else {
+                    dropZone.classList.remove('has-content');
+                }
+            });
+        }
     }
+
+    // Initialize drop zones
+    setupDropZone('drop-zone', 'workplace_image', 'file-list');
+    setupDropZone('app-drop-zone', 'application_file', 'app-file-list');
+    setupDropZone('cert-drop-zone', 'certificate_image', 'cert-file-list');
 }
 
 // Form Submission & Validation
@@ -261,13 +290,15 @@ function validateAndSubmitForm() {
         return;
     }
 
-    // Mandatory Signature Check
-    const orgVal = document.getElementById('organizer_signature_data').value || document.getElementById('org-sig-file').files.length;
-    if (!orgVal) {
-        showToast("Missing Signature", "Please provide the Organizer's signature.", "error");
-        document.getElementById('org-sig-box').scrollIntoView({ behavior: 'smooth' });
+    // Certificate Check
+    const certFiles = document.getElementById('certificate_image').files.length;
+    if (certFiles === 0) {
+        showToast("Missing Certificate", "Please upload your Certificate of Participation.", "error");
+        document.getElementById('certificate_image').scrollIntoView({ behavior: 'smooth' });
         return;
     }
+
+
 
     // Privacy Check
     const privacyChecked = document.getElementById('privacy-agree')?.checked;

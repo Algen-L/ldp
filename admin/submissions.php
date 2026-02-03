@@ -3,7 +3,7 @@ session_start();
 require '../includes/init_repos.php';
 
 // Check if user is logged in and is admin
-if (!isset($_SESSION['user_id']) || ($_SESSION['role'] !== 'admin' && $_SESSION['role'] !== 'super_admin' && $_SESSION['role'] !== 'immediate_head')) {
+if (!isset($_SESSION['user_id']) || !in_array($_SESSION['role'], ['admin', 'super_admin', 'immediate_head', 'head_hr'])) {
     header("Location: ../index.php");
     exit;
 }

@@ -531,6 +531,11 @@ $audit_logs = ($view === 'notifications') ? $logRepo->getAllLogs($log_filters) :
                                             <?php echo htmlspecialchars($target_user['area_of_specialization'] ?: 'Not Specified'); ?>
                                         </div>
                                     </div>
+                                    <div class="info-block"><span class="info-label">Employee Number</span>
+                                        <div class="info-value">
+                                            <?php echo htmlspecialchars($target_user['employee_number'] ?: 'Not Specified'); ?>
+                                        </div>
+                                    </div>
                                     <div class="info-block"><span class="info-label">Rating Period</span>
                                         <div class="info-value">
                                             <?php echo htmlspecialchars($target_user['rating_period'] ?: 'Not Specified'); ?>

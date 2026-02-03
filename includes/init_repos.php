@@ -8,6 +8,7 @@ require_once __DIR__ . '/repositories/UserRepository.php';
 require_once __DIR__ . '/repositories/ActivityRepository.php';
 require_once __DIR__ . '/repositories/ILDNRepository.php';
 require_once __DIR__ . '/repositories/ActivityLogRepository.php';
+require_once __DIR__ . '/repositories/NotificationRepository.php';
 
 // Include global utility functions
 require_once __DIR__ . '/functions/user-functions.php';
@@ -21,3 +22,4 @@ $userRepo = new UserRepository($pdo);
 $activityRepo = new ActivityRepository($pdo);
 $ildnRepo = new ILDNRepository($pdo);
 $logRepo = new ActivityLogRepository($pdo);
+$notifRepo = new NotificationRepository($pdo);

@@ -178,27 +178,49 @@ $user_ildns = $ildnRepo->getILDNsByUser($_SESSION['user_id']);
             <main class="content-wrapper">
                 <div class="profile-container">
 
+
                     <!-- Hero Section -->
                     <div class="profile-hero">
-                        <?php if (!empty($user['profile_picture'])): ?>
-                            <img src="../<?php echo htmlspecialchars($user['profile_picture']); ?>" class="hero-avatar">
-                        <?php else: ?>
-                            <div class="hero-avatar">
-                                <?php echo strtoupper(substr($user['full_name'], 0, 1)); ?>
+                        <div class="hero-main">
+                            <?php if (!empty($user['profile_picture'])): ?>
+                                <img src="../<?php echo htmlspecialchars($user['profile_picture']); ?>" class="hero-avatar">
+                            <?php else: ?>
+                                <div class="hero-avatar">
+                                    <?php echo strtoupper(substr($user['full_name'], 0, 1)); ?>
+                                </div>
+                            <?php endif; ?>
+                            <div class="hero-info">
+                                <h2>
+                                    <?php echo htmlspecialchars($user['full_name']); ?>
+                                </h2>
+                                <p>
+                                    <i class="bi bi-person-badge"></i>
+                                    <?php echo htmlspecialchars($user['position'] ?: 'Educational Professional'); ?>
+                                    <span class="text-muted mx-1"
+                                        style="color: rgba(255,255,255,0.5) !important;">•</span>
+                                    <i class="bi bi-building"></i>
+                                    <?php echo htmlspecialchars($user['office_station']); ?>
+                                </p>
+                            </div>
+                        </div>
+
+                        <?php if (empty($user['rating_period'])): ?>
+                            <div class="rating-period-alert" id="ratingPeriodAlert">
+                                <div class="alert-content">
+                                    <div class="alert-icon-box">
+                                        <i class="bi bi-exclamation-triangle-fill"></i>
+                                    </div>
+                                    <div class="alert-text">
+                                        <strong>Rating Period Missing</strong>
+                                        <p>Please set your current Rating Period.</p>
+                                    </div>
+                                </div>
+                                <button type="button" class="alert-action-btn"
+                                    onclick="document.getElementById('toggleSettings').click(); document.getElementById('accountSettings').scrollIntoView({behavior: 'smooth'});">
+                                    FIX NOW
+                                </button>
                             </div>
                         <?php endif; ?>
-                        <div class="hero-info">
-                            <h2>
-                                <?php echo htmlspecialchars($user['full_name']); ?>
-                            </h2>
-                            <p>
-                                <i class="bi bi-person-badge"></i>
-                                <?php echo htmlspecialchars($user['position'] ?: 'Educational Professional'); ?>
-                                <span class="text-muted mx-1">•</span>
-                                <i class="bi bi-building"></i>
-                                <?php echo htmlspecialchars($user['office_station']); ?>
-                            </p>
-                        </div>
                     </div>
 
                     <!-- Account Information (Hidden by default) -->
@@ -281,6 +303,11 @@ $user_ildns = $ildnRepo->getILDNsByUser($_SESSION['user_id']);
                                         </div>
                                         <div>
                                             <div class="form-group">
+                                                <label class="form-label">Employee Number</label>
+                                                <input type="text" name="employee_number" class="form-control"
+                                                    value="<?php echo htmlspecialchars($user['employee_number'] ?: ''); ?>">
+                                            </div>
+                                            <div class="form-group">
                                                 <label class="form-label">Rating Period</label>
                                                 <input type="text" name="rating_period" class="form-control"
                                                     value="<?php echo htmlspecialchars($user['rating_period'] ?: ''); ?>">
@@ -344,15 +371,15 @@ $user_ildns = $ildnRepo->getILDNsByUser($_SESSION['user_id']);
                             <div class="dashboard-card">
                                 <div class="card-body" style="padding: 25px;">
                                     <form method="POST" class="form-group ildn-form">
-                                        <div class="ildn-input-group">
+                                        <div class="ildn-main-row">
                                             <input type="text" name="need_text" class="form-control ildn-input"
                                                 placeholder="Enter a learning need..." required>
-                                            <textarea name="description" class="form-control ildn-textarea"
-                                                placeholder="What is this all about? (Optional)"></textarea>
+                                            <button type="submit" name="add_ildn" class="btn btn-primary ildn-add-btn">
+                                                <i class="bi bi-plus-lg"></i> Add
+                                            </button>
                                         </div>
-                                        <button type="submit" name="add_ildn" class="btn btn-primary ildn-add-btn">
-                                            <i class="bi bi-plus-lg"></i> Add
-                                        </button>
+                                        <textarea name="description" class="form-control ildn-textarea"
+                                            placeholder="What is this all about? (Optional)"></textarea>
                                     </form>
 
                                     <?php if (empty($user_ildns)): ?>
@@ -362,33 +389,27 @@ $user_ildns = $ildnRepo->getILDNsByUser($_SESSION['user_id']);
                                             You haven't set any individual learning and development needs yet.
                                         </div>
                                     <?php else: ?>
-                                        <div class="ildn-list-scroll">
-                                            <div style="display: grid; grid-template-columns: 1fr; gap: 12px;">
+                                        <div class="ildn-list-scroll" style="max-height: 250px;">
+                                            <div class="ildn-list-container">
                                                 <?php foreach ($user_ildns as $ildn):
                                                     $is_addressed = $ildn['usage_count'] > 0;
                                                     ?>
-                                                    <div class="ildn-item-card <?php echo $is_addressed ? 'addressed' : ''; ?>"
+                                                    <div class="ildn-item-chip <?php echo $is_addressed ? 'addressed' : 'pending'; ?>"
                                                         onclick="showILDNDescription(<?php echo $ildn['id']; ?>, '<?php echo addslashes(htmlspecialchars($ildn['need_text'])); ?>', '<?php echo addslashes(htmlspecialchars($ildn['description'] ?: 'No description provided.')); ?>')">
-                                                        <div class="ildn-item-info">
-                                                            <div class="ildn-item-title <?php echo $is_addressed ? 'text-success' : 'text-primary'; ?>">
-                                                                <?php echo htmlspecialchars($ildn['need_text']); ?>
-                                                            </div>
-                                                            <div style="display: flex; align-items: center; gap: 6px;">
-                                                                <?php if ($is_addressed): ?>
-                                                                    <span class="ildn-status-badge">
-                                                                        <i class="bi bi-check-circle-fill"></i> Addressed
-                                                                        <?php echo $ildn['usage_count']; ?>x
-                                                                    </span>
-                                                                <?php else: ?>
-                                                                    <span class="ildn-pending-text">
-                                                                        <i class="bi bi-clock"></i> Not yet addressed
-                                                                    </span>
-                                                                <?php endif; ?>
-                                                            </div>
-                                                        </div>
-                                                        <button type="button" class="btn btn-sm ildn-delete-btn">
-                                                            <i class="bi bi-trash"></i>
-                                                        </button>
+                                                        <i
+                                                            class="bi <?php echo $is_addressed ? 'bi-check-circle-fill' : 'bi-clock-fill'; ?>"></i>
+                                                        <span class="ildn-chip-title">
+                                                            <?php echo htmlspecialchars($ildn['need_text']); ?>
+                                                        </span>
+                                                        <?php if ($is_addressed): ?>
+                                                            <span class="ildn-chip-count">
+                                                                <?php echo $ildn['usage_count']; ?>x
+                                                            </span>
+                                                        <?php endif; ?>
+                                                        <span class="ildn-chip-delete"
+                                                            onclick="event.stopPropagation(); confirmDeleteILDN(<?php echo $ildn['id']; ?>)">
+                                                            &times;
+                                                        </span>
                                                     </div>
                                                 <?php endforeach; ?>
                                             </div>
@@ -425,8 +446,10 @@ $user_ildns = $ildnRepo->getILDNsByUser($_SESSION['user_id']);
                                     </div>
                                 </div>
                                 <div class="stat-card">
-                                    <div class="stat-icon <?php echo $unaddressed_ildns_count > 0 ? 'bg-danger-light text-danger' : 'bg-success-light text-success'; ?>">
-                                        <i class="bi <?php echo $unaddressed_ildns_count > 0 ? 'bi-exclamation-octagon-fill' : 'bi-check-all'; ?>"></i>
+                                    <div
+                                        class="stat-icon <?php echo $unaddressed_ildns_count > 0 ? 'bg-danger-light text-danger' : 'bg-success-light text-success'; ?>">
+                                        <i
+                                            class="bi <?php echo $unaddressed_ildns_count > 0 ? 'bi-exclamation-octagon-fill' : 'bi-check-all'; ?>"></i>
                                     </div>
                                     <div>
                                         <span class="stat-value">
@@ -450,8 +473,25 @@ $user_ildns = $ildnRepo->getILDNsByUser($_SESSION['user_id']);
                     </div>
 
                     <!-- Certificate Hub Section -->
-                    <div class="section-header">
+                    <div class="section-header"
+                        style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
                         <h2 class="section-title"><i class="bi bi-trophy"></i> Activity Certificates</h2>
+
+                        <div class="cert-filter-bar">
+                            <div class="cert-search-wrapper">
+                                <i class="bi bi-search"></i>
+                                <input type="text" id="certSearchInput" placeholder="Search certificates..."
+                                    class="cert-filter-input">
+                            </div>
+                            <div class="cert-select-wrapper">
+                                <select id="certStatusSelect" class="cert-filter-select">
+                                    <option value="all">All Status</option>
+                                    <option value="ready">Certificate Ready</option>
+                                    <option value="upload">Needs Upload</option>
+                                </select>
+                                <i class="bi bi-chevron-down"></i>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="submissions-list-scroll">
@@ -596,7 +636,8 @@ $user_ildns = $ildnRepo->getILDNsByUser($_SESSION['user_id']);
                     </div>
                     <div class="form-group text-start">
                         <label class="form-label">Description</label>
-                        <textarea name="description" id="edit_description" class="form-control ildn-edit-textarea"></textarea>
+                        <textarea name="description" id="edit_description"
+                            class="form-control ildn-edit-textarea"></textarea>
                     </div>
                     <div class="modal-actions mt-4">
                         <button type="button" class="modal-btn modal-btn-cancel"
@@ -608,7 +649,7 @@ $user_ildns = $ildnRepo->getILDNsByUser($_SESSION['user_id']);
         </div>
     </div>
 
-    <script src="../js/profile-actions.js"></script>
+    <script src="../js/profile-actions.js?v=<?php echo time(); ?>"></script>
     <script>
         function showILDNDescription(id, title, description) {
             document.getElementById('desc_modal_title').innerText = title;
@@ -641,11 +682,11 @@ $user_ildns = $ildnRepo->getILDNsByUser($_SESSION['user_id']);
         window.onclick = function (event) {
             const deleteModal = document.getElementById('deleteModalOverlay');
             const descModal = document.getElementById('descriptionModalOverlay');
-            if (event.target == deleteModal) closeDeleteModal();
+        if (event.target == deleteModal) closeDeleteModal();
             if (event.target == descModal) closeDescriptionModal();
         }
         <?php if ($message): ?>
-            showToast("<?php echo ($messageType === 'success') ? 'Success' : 'Notice'; ?>", "<?php echo $message; ?>", "<?php echo $messageType; ?>");
+                showToast("<?php echo ($messageType === 'success') ? 'Success' : 'Notice'; ?>", "<?php echo $message; ?>", "<?php echo $messageType; ?>");
         <?php endif; ?>
     </script>
 </body>

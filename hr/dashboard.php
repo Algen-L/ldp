@@ -141,7 +141,18 @@ $unaddressed_needs = array_filter($all_ildns, function ($item) {
                                 <div class="profile-info-item">
                                     <div class="profile-info-icon"
                                         style="background: var(--warning-bg); color: var(--warning);"><i
-                                            class="bi bi-calendar-event"></i></div>
+                                            class="bi bi-person-badge"></i></div>
+                                    <div class="profile-info-content">
+                                        <span class="profile-info-label">Employee Number</span>
+                                        <span class="profile-info-value">
+                                            <?php echo htmlspecialchars($user['employee_number'] ?: 'Not Set'); ?>
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="profile-info-item">
+                                    <div class="profile-info-icon" style="background: #e0f2fe; color: #0ea5e9;">
+                                        <i class="bi bi-calendar-event"></i>
+                                    </div>
                                     <div class="profile-info-content">
                                         <span class="profile-info-label">Rating Period</span>
                                         <span class="profile-info-value">
@@ -150,7 +161,8 @@ $unaddressed_needs = array_filter($all_ildns, function ($item) {
                                     </div>
                                 </div>
                                 <div class="profile-info-item">
-                                    <div class="profile-info-icon" style="background: var(--success-bg); color: var(--success);">
+                                    <div class="profile-info-icon"
+                                        style="background: var(--success-bg); color: var(--success);">
                                         <i class="bi bi-award"></i>
                                     </div>
                                     <div class="profile-info-content">
@@ -166,15 +178,18 @@ $unaddressed_needs = array_filter($all_ildns, function ($item) {
                                     </div>
                                     <div class="profile-info-content">
                                         <span class="profile-info-label">Unaddressed Needs</span>
-                                        <div class="profile-info-value" style="font-size: 0.8rem; line-height: 1.4; margin-top: 4px;">
+                                        <div class="profile-info-value"
+                                            style="font-size: 0.8rem; line-height: 1.4; margin-top: 4px;">
                                             <?php if (!empty($unaddressed_needs)): ?>
-                                                <ul style="margin: 0; padding-left: 14px; color: #ef4444; font-weight: 700;">
+                                                <ul
+                                                    style="margin: 0; padding-left: 14px; color: #ef4444; font-weight: 700;">
                                                     <?php foreach ($unaddressed_needs as $need): ?>
                                                         <li><?php echo htmlspecialchars($need['need_text']); ?></li>
                                                     <?php endforeach; ?>
                                                 </ul>
                                             <?php else: ?>
-                                                <span style="color: var(--success); font-weight: 800;">✓ All needs currently addressed</span>
+                                                <span style="color: var(--success); font-weight: 800;">✓ All needs currently
+                                                    addressed</span>
                                             <?php endif; ?>
                                         </div>
                                     </div>

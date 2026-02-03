@@ -15,7 +15,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $full_name = trim($_POST['full_name']);
     $office_station = trim($_POST['office_station'] ?? '');
     $position = trim($_POST['position'] ?? '');
-    $rating_period = trim($_POST['rating_period'] ?? '');
+    $employee_number = trim($_POST['employee_number'] ?? '');
     $area_of_specialization = trim($_POST['area_of_specialization'] ?? '');
     $age = isset($_POST['age']) ? (int) $_POST['age'] : 0;
     $sex = trim($_POST['sex'] ?? '');
@@ -49,9 +49,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             }
 
             // Insert user
-            $sql = "INSERT INTO users (username, password, full_name, office_station, position, rating_period, area_of_specialization, age, sex, profile_picture) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            $sql = "INSERT INTO users (username, password, full_name, office_station, position, employee_number, area_of_specialization, age, sex, profile_picture) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
             $stmt = $pdo->prepare($sql);
-            if ($stmt->execute([$username, $hashed_password, $full_name, $office_station, $position, $rating_period, $area_of_specialization, $age, $sex, $dbPath])) {
+            if ($stmt->execute([$username, $hashed_password, $full_name, $office_station, $position, $employee_number, $area_of_specialization, $age, $sex, $dbPath])) {
                 $message = "Registration successful! You can now login.";
                 $messageType = "success";
             } else {
