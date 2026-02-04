@@ -64,38 +64,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['update_profile'])) {
 // Fetch current user data
 $user = $userRepo->getUserById($_SESSION['user_id']);
 
-// Handle Certificate Upload
-if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['upload_certificate'])) {
-    $activity_id = (int) $_POST['activity_id'];
-
-    if (isset($_FILES['certificate']) && $_FILES['certificate']['error'] === UPLOAD_ERR_OK) {
-        $uploadDir = '../uploads/certificates/';
-        if (!is_dir($uploadDir))
-            mkdir($uploadDir, 0777, true);
-
-        $fileExtension = strtolower(pathinfo($_FILES['certificate']['name'], PATHINFO_EXTENSION));
-        $allowedExtensions = ['pdf', 'jpg', 'jpeg', 'png'];
-
-        if (in_array($fileExtension, $allowedExtensions)) {
-            $fileName = uniqid() . '_cert_' . $activity_id . '.' . $fileExtension;
-            $targetPath = $uploadDir . $fileName;
-
-            if (move_uploaded_file($_FILES['certificate']['tmp_name'], $targetPath)) {
-                $dbPath = 'uploads/certificates/' . $fileName;
-                if ($activityRepo->updateActivity($activity_id, $_SESSION['user_id'], ['certificate_path' => $dbPath])) {
-                    $logRepo->logAction($_SESSION['user_id'], 'Updated Certificate', "Activity ID: $activity_id");
-
-                    $message = "Certificate uploaded successfully!";
-                    $messageType = "success";
-                }
-            }
-        } else {
-            $message = "Invalid file type. Only PDF, JPG, and PNG are allowed.";
-            $messageType = "error";
-        }
-    }
-}
-
 // Fetch activities for certificate hub
 $activities = $activityRepo->getActivitiesByUser($_SESSION['user_id']);
 
@@ -126,11 +94,25 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $message = "Development need updated successfully!";
             $messageType = "success";
         }
+    } elseif (isset($_POST['delete_notification'])) {
+        $notif_id = (int) $_POST['notification_id'];
+        if ($notifRepo->deleteNotification($notif_id, $_SESSION['user_id'])) {
+            $message = "Notification removed.";
+            $messageType = "success";
+        }
+    } elseif (isset($_POST['delete_all_notifications'])) {
+        if ($notifRepo->deleteAllNotifications($_SESSION['user_id'])) {
+            $message = "All notifications cleared.";
+            $messageType = "success";
+        }
     }
 }
 
 // Fetch user's ILDNs with usage count
 $user_ildns = $ildnRepo->getILDNsByUser($_SESSION['user_id']);
+
+// Fetch all notifications for the log
+$all_notifications = $notifRepo->getAllUserNotifications($_SESSION['user_id']);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -204,23 +186,32 @@ $user_ildns = $ildnRepo->getILDNsByUser($_SESSION['user_id']);
                             </div>
                         </div>
 
-                        <?php if (empty($user['rating_period'])): ?>
-                            <div class="rating-period-alert" id="ratingPeriodAlert">
-                                <div class="alert-content">
-                                    <div class="alert-icon-box">
-                                        <i class="bi bi-exclamation-triangle-fill"></i>
+                        <div style="display: flex; gap: 12px; align-items: center;">
+                            <button class="messages-log-btn" onclick="openMessagesModal()" title="View Message Log">
+                                <img src="../assets/email.png" alt="Inbox" class="msg-icon-img">
+                                <?php if ($notifRepo->getUnreadCount($_SESSION['user_id']) > 0): ?>
+                                    <span class="msg-badge-dot"></span>
+                                <?php endif; ?>
+                            </button>
+
+                            <?php if (empty($user['rating_period'])): ?>
+                                <div class="rating-period-alert" id="ratingPeriodAlert">
+                                    <div class="alert-content">
+                                        <div class="alert-icon-box">
+                                            <i class="bi bi-exclamation-triangle-fill"></i>
+                                        </div>
+                                        <div class="alert-text">
+                                            <strong>Rating Period Missing</strong>
+                                            <p>Please set your current Rating Period.</p>
+                                        </div>
                                     </div>
-                                    <div class="alert-text">
-                                        <strong>Rating Period Missing</strong>
-                                        <p>Please set your current Rating Period.</p>
-                                    </div>
+                                    <button type="button" class="alert-action-btn"
+                                        onclick="document.getElementById('toggleSettings').click(); document.getElementById('accountSettings').scrollIntoView({behavior: 'smooth'});">
+                                        FIX NOW
+                                    </button>
                                 </div>
-                                <button type="button" class="alert-action-btn"
-                                    onclick="document.getElementById('toggleSettings').click(); document.getElementById('accountSettings').scrollIntoView({behavior: 'smooth'});">
-                                    FIX NOW
-                                </button>
-                            </div>
-                        <?php endif; ?>
+                            <?php endif; ?>
+                        </div>
                     </div>
 
                     <!-- Account Information (Hidden by default) -->
@@ -540,31 +531,16 @@ $user_ildns = $ildnRepo->getILDNsByUser($_SESSION['user_id']);
                                                     <a href="../<?php echo $act['certificate_path']; ?>" target="_blank"
                                                         class="btn btn-primary btn-sm"
                                                         style="padding: 4px 10px; font-size: 0.7rem; font-weight: 700;">View</a>
-                                                    <button
-                                                        onclick="document.getElementById('file-input-<?php echo $act['id']; ?>').click()"
-                                                        class="btn btn-outline-primary btn-sm"
-                                                        style="padding: 4px 10px; font-size: 0.7rem; font-weight: 700;">Change</button>
                                                 </div>
                                             </div>
                                         <?php else: ?>
-                                            <div class="cert-upload-zone"
-                                                onclick="document.getElementById('file-input-<?php echo $act['id']; ?>').click()">
-                                                <i class="bi bi-cloud-arrow-up-fill" style="color: #F57C00;"></i>
-                                                <div
-                                                    style="font-size: 0.75rem; font-weight: 800; color: var(--primary); text-transform: uppercase;">
-                                                    Upload Certificate
+                                            <div class="cert-upload-zone" style="cursor: default; background: #f8fafc; border: 1px dashed #cbd5e1;">
+                                                <i class="bi bi-hourglass-split" style="color: #94a3b8;"></i>
+                                                <div style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase;">
+                                                    Pending
                                                 </div>
                                             </div>
                                         <?php endif; ?>
-
-                                        <!-- Hidden Upload Form -->
-                                        <form method="POST" enctype="multipart/form-data"
-                                            id="upload-form-<?php echo $act['id']; ?>" style="display: none;">
-                                            <input type="hidden" name="upload_certificate" value="1">
-                                            <input type="hidden" name="activity_id" value="<?php echo $act['id']; ?>">
-                                            <input type="file" name="certificate" id="file-input-<?php echo $act['id']; ?>"
-                                                onchange="this.form.submit()" accept=".pdf,.jpg,.jpeg,.png">
-                                        </form>
                                     </div>
                                 <?php endforeach; ?>
                             <?php endif; ?>
@@ -580,6 +556,102 @@ $user_ildns = $ildnRepo->getILDNsByUser($_SESSION['user_id']);
                         D. Loveres and Cedrick V. Bacaresas</span>
                 </p>
             </footer>
+        </div>
+    </div>
+
+    <!-- Messages Log Modal -->
+    <div id="messagesModalOverlay" class="custom-modal-overlay">
+        <div class="custom-modal messages-modal">
+            <div class="modal-header-row">
+                <h3 class="modal-title"><i class="bi bi-inbox-fill text-primary"></i> Message History</h3>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <?php if (!empty($all_notifications)): ?>
+                        <button type="button" class="btn btn-outline-danger btn-sm" onclick="confirmDeleteAllMessages()"
+                            style="font-size: 0.75rem; font-weight: 700; border-radius: 8px;">
+                            Clear All
+                        </button>
+                    <?php endif; ?>
+                    <button type="button" class="close-modal-btn" onclick="closeMessagesModal()">&times;</button>
+                </div>
+            </div>
+
+            <div class="messages-list-container">
+                <?php if (empty($all_notifications)): ?>
+                    <div class="empty-messages">
+                        <i class="bi bi-inbox" style="font-size: 2.5rem; color: #cbd5e1;"></i>
+                        <p>No messages yet.</p>
+                    </div>
+                <?php else: ?>
+                    <?php foreach ($all_notifications as $msg): ?>
+                        <div class="message-card-item <?php echo $msg['is_read'] ? 'read' : 'unread'; ?>">
+                            <div class="msg-card-header">
+                                <div class="msg-sender">
+                                    <?php if (!empty($msg['sender_picture'])): ?>
+                                        <img src="../<?php echo htmlspecialchars($msg['sender_picture']); ?>"
+                                            class="msg-sender-pic">
+                                    <?php else: ?>
+                                        <div class="msg-sender-initial">
+                                            <?php echo strtoupper(substr($msg['sender_name'], 0, 1)); ?>
+                                        </div>
+                                    <?php endif; ?>
+                                    <div class="msg-meta">
+                                        <span class="msg-name"><?php echo htmlspecialchars($msg['sender_name']); ?></span>
+                                        <span
+                                            class="msg-time"><?php echo date('M d, h:i A', strtotime($msg['created_at'])); ?></span>
+                                    </div>
+                                </div>
+                                <button type="button" class="msg-delete-btn" title="Delete Message"
+                                    onclick="confirmDeleteMessage(<?php echo $msg['id']; ?>)">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                            <div class="msg-content">
+                                <?php echo nl2br(htmlspecialchars($msg['message'])); ?>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+
+    <!-- Message Delete Confirmation Modal -->
+    <div id="deleteMessageModalOverlay" class="custom-modal-overlay" style="z-index: 10000;">
+        <div class="custom-modal">
+            <div class="modal-icon-container">
+                <i class="bi bi-trash3-fill"></i>
+            </div>
+            <h3 class="modal-title">Delete Message?</h3>
+            <p class="modal-text">Are you sure you want to delete this message?</p>
+            <div class="modal-actions">
+                <button type="button" class="modal-btn modal-btn-cancel"
+                    onclick="closeDeleteMessageModal()">Cancel</button>
+                <form method="POST" style="flex: 1; margin: 0;">
+                    <input type="hidden" name="notification_id" id="delete_msg_id">
+                    <input type="hidden" name="delete_notification" value="1">
+                    <button type="submit" class="modal-btn modal-btn-delete">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete ALL Messages Confirmation Modal -->
+    <div id="deleteAllMessagesModalOverlay" class="custom-modal-overlay" style="z-index: 10000;">
+        <div class="custom-modal">
+            <div class="modal-icon-container">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+            </div>
+            <h3 class="modal-title">Clear All Messages?</h3>
+            <p class="modal-text">This will permanently delete ALL your message history. This action cannot be undone.
+            </p>
+            <div class="modal-actions">
+                <button type="button" class="modal-btn modal-btn-cancel"
+                    onclick="closeDeleteAllMessagesModal()">Cancel</button>
+                <form method="POST" style="flex: 1; margin: 0;">
+                    <input type="hidden" name="delete_all_notifications" value="1">
+                    <button type="submit" class="modal-btn modal-btn-delete">Clear All</button>
+                </form>
+            </div>
         </div>
     </div>
 
@@ -650,6 +722,7 @@ $user_ildns = $ildnRepo->getILDNsByUser($_SESSION['user_id']);
     </div>
 
     <script src="../js/profile-actions.js?v=<?php echo time(); ?>"></script>
+    <script src="../js/profile-messages.js?v=<?php echo time(); ?>"></script>
     <script>
         function showILDNDescription(id, title, description) {
             document.getElementById('desc_modal_title').innerText = title;
@@ -682,11 +755,11 @@ $user_ildns = $ildnRepo->getILDNsByUser($_SESSION['user_id']);
         window.onclick = function (event) {
             const deleteModal = document.getElementById('deleteModalOverlay');
             const descModal = document.getElementById('descriptionModalOverlay');
-        if (event.target == deleteModal) closeDeleteModal();
+            if (event.target == deleteModal) closeDeleteModal();
             if (event.target == descModal) closeDescriptionModal();
         }
         <?php if ($message): ?>
-                showToast("<?php echo ($messageType === 'success') ? 'Success' : 'Notice'; ?>", "<?php echo $message; ?>", "<?php echo $messageType; ?>");
+            showToast("<?php echo ($messageType === 'success') ? 'Success' : 'Notice'; ?>", "<?php echo $message; ?>", "<?php echo $messageType; ?>");
         <?php endif; ?>
     </script>
 </body>

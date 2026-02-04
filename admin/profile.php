@@ -70,19 +70,34 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && (isset($_POST['update_profile_admin'
 
 // Handle sending notification
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['send_notification'])) {
-    $recipient_id = (int) $_POST['recipient_id'];
+    $recipient_id = $_POST['recipient_id'];
     $notif_message = trim($_POST['notif_message']);
 
-    if ($recipient_id > 0 && !empty($notif_message)) {
-        if ($notifRepo->sendNotification($user_id, $recipient_id, $notif_message)) {
-            $_SESSION['toast'] = [
-                'title' => 'Message Sent',
-                'message' => 'Your notification has been successfully delivered.',
-                'type' => 'success'
-            ];
-            $logRepo->logAction($user_id, 'Sent Notification', "Recipient ID: $recipient_id");
-        } else {
-            $_SESSION['toast'] = ['title' => 'Error', 'message' => 'Failed to send notification.', 'type' => 'error'];
+    if (!empty($recipient_id) && !empty($notif_message)) {
+        if ($recipient_id === 'all') {
+            // Broadcast to all users
+            if ($notifRepo->sendBroadcastNotification($user_id, $notif_message)) {
+                $_SESSION['toast'] = [
+                    'title' => 'Broadcast Sent',
+                    'message' => 'Your notification has been sent to all users.',
+                    'type' => 'success'
+                ];
+                $logRepo->logAction($user_id, 'Sent Broadcast Notification', "Message: " . substr($notif_message, 0, 50) . "...");
+            } else {
+                $_SESSION['toast'] = ['title' => 'Error', 'message' => 'Failed to send broadcast.', 'type' => 'error'];
+            }
+        } elseif ((int) $recipient_id > 0) {
+            // Send to single user
+            if ($notifRepo->sendNotification($user_id, (int) $recipient_id, $notif_message)) {
+                $_SESSION['toast'] = [
+                    'title' => 'Message Sent',
+                    'message' => 'Your notification has been successfully delivered.',
+                    'type' => 'success'
+                ];
+                $logRepo->logAction($user_id, 'Sent Notification', "Recipient ID: $recipient_id");
+            } else {
+                $_SESSION['toast'] = ['title' => 'Error', 'message' => 'Failed to send notification.', 'type' => 'error'];
+            }
         }
     } else {
         $_SESSION['toast'] = ['title' => 'Incomplete', 'message' => 'Please select a recipient and enter a message.', 'type' => 'warning'];
@@ -782,6 +797,8 @@ $user = $userRepo->getUserById($user_id);
                                             <select name="recipient_id" id="recipient_select_super" class="form-control"
                                                 required style="padding-left: 42px;">
                                                 <option value="">Search for a user...</option>
+                                                <option value="all" style="font-weight: bold; color: var(--primary);">All
+                                                    Users (Broadcast)</option>
                                                 <?php foreach ($all_users as $u): ?>
                                                     <?php if ($u['id'] != $user_id): ?>
                                                         <option value="<?php echo $u['id']; ?>">
@@ -994,6 +1011,8 @@ $user = $userRepo->getUserById($user_id);
                                             <select name="recipient_id" id="recipient_select_admin" class="form-control"
                                                 required style="padding-left: 42px;">
                                                 <option value="">Search for a user...</option>
+                                                <option value="all" style="font-weight: bold; color: var(--primary);">All
+                                                    Users (Broadcast)</option>
                                                 <?php foreach ($all_users as $u): ?>
                                                     <?php if ($u['id'] != $user_id): ?>
                                                         <option value="<?php echo $u['id']; ?>">
@@ -1046,18 +1065,18 @@ $user = $userRepo->getUserById($user_id);
                 if (document.getElementById('recipient_select_super')) {
                     new TomSelect('#recipient_select_super', {
                         create: false,
-                        sortField: { field: "text", direction: "asc" },
+                        sortField: [], // Disable sorting to keep "All Users" at top
                         placeholder: "Search for a user...",
-                        maxOptions: 50
+                        maxOptions: 100
                     });
                 }
             <?php else: ?>
                 if (document.getElementById('recipient_select_admin')) {
                     new TomSelect('#recipient_select_admin', {
                         create: false,
-                        sortField: { field: "text", direction: "asc" },
+                        sortField: [], // Disable sorting to keep "All Users" at top
                         placeholder: "Search for a user...",
-                        maxOptions: 50
+                        maxOptions: 100
                     });
                 }
             <?php endif; ?>
